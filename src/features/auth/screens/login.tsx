@@ -9,7 +9,9 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { AuthStackParamList } from '@/navigation/types';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginFormData } from '@/features/auth/validations/auth';
@@ -20,7 +22,7 @@ import { BaseCard } from '@/components/ui/BaseCard';
 import { theme } from '@/theme';
 
 export default function LoginScreen() {
-  const router = useRouter();
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
   const loginMutation = useLogin();
 
   const {
@@ -42,12 +44,6 @@ export default function LoginScreen() {
       setError('root', { message });
     }
   }, [loginMutation.isError, loginMutation.error, setError]);
-
-  React.useEffect(() => {
-    if (loginMutation.isSuccess) {
-      router.replace('/');
-    }
-  }, [loginMutation.isSuccess, router]);
 
   const onSubmit = (data: LoginFormData) => {
     loginMutation.mutate(data);
@@ -100,7 +96,7 @@ export default function LoginScreen() {
               />
 
               <TouchableOpacity
-                onPress={() => router.push('/forgot-password')}
+                onPress={() => navigation.navigate('ForgotPassword')}
                 style={styles.forgotLink}
               >
                 <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
@@ -117,7 +113,7 @@ export default function LoginScreen() {
             </View>
           </BaseCard>
 
-          <TouchableOpacity onPress={() => router.push('/register')} style={styles.footerLink}>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.footerLink}>
             <Text style={styles.footerText}>
               ¿No tienes cuenta? <Text style={styles.footerTextBold}>Regístrate</Text>
             </Text>
