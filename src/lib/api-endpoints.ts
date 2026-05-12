@@ -11,6 +11,7 @@ export const API_ENDPOINTS = {
   },
   onboarding: {
     profile: '/onboarding/profile',
+    status: '/onboarding/status',
   },
   profile: {
     get: '/profile',
@@ -19,6 +20,20 @@ export const API_ENDPOINTS = {
   routines: {
     list: '/routines',
     detail: (id: string) => `/routines/${id}`,
+    create: '/routines',
+    addExercise: (routineId: string, dayOfWeek: string) =>
+      `/routines/${routineId}/days/${dayOfWeek}/exercises`,
+    removeExercise: (routineId: string, dayOfWeek: string, exerciseId: string) =>
+      `/routines/${routineId}/days/${dayOfWeek}/exercises/${exerciseId}`,
+    configureExercise: (routineId: string, dayOfWeek: string, exerciseId: string) =>
+      `/routines/${routineId}/days/${dayOfWeek}/exercises/${exerciseId}`,
+    activate: (id: string) => `/routines/${id}/activate`,
+    deactivate: (id: string) => `/routines/${id}/deactivate`,
+    delete: (id: string) => `/routines/${id}`,
+    sync: (id: string) => `/routines/${id}/sync`,
+  },
+  exercises: {
+    catalog: '/exercises/catalog',
   },
   workoutSessions: {
     inProgress: '/workout-sessions/in-progress',

@@ -13,13 +13,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Search } from 'lucide-react-native';
 import { useRoutineDetail } from '@/features/training/hooks/use-routines';
-import {
-  useAddExercise,
-  useRemoveExercise,
-  useConfigureExercise,
-} from '@/features/training/hooks/use-create-routine';
+import { useSyncRoutine } from '@/features/training/hooks/use-sync-routine';
 import { useRoutineDraftStore } from '@/features/training/stores/routine-draft-store';
 import type { TrainingStackParamList } from '@/navigation/types';
 import { BaseCard } from '@/components/ui/BaseCard';
@@ -30,6 +26,7 @@ import {
   DAY_OF_WEEK_LABELS,
   DAY_OF_WEEK_ORDER,
   type DayOfWeek,
+  type Routine,
 } from '@/features/training/types/routine';
 
 export default function RoutineBuilderScreen() {
@@ -38,15 +35,14 @@ export default function RoutineBuilderScreen() {
   const { id } = route.params;
 
   const { data: routine, isLoading } = useRoutineDetail(id);
-  const addExerciseMutation = useAddExercise();
-  const removeExerciseMutation = useRemoveExercise();
-  const configureMutation = useConfigureExercise();
+  const syncRoutineMutation = useSyncRoutine();
 
   const draftStore = useRoutineDraftStore();
 
   const [selectedDay, setSelectedDay] = React.useState<DayOfWeek | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [newExerciseName, setNewExerciseName] = React.useState('');
+  const [selectedDaysForNewExercise, setSelectedDaysForNewExercise] = React.useState<DayOfWeek[]>([]);
   const [editingExercise, setEditingExercise] = React.useState<string | null>(null);
   const [editValues, setEditValues] = React.useState({ sets: '', repsPerSet: '', weight: '' });
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<string | null>(null);
@@ -60,11 +56,21 @@ export default function RoutineBuilderScreen() {
     setSelectedDay(null);
     setShowAddModal(false);
     setNewExerciseName('');
+    setSelectedDaysForNewExercise([]);
     setEditingExercise(null);
     setShowDeleteConfirm(null);
     setMutationError(null);
     draftStore.clearDraft();
   }, [id]);
+
+  // Initialize selected days for new exercise when modal opens
+  React.useEffect(() => {
+    if (showAddModal && selectedDay) {
+      setSelectedDaysForNewExercise([selectedDay]);
+    } else if (!showAddModal) {
+      setSelectedDaysForNewExercise([]);
+    }
+  }, [showAddModal, selectedDay]);
 
   // Initialize draft store from routine data
   React.useEffect(() => {
@@ -86,46 +92,71 @@ export default function RoutineBuilderScreen() {
 
   const currentExercises = selectedDay ? draftStore.draftExercises[selectedDay] ?? [] : [];
 
+  const buildSyncPayload = () => {
+    const days = sortedDays.map((day) => ({
+      dayOfWeek: day,
+      exercises: (draftStore.draftExercises[day] ?? []).map((ex) => {
+        const hasConfig = ex.sets > 0 && ex.repsPerSet > 0;
+        return {
+          id: ex.id,
+          name: ex.name,
+          order: ex.order,
+          ...(hasConfig
+            ? {
+                sets: ex.sets,
+                repsPerSet: ex.repsPerSet,
+                weight: ex.weight,
+              }
+            : {}),
+        };
+      }),
+    }));
+    return { routineId: id, days };
+  };
+
   const handleAddExercise = () => {
-    if (!selectedDay || !newExerciseName.trim()) {
-      setMutationError(!selectedDay ? 'Selecciona un día primero' : 'Ingresa un nombre para el ejercicio');
+    if (selectedDaysForNewExercise.length === 0) {
+      setMutationError('Selecciona al menos un día para el ejercicio');
+      return;
+    }
+    if (!newExerciseName.trim()) {
+      setMutationError('Ingresa un nombre para el ejercicio');
       return;
     }
     const name = newExerciseName.trim();
-    const order = currentExercises.length;
     setMutationError(null);
-    addExerciseMutation.mutate(
-      { routineId: id, dayOfWeek: selectedDay, name, order },
-      {
-        onSuccess: (data) => {
-          draftStore.addDraftExercise(selectedDay, { ...data, order });
-          setNewExerciseName('');
-          setShowAddModal(false);
-          setMutationError(null);
-        },
-        onError: (error) => {
-          setMutationError(error.message || 'Error al agregar ejercicio');
-        },
-      },
-    );
+
+    selectedDaysForNewExercise.forEach((day) => {
+      const order = draftStore.draftExercises[day]?.length ?? 0;
+      draftStore.addDraftExercise(day, {
+        id: crypto.randomUUID(),
+        name,
+        order,
+        sets: 0,
+        repsPerSet: 0,
+        weight: 0,
+      });
+    });
+
+    setNewExerciseName('');
+    setShowAddModal(false);
+    setMutationError(null);
+  };
+
+  const toggleDayForNewExercise = (day: DayOfWeek) => {
+    setSelectedDaysForNewExercise((prev) => {
+      if (prev.includes(day)) {
+        return prev.filter((d) => d !== day);
+      }
+      return [...prev, day];
+    });
   };
 
   const handleRemoveExercise = (exerciseId: string) => {
     if (!selectedDay) return;
     setMutationError(null);
-    removeExerciseMutation.mutate(
-      { routineId: id, dayOfWeek: selectedDay, exerciseId },
-      {
-        onSuccess: () => {
-          draftStore.removeDraftExercise(selectedDay, exerciseId);
-          setShowDeleteConfirm(null);
-          setMutationError(null);
-        },
-        onError: (error) => {
-          setMutationError(error.message || 'Error al eliminar ejercicio');
-        },
-      },
-    );
+    draftStore.removeDraftExercise(selectedDay, exerciseId);
+    setShowDeleteConfirm(null);
   };
 
   const startEditing = (exerciseId: string, sets: number, repsPerSet: number, weight: number) => {
@@ -144,19 +175,20 @@ export default function RoutineBuilderScreen() {
     const weight = parseFloat(editValues.weight) || 0;
 
     setMutationError(null);
-    configureMutation.mutate(
-      { routineId: id, dayOfWeek: selectedDay, exerciseId, sets, repsPerSet, weight },
-      {
-        onSuccess: () => {
-          draftStore.updateDraftExercise(selectedDay, exerciseId, { sets, repsPerSet, weight });
-          setEditingExercise(null);
-          setMutationError(null);
-        },
-        onError: (error) => {
-          setMutationError(error.message || 'Error al guardar configuración');
-        },
+    draftStore.updateDraftExercise(selectedDay, exerciseId, { sets, repsPerSet, weight });
+    setEditingExercise(null);
+  };
+
+  const handleSaveChanges = () => {
+    setMutationError(null);
+    syncRoutineMutation.mutate(buildSyncPayload(), {
+      onSuccess: () => {
+        navigation.goBack();
       },
-    );
+      onError: (error) => {
+        setMutationError(error.message || 'Error al guardar cambios');
+      },
+    });
   };
 
   return (
@@ -281,7 +313,6 @@ export default function RoutineBuilderScreen() {
                         <PrimaryButton
                           label="Guardar"
                           onPress={() => saveExerciseConfig(exercise.id)}
-                          loading={configureMutation.isPending}
                         />
                       </View>
                     </View>
@@ -349,7 +380,8 @@ export default function RoutineBuilderScreen() {
 
             <PrimaryButton
               label="Guardar Cambios"
-              onPress={() => navigation.goBack()}
+              onPress={handleSaveChanges}
+              loading={syncRoutineMutation.isPending}
             />
           </ScrollView>
         </>
@@ -368,14 +400,72 @@ export default function RoutineBuilderScreen() {
         >
           <BaseCard style={styles.modalCard}>
             <Text style={styles.modalTitle}>Nuevo Ejercicio</Text>
+            <Text style={styles.modalLabel}>Días</Text>
+            <View style={styles.daysChipsRow}>
+              {sortedDays.map((day) => {
+                const isSelected = selectedDaysForNewExercise.includes(day);
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    onPress={() => toggleDayForNewExercise(day)}
+                    style={[
+                      styles.dayChip,
+                      isSelected && styles.dayChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayChipText,
+                        isSelected && styles.dayChipTextSelected,
+                      ]}
+                    >
+                      {DAY_OF_WEEK_LABELS[day]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {selectedDaysForNewExercise.length === 0 && (
+              <Text style={styles.modalHintText}>Selecciona al menos un día</Text>
+            )}
             <Text style={styles.modalLabel}>Nombre</Text>
+            <TouchableOpacity
+              style={styles.catalogButton}
+              onPress={() => {
+                setShowAddModal(false);
+                navigation.navigate('ExerciseCatalog', {
+                  onSelect: (name: string) => {
+                    setNewExerciseName(name);
+                    selectedDaysForNewExercise.forEach((day) => {
+                      const order = draftStore.draftExercises[day]?.length ?? 0;
+                      draftStore.addDraftExercise(day, {
+                        id: crypto.randomUUID(),
+                        name,
+                        order,
+                        sets: 0,
+                        repsPerSet: 0,
+                        weight: 0,
+                      });
+                    });
+                    setShowAddModal(false);
+                  },
+                });
+              }}
+            >
+              <Search size={18} color={theme.colors.primary} />
+              <Text style={styles.catalogButtonText}>Buscar en catálogo</Text>
+            </TouchableOpacity>
+            <View style={styles.orDivider}>
+              <View style={styles.orLine} />
+              <Text style={styles.orText}>o escribe manualmente</Text>
+              <View style={styles.orLine} />
+            </View>
             <RNTextInput
               style={styles.modalInput}
               value={newExerciseName}
               onChangeText={setNewExerciseName}
               placeholder="Ej. Press de banca"
               placeholderTextColor={theme.colors.textMuted}
-              autoFocus
             />
             {mutationError && showAddModal && (
               <Text style={styles.modalErrorText}>{mutationError}</Text>
@@ -385,8 +475,7 @@ export default function RoutineBuilderScreen() {
               <PrimaryButton
                 label="Agregar"
                 onPress={handleAddExercise}
-                loading={addExerciseMutation.isPending}
-                disabled={!newExerciseName.trim() || addExerciseMutation.isPending}
+                disabled={selectedDaysForNewExercise.length === 0 || !newExerciseName.trim()}
               />
             </View>
           </BaseCard>
@@ -409,7 +498,6 @@ export default function RoutineBuilderScreen() {
               <PrimaryButton
                 label="Eliminar"
                 onPress={() => showDeleteConfirm && handleRemoveExercise(showDeleteConfirm)}
-                loading={removeExerciseMutation.isPending}
               />
             </View>
           </BaseCard>
@@ -628,6 +716,38 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
+  daysChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  dayChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.background,
+    borderColor: theme.colors.border,
+    borderWidth: 1.5,
+  },
+  dayChipSelected: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  dayChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '500',
+  },
+  dayChipTextSelected: {
+    color: theme.colors.background,
+    fontWeight: '700',
+  },
+  modalHintText: {
+    color: theme.colors.error,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
   modalInput: {
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.border,
@@ -669,5 +789,38 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
     textAlign: 'center',
+  },
+  catalogButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: `${theme.colors.primary}22`,
+    borderColor: theme.colors.primary,
+    borderWidth: 1.5,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  catalogButtonText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '600',
+  },
+  orDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+  orText: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
 });
