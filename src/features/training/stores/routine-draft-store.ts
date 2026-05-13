@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import type { DayOfWeek, ExerciseConfig } from '../types/routine';
+import type { DayOfWeek, ExerciseConfig, ExerciseSet } from '../types/routine';
 
 interface RoutineDraftState {
   draftExercises: Record<DayOfWeek, ExerciseConfig[]>;
+  generatedSets: Record<string, ExerciseSet[]>;
 }
 
 interface RoutineDraftActions {
@@ -20,16 +21,23 @@ interface RoutineDraftActions {
     exerciseId: string,
     direction: 'up' | 'down',
   ) => void;
+  setGeneratedSets: (exerciseId: string, sets: ExerciseSet[]) => void;
+  clearGeneratedSets: (exerciseId: string) => void;
 }
 
 const initialState: RoutineDraftState = {
   draftExercises: {} as Record<DayOfWeek, ExerciseConfig[]>,
+  generatedSets: {},
 };
 
 export const useRoutineDraftStore = create<RoutineDraftState & RoutineDraftActions>()(
   (set) => ({
     ...initialState,
-    clearDraft: () => set({ draftExercises: {} as Record<DayOfWeek, ExerciseConfig[]> }),
+    clearDraft: () =>
+      set({
+        draftExercises: {} as Record<DayOfWeek, ExerciseConfig[]>,
+        generatedSets: {},
+      }),
     setDraftExercises: (day, exercises) =>
       set((state) => ({
         draftExercises: { ...state.draftExercises, [day]: exercises },
@@ -42,12 +50,17 @@ export const useRoutineDraftStore = create<RoutineDraftState & RoutineDraftActio
         },
       })),
     removeDraftExercise: (day, exerciseId) =>
-      set((state) => ({
-        draftExercises: {
-          ...state.draftExercises,
-          [day]: (state.draftExercises[day] ?? []).filter((ex) => ex.id !== exerciseId),
-        },
-      })),
+      set((state) => {
+        const nextGeneratedSets = { ...state.generatedSets };
+        delete nextGeneratedSets[exerciseId];
+        return {
+          draftExercises: {
+            ...state.draftExercises,
+            [day]: (state.draftExercises[day] ?? []).filter((ex) => ex.id !== exerciseId),
+          },
+          generatedSets: nextGeneratedSets,
+        };
+      }),
     updateDraftExercise: (day, exerciseId, updates) =>
       set((state) => ({
         draftExercises: {
@@ -71,6 +84,16 @@ export const useRoutineDraftStore = create<RoutineDraftState & RoutineDraftActio
             [day]: exercises,
           },
         };
+      }),
+    setGeneratedSets: (exerciseId, sets) =>
+      set((state) => ({
+        generatedSets: { ...state.generatedSets, [exerciseId]: sets },
+      })),
+    clearGeneratedSets: (exerciseId) =>
+      set((state) => {
+        const nextGeneratedSets = { ...state.generatedSets };
+        delete nextGeneratedSets[exerciseId];
+        return { generatedSets: nextGeneratedSets };
       }),
   }),
 );

@@ -54,6 +54,7 @@ export interface Routine {
   name: string;
   description?: string;
   isActive?: boolean;
+  trainingStrategyKey?: string | null;
   dayOfWeeks: DayOfWeek[];
   days: RoutineDay[];
   createdAt?: string;

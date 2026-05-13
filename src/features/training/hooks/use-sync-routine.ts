@@ -1,15 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
-import type { DayOfWeek } from '../types/routine';
+import type { DayOfWeek, ExerciseSet } from '../types/routine';
 
 interface SyncExercisePayload {
   id: string;
   name: string;
   order: number;
-  sets?: number;
-  repsPerSet?: number;
-  weight?: number;
+  sets?: ExerciseSet[];
 }
 
 interface SyncDayPayload {
