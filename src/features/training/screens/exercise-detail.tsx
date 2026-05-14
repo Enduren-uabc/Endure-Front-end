@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -22,6 +23,7 @@ import type {
 import type { TrainingStackParamList } from "@/navigation/types";
 import { useRoutineDetail, useRoutines } from "@/features/training/hooks/use-routines";
 import { useSyncRoutine } from "@/features/training/hooks/use-sync-routine";
+import { exerciseSetsSchema } from "@/features/training/validations/routine";
 
 type Props = NativeStackScreenProps<TrainingStackParamList, "ExerciseDetail">;
 
@@ -87,6 +89,29 @@ export default function ExerciseDetailScreen({ navigation, route }: Props) {
 
   const handleSave = () => {
     if (!routine) return;
+
+    // Validate using Zod schema
+    const validationResult = exerciseSetsSchema.safeParse(localSets);
+    if (!validationResult.success) {
+      // Find a specific error message if possible
+      const firstIssue = validationResult.error.issues[0];
+      const field = firstIssue.path[firstIssue.path.length - 1]; // e.g., 'reps', 'weight'
+      const setIndex = typeof firstIssue.path[0] === 'number' ? firstIssue.path[0] + 1 : null;
+      
+      let errorMessage = "Revisa los datos ingresados.";
+      if (field === "reps") {
+        errorMessage = setIndex 
+          ? `Las repeticiones en el Set ${setIndex} deben ser entre 1 y 50.` 
+          : "Las repeticiones deben ser entre 1 y 50.";
+      } else if (firstIssue.code === "too_small" && firstIssue.path.length === 0) {
+        errorMessage = "Debes tener al menos 1 set configurado.";
+      } else if (firstIssue.code === "too_big" && firstIssue.path.length === 0) {
+        errorMessage = "No puedes tener más de 10 sets.";
+      }
+
+      Alert.alert("Error de validación", errorMessage);
+      return;
+    }
 
     // Build full sync payload updating only this specific exercise
     const updatedDays = routine.days.map((day) => ({
@@ -283,7 +308,7 @@ export default function ExerciseDetailScreen({ navigation, route }: Props) {
             </BaseCard>
           )}
 
-          {isEditing && (
+          {isEditing && localSets.length < 10 && (
             <TouchableOpacity style={styles.addSetButton} onPress={handleAddSet}>
               <Plus size={20} color={theme.colors.primary} />
               <Text style={styles.addSetText}>Agregar set</Text>

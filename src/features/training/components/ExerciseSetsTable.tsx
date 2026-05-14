@@ -4,6 +4,7 @@ import { TextInput } from '@/components/ui/TextInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { theme } from '@/theme';
 import type { ExerciseSet } from '../types/routine';
+import { exerciseSetSchema } from '../validations/routine';
 
 export interface ExerciseSetsTableProps {
   sets: ExerciseSet[];
@@ -61,8 +62,24 @@ export function ExerciseSetsTable({
     onChange(updated);
   };
 
-  const isRepsInvalid = (reps: number) => reps < 1;
-  const isWeightInvalid = (weight: number) => weight < 0;
+  const getRepsError = (reps: number) => {
+    const result = exerciseSetSchema.shape.reps.safeParse(reps);
+    if (!result.success) {
+      const issue = result.error.issues[0];
+      if (issue.code === "too_small") return "Mín. 1 rep";
+      if (issue.code === "too_big") return "Máx. 50 reps";
+      return "Inválido";
+    }
+    return undefined;
+  };
+
+  const getWeightError = (weight: number) => {
+    const result = exerciseSetSchema.shape.weight.safeParse(weight);
+    if (!result.success) {
+      return "Inválido";
+    }
+    return undefined;
+  };
 
   return (
     <View style={styles.container}>
@@ -81,7 +98,7 @@ export function ExerciseSetsTable({
                 value={String(set.reps)}
                 onChangeText={(text) => handleRepsChange(index, text)}
                 keyboardType="numeric"
-                error={isRepsInvalid(set.reps) ? 'Valor inválido' : undefined}
+                error={getRepsError(set.reps)}
               />
             </View>
             <View style={styles.inputWrapper}>
@@ -90,7 +107,7 @@ export function ExerciseSetsTable({
                 value={String(set.weight)}
                 onChangeText={(text) => handleWeightChange(index, text)}
                 keyboardType="numeric"
-                error={isWeightInvalid(set.weight) ? 'Valor inválido' : undefined}
+                error={getWeightError(set.weight)}
               />
             </View>
             {!readOnly && sets.length > 1 && (
