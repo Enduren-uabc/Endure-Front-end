@@ -31,9 +31,14 @@ export const API_ENDPOINTS = {
     deactivate: (id: string) => `/routines/${id}/deactivate`,
     delete: (id: string) => `/routines/${id}`,
     sync: (id: string) => `/routines/${id}/sync`,
+    trainingStrategy: (id: string) => `/routines/${id}/training-strategy`,
+    generateSets: (id: string) => `/routines/${id}/generate-sets`,
   },
   exercises: {
     catalog: '/exercises/catalog',
+  },
+  trainingStrategies: {
+    list: '/training-strategies',
   },
   workoutSessions: {
     inProgress: '/workout-sessions/in-progress',

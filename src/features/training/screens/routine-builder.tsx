@@ -16,7 +16,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Search } from 'lucide-react-native';
 import { useRoutineDetail } from '@/features/training/hooks/use-routines';
 import { useSyncRoutine } from '@/features/training/hooks/use-sync-routine';
+import { useTrainingStrategies } from '@/features/training/hooks/use-training-strategies';
+import { useSetRoutineStrategy } from '@/features/training/hooks/use-set-routine-strategy';
+import { useGenerateExerciseSets } from '@/features/training/hooks/use-generate-exercise-sets';
 import { useRoutineDraftStore } from '@/features/training/stores/routine-draft-store';
+import { TrainingStrategySelector } from '@/features/training/components/TrainingStrategySelector';
+import { ExerciseSetsTable } from '@/features/training/components/ExerciseSetsTable';
 import type { TrainingStackParamList } from '@/navigation/types';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -26,7 +31,8 @@ import {
   DAY_OF_WEEK_LABELS,
   DAY_OF_WEEK_ORDER,
   type DayOfWeek,
-  type Routine,
+  type ExerciseConfig,
+  type ExerciseSet,
 } from '@/features/training/types/routine';
 
 export default function RoutineBuilderScreen() {
@@ -35,7 +41,10 @@ export default function RoutineBuilderScreen() {
   const { id } = route.params;
 
   const { data: routine, isLoading } = useRoutineDetail(id);
+  const { data: strategies } = useTrainingStrategies();
   const syncRoutineMutation = useSyncRoutine();
+  const setStrategyMutation = useSetRoutineStrategy();
+  const generateSetsMutation = useGenerateExerciseSets();
 
   const draftStore = useRoutineDraftStore();
 
@@ -45,6 +54,7 @@ export default function RoutineBuilderScreen() {
   const [selectedDaysForNewExercise, setSelectedDaysForNewExercise] = React.useState<DayOfWeek[]>([]);
   const [editingExercise, setEditingExercise] = React.useState<string | null>(null);
   const [editValues, setEditValues] = React.useState({ sets: '', repsPerSet: '', weight: '' });
+  const [autoGenValues, setAutoGenValues] = React.useState({ sets: '4', weight: '0', reps: '10' });
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<string | null>(null);
   const [mutationError, setMutationError] = React.useState<string | null>(null);
 
@@ -78,7 +88,28 @@ export default function RoutineBuilderScreen() {
       hasInitializedRef.current = true;
       draftStore.clearDraft();
       (routine.days ?? []).forEach((day) => {
-        draftStore.setDraftExercises(day.dayOfWeek, day.exercises ?? []);
+        const exercises = (day.exercises ?? []).map((ex) => {
+          const backendSets = (ex as unknown as { sets?: Array<{ setNumber: number; reps: number; weight: number }> }).sets;
+          const isArray = Array.isArray(backendSets);
+          const detailedSets: ExerciseSet[] | undefined = isArray
+            ? backendSets.map((s) => ({ setNumber: s.setNumber, reps: s.reps, weight: s.weight }))
+            : undefined;
+          const setCount = isArray ? backendSets.length : (ex.sets as number) || 0;
+          const firstSet = detailedSets?.[0];
+          return {
+            ...ex,
+            sets: setCount,
+            repsPerSet: firstSet?.reps ?? ex.repsPerSet ?? 0,
+            weight: firstSet?.weight ?? ex.weight ?? 0,
+            detailedSets,
+          };
+        });
+        draftStore.setDraftExercises(day.dayOfWeek, exercises);
+        exercises.forEach((ex) => {
+          if (ex.detailedSets && ex.detailedSets.length > 0) {
+            draftStore.setGeneratedSets(ex.id, ex.detailedSets);
+          }
+        });
       });
       if ((routine.dayOfWeeks ?? []).length > 0) {
         setSelectedDay(routine.dayOfWeeks[0]);
@@ -91,24 +122,29 @@ export default function RoutineBuilderScreen() {
   );
 
   const currentExercises = selectedDay ? draftStore.draftExercises[selectedDay] ?? [] : [];
+  const hasStrategy = !!routine?.trainingStrategyKey;
 
   const buildSyncPayload = () => {
     const days = sortedDays.map((day) => ({
       dayOfWeek: day,
       exercises: (draftStore.draftExercises[day] ?? []).map((ex) => {
+        const detailedSets = draftStore.generatedSets[ex.id];
         const hasConfig = ex.sets > 0 && ex.repsPerSet > 0;
-        return {
+        const payload: { id: string; name: string; order: number; sets?: Array<{ setNumber: number; reps: number; weight: number }> } = {
           id: ex.id,
           name: ex.name,
           order: ex.order,
-          ...(hasConfig
-            ? {
-                sets: ex.sets,
-                repsPerSet: ex.repsPerSet,
-                weight: ex.weight,
-              }
-            : {}),
         };
+        if (detailedSets && detailedSets.length > 0) {
+          payload.sets = detailedSets;
+        } else if (hasConfig) {
+          payload.sets = Array.from({ length: ex.sets }, (_, i) => ({
+            setNumber: i + 1,
+            reps: ex.repsPerSet,
+            weight: ex.weight,
+          }));
+        }
+        return payload;
       }),
     }));
     return { routineId: id, days };
@@ -159,24 +195,74 @@ export default function RoutineBuilderScreen() {
     setShowDeleteConfirm(null);
   };
 
-  const startEditing = (exerciseId: string, sets: number, repsPerSet: number, weight: number) => {
-    setEditingExercise(exerciseId);
+  const startEditing = (exercise: ExerciseConfig) => {
+    setEditingExercise(exercise.id);
+    const existingGenerated = draftStore.generatedSets[exercise.id];
+    const existingDetailed = exercise.detailedSets;
+
+    if (!existingGenerated && existingDetailed && existingDetailed.length > 0) {
+      draftStore.setGeneratedSets(exercise.id, existingDetailed);
+    } else if (!existingGenerated) {
+      draftStore.setGeneratedSets(exercise.id, []);
+    }
+
     setEditValues({
-      sets: String(sets),
-      repsPerSet: String(repsPerSet),
-      weight: String(weight),
+      sets: String(exercise.sets || 4),
+      repsPerSet: String(exercise.repsPerSet || 10),
+      weight: String(exercise.weight || 0),
+    });
+    setAutoGenValues({
+      sets: String(exercise.sets || 4),
+      weight: String(exercise.weight || 0),
+      reps: String(exercise.repsPerSet || 10),
     });
   };
 
   const saveExerciseConfig = (exerciseId: string) => {
     if (!selectedDay) return;
-    const sets = parseInt(editValues.sets, 10) || 1;
-    const repsPerSet = parseInt(editValues.repsPerSet, 10) || 1;
-    const weight = parseFloat(editValues.weight) || 0;
+    const detailedSets = draftStore.generatedSets[exerciseId] ?? [];
+    const sets = detailedSets.length || parseInt(editValues.sets, 10) || 1;
+    const repsPerSet = detailedSets.length > 0
+      ? detailedSets[0].reps
+      : (parseInt(editValues.repsPerSet, 10) || 1);
+    const weight = detailedSets.length > 0
+      ? detailedSets[0].weight
+      : (parseFloat(editValues.weight) || 0);
 
     setMutationError(null);
-    draftStore.updateDraftExercise(selectedDay, exerciseId, { sets, repsPerSet, weight });
+    draftStore.updateDraftExercise(selectedDay, exerciseId, {
+      sets,
+      repsPerSet,
+      weight,
+      detailedSets: detailedSets.length > 0 ? detailedSets : undefined,
+    });
     setEditingExercise(null);
+  };
+
+  const handleGenerateSets = (exerciseId: string) => {
+    if (!routine?.trainingStrategyKey) return;
+    const numberOfSets = parseInt(autoGenValues.sets, 10) || 4;
+    const initialWeight = parseFloat(autoGenValues.weight) || 0;
+    const initialReps = parseInt(autoGenValues.reps, 10) || 10;
+
+    setMutationError(null);
+    generateSetsMutation.mutate(
+      {
+        routineId: id,
+        strategyKey: routine.trainingStrategyKey,
+        numberOfSets,
+        initialWeight,
+        initialReps,
+      },
+      {
+        onSuccess: (sets) => {
+          draftStore.setGeneratedSets(exerciseId, sets);
+        },
+        onError: (error) => {
+          setMutationError(error.message || 'Error al generar sets');
+        },
+      },
+    );
   };
 
   const handleSaveChanges = () => {
@@ -189,6 +275,18 @@ export default function RoutineBuilderScreen() {
         setMutationError(error.message || 'Error al guardar cambios');
       },
     });
+  };
+
+  const handleStrategyChange = (key: string | null) => {
+    setMutationError(null);
+    setStrategyMutation.mutate(
+      { routineId: id, strategyKey: key },
+      {
+        onError: (error) => {
+          setMutationError(error.message || 'Error al guardar estrategia');
+        },
+      },
+    );
   };
 
   return (
@@ -242,6 +340,13 @@ export default function RoutineBuilderScreen() {
           </ScrollView>
 
           <ScrollView contentContainerStyle={styles.scrollContent}>
+            <TrainingStrategySelector
+              strategies={strategies ?? []}
+              selectedKey={routine.trainingStrategyKey}
+              onSelect={handleStrategyChange}
+              disabled={setStrategyMutation.isPending}
+            />
+
             <View style={styles.exercisesHeader}>
               <Text style={styles.sectionTitle}>
                 Ejercicios · {DAY_OF_WEEK_LABELS[selectedDay ?? 'monday']}
@@ -270,41 +375,102 @@ export default function RoutineBuilderScreen() {
                   {editingExercise === exercise.id ? (
                     <View style={styles.editForm}>
                       <Text style={styles.exerciseName}>{exercise.name}</Text>
-                      <View style={styles.editRow}>
-                        <View style={styles.editField}>
-                          <Text style={styles.editLabel}>Sets</Text>
-                          <RNTextInput
-                            style={styles.editInput}
-                            value={editValues.sets}
-                            onChangeText={(t) => setEditValues((v) => ({ ...v, sets: t }))}
-                            keyboardType="numeric"
-                            placeholder="4"
-                            placeholderTextColor={theme.colors.textMuted}
+
+                      {hasStrategy && (
+                        <View style={styles.autoGenSection}>
+                          <Text style={styles.editLabel}>Configuración rápida</Text>
+                          <View style={styles.editRow}>
+                            <View style={styles.editField}>
+                              <Text style={styles.editLabel}>Sets</Text>
+                              <RNTextInput
+                                style={styles.editInput}
+                                value={autoGenValues.sets}
+                                onChangeText={(t) => setAutoGenValues((v) => ({ ...v, sets: t }))}
+                                keyboardType="numeric"
+                                placeholder="4"
+                                placeholderTextColor={theme.colors.textMuted}
+                              />
+                            </View>
+                            <View style={styles.editField}>
+                              <Text style={styles.editLabel}>Peso inicial (kg)</Text>
+                              <RNTextInput
+                                style={styles.editInput}
+                                value={autoGenValues.weight}
+                                onChangeText={(t) => setAutoGenValues((v) => ({ ...v, weight: t }))}
+                                keyboardType="numeric"
+                                placeholder="0"
+                                placeholderTextColor={theme.colors.textMuted}
+                              />
+                            </View>
+                            <View style={styles.editField}>
+                              <Text style={styles.editLabel}>Reps iniciales</Text>
+                              <RNTextInput
+                                style={styles.editInput}
+                                value={autoGenValues.reps}
+                                onChangeText={(t) => setAutoGenValues((v) => ({ ...v, reps: t }))}
+                                keyboardType="numeric"
+                                placeholder="10"
+                                placeholderTextColor={theme.colors.textMuted}
+                              />
+                            </View>
+                          </View>
+                          <PrimaryButton
+                            label="Generar sets"
+                            onPress={() => handleGenerateSets(exercise.id)}
+                            loading={generateSetsMutation.isPending}
+                            disabled={generateSetsMutation.isPending}
                           />
                         </View>
-                        <View style={styles.editField}>
-                          <Text style={styles.editLabel}>Reps</Text>
-                          <RNTextInput
-                            style={styles.editInput}
-                            value={editValues.repsPerSet}
-                            onChangeText={(t) => setEditValues((v) => ({ ...v, repsPerSet: t }))}
-                            keyboardType="numeric"
-                            placeholder="8"
-                            placeholderTextColor={theme.colors.textMuted}
+                      )}
+
+                      {!hasStrategy && (
+                        <View style={styles.editRow}>
+                          <View style={styles.editField}>
+                            <Text style={styles.editLabel}>Sets</Text>
+                            <RNTextInput
+                              style={styles.editInput}
+                              value={editValues.sets}
+                              onChangeText={(t) => setEditValues((v) => ({ ...v, sets: t }))}
+                              keyboardType="numeric"
+                              placeholder="4"
+                              placeholderTextColor={theme.colors.textMuted}
+                            />
+                          </View>
+                          <View style={styles.editField}>
+                            <Text style={styles.editLabel}>Reps</Text>
+                            <RNTextInput
+                              style={styles.editInput}
+                              value={editValues.repsPerSet}
+                              onChangeText={(t) => setEditValues((v) => ({ ...v, repsPerSet: t }))}
+                              keyboardType="numeric"
+                              placeholder="8"
+                              placeholderTextColor={theme.colors.textMuted}
+                            />
+                          </View>
+                          <View style={styles.editField}>
+                            <Text style={styles.editLabel}>Peso (kg)</Text>
+                            <RNTextInput
+                              style={styles.editInput}
+                              value={editValues.weight}
+                              onChangeText={(t) => setEditValues((v) => ({ ...v, weight: t }))}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              placeholderTextColor={theme.colors.textMuted}
+                            />
+                          </View>
+                        </View>
+                      )}
+
+                      {hasStrategy && (
+                        <View style={styles.tableSection}>
+                          <Text style={styles.editLabel}>Sets generados</Text>
+                          <ExerciseSetsTable
+                            sets={draftStore.generatedSets[exercise.id] ?? []}
+                            onChange={(sets) => draftStore.setGeneratedSets(exercise.id, sets)}
                           />
                         </View>
-                        <View style={styles.editField}>
-                          <Text style={styles.editLabel}>Peso (kg)</Text>
-                          <RNTextInput
-                            style={styles.editInput}
-                            value={editValues.weight}
-                            onChangeText={(t) => setEditValues((v) => ({ ...v, weight: t }))}
-                            keyboardType="numeric"
-                            placeholder="0"
-                            placeholderTextColor={theme.colors.textMuted}
-                          />
-                        </View>
-                      </View>
+                      )}
+
                       <View style={styles.editActions}>
                         <SecondaryButton
                           label="Cancelar"
@@ -358,9 +524,7 @@ export default function RoutineBuilderScreen() {
                           </TouchableOpacity>
                         </View>
                         <TouchableOpacity
-                          onPress={() =>
-                            startEditing(exercise.id, exercise.sets, exercise.repsPerSet, exercise.weight)
-                          }
+                          onPress={() => startEditing(exercise)}
                           style={styles.iconBtn}
                         >
                           <Text style={styles.editText}>Editar</Text>
@@ -648,6 +812,12 @@ const styles = StyleSheet.create({
   },
   editForm: {
     gap: theme.spacing.md,
+  },
+  autoGenSection: {
+    gap: theme.spacing.md,
+  },
+  tableSection: {
+    gap: theme.spacing.sm,
   },
   editRow: {
     flexDirection: 'row',

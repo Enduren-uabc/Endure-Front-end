@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { TextInput } from '@/components/ui/TextInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { theme } from '@/theme';
-import { ExerciseSet } from '@/features/training/types/routine';
+import type { ExerciseSet } from '@/features/training/types/routine';
 
 export interface ExerciseSetsTableProps {
   sets: ExerciseSet[];
@@ -17,22 +17,18 @@ export function ExerciseSetsTable({
   readOnly = false,
 }: ExerciseSetsTableProps) {
   const handleRepsChange = (index: number, text: string) => {
-    const updated = [...sets];
-    const parsed = parseInt(text, 10);
-    updated[index] = {
-      ...updated[index],
-      reps: isNaN(parsed) ? 0 : parsed,
-    };
+    const parsed = text === '' ? 0 : parseInt(text, 10);
+    const updated = sets.map((set, i) =>
+      i === index ? { ...set, reps: Number.isNaN(parsed) ? 0 : parsed } : set
+    );
     onChange(updated);
   };
 
   const handleWeightChange = (index: number, text: string) => {
-    const updated = [...sets];
-    const parsed = parseFloat(text);
-    updated[index] = {
-      ...updated[index],
-      weight: isNaN(parsed) ? 0 : parsed,
-    };
+    const parsed = text === '' ? 0 : parseFloat(text);
+    const updated = sets.map((set, i) =>
+      i === index ? { ...set, weight: Number.isNaN(parsed) ? 0 : parsed } : set
+    );
     onChange(updated);
   };
 
@@ -43,27 +39,29 @@ export function ExerciseSetsTable({
       reps: 0,
       weight: 0,
     };
-    const updated = [...sets, newSet];
-    // Re-number sets sequentially
-    const renumbered = updated.map((s, i) => ({ ...s, setNumber: i + 1 }));
-    onChange(renumbered);
+    const updated = [...sets, newSet].map((set, i) => ({ ...set, setNumber: i + 1 }));
+    onChange(updated);
   };
 
   const handleRemoveSet = (index: number) => {
     if (sets.length <= 1) return;
-    const updated = sets.filter((_, i) => i !== index);
-    const renumbered = updated.map((s, i) => ({ ...s, setNumber: i + 1 }));
-    onChange(renumbered);
+    const updated = sets
+      .filter((_, i) => i !== index)
+      .map((set, i) => ({ ...set, setNumber: i + 1 }));
+    onChange(updated);
   };
+
+  const isRepsInvalid = (reps: number) => reps < 1;
+  const isWeightInvalid = (weight: number) => weight < 0;
 
   return (
     <View style={styles.container}>
       {sets.map((set, index) => {
-        const repsError = set.reps < 1 ? 'Valor inválido' : undefined;
-        const weightError = set.weight < 0 ? 'Valor inválido' : undefined;
+        const repsError = isRepsInvalid(set.reps) ? 'Valor inválido' : undefined;
+        const weightError = isWeightInvalid(set.weight) ? 'Valor inválido' : undefined;
 
         return (
-          <View key={set.setNumber} style={styles.row}>
+          <View key={`${set.setNumber}-${index}`} style={styles.row}>
             <Text style={styles.setLabel}>Set {set.setNumber}</Text>
             <View style={styles.inputsRow}>
               {readOnly ? (
@@ -99,28 +97,26 @@ export function ExerciseSetsTable({
                   </View>
                 </>
               )}
+              {!readOnly && sets.length > 1 && (
+                <TouchableOpacity
+                  onPress={() => handleRemoveSet(index)}
+                  style={styles.removeButton}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.removeText}>Eliminar</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {!readOnly && sets.length > 1 && (
-              <TouchableOpacity
-                onPress={() => handleRemoveSet(index)}
-                style={styles.removeButton}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.removeButtonText}>Eliminar</Text>
-              </TouchableOpacity>
-            )}
           </View>
         );
       })}
 
       {!readOnly && (
-        <View style={styles.addButtonWrapper}>
-          <PrimaryButton
-            label="+ Agregar set"
-            onPress={handleAddSet}
-            disabled={sets.length >= 10}
-          />
-        </View>
+        <PrimaryButton
+          label="+ Agregar set"
+          onPress={handleAddSet}
+          disabled={sets.length >= 10}
+        />
       )}
     </View>
   );
@@ -129,39 +125,37 @@ export function ExerciseSetsTable({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+    gap: theme.spacing.md,
   },
   row: {
-    marginBottom: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderSoft,
+    width: '100%',
+    gap: theme.spacing.sm,
   },
   setLabel: {
     color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: theme.typography.small.fontWeight,
-    marginBottom: theme.spacing.sm,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '600',
   },
   inputsRow: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
   },
   inputWrapper: {
     flex: 1,
   },
   removeButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginTop: theme.spacing.lg,
   },
-  removeButtonText: {
+  removeText: {
     color: theme.colors.error,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-  },
-  addButtonWrapper: {
-    marginTop: theme.spacing.md,
   },
   readOnlyValue: {
     flex: 1,
