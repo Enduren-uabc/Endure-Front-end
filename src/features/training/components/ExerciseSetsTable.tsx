@@ -8,10 +8,20 @@ import type { ExerciseSet } from '../types/routine';
 export interface ExerciseSetsTableProps {
   sets: ExerciseSet[];
   onChange: (sets: ExerciseSet[]) => void;
+  onAddSet?: () => void;
+  addSetLabel?: string;
+  maxSets?: number;
   readOnly?: boolean;
 }
 
-export function ExerciseSetsTable({ sets, onChange, readOnly = false }: ExerciseSetsTableProps) {
+export function ExerciseSetsTable({
+  sets,
+  onChange,
+  onAddSet,
+  addSetLabel = 'Agregar set',
+  maxSets = 10,
+  readOnly = false,
+}: ExerciseSetsTableProps) {
   const handleRepsChange = (index: number, text: string) => {
     const parsed = text === '' ? 0 : parseInt(text, 10);
     const updated = sets.map((s, i) =>
@@ -29,7 +39,12 @@ export function ExerciseSetsTable({ sets, onChange, readOnly = false }: Exercise
   };
 
   const handleAddSet = () => {
-    if (sets.length >= 10) return;
+    if (sets.length >= maxSets) return;
+    if (onAddSet) {
+      onAddSet();
+      return;
+    }
+
     const newSet: ExerciseSet = {
       setNumber: sets.length + 1,
       reps: 0,
@@ -51,6 +66,11 @@ export function ExerciseSetsTable({ sets, onChange, readOnly = false }: Exercise
 
   return (
     <View style={styles.container}>
+      {sets.length === 0 && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>Sin sets configurados</Text>
+        </View>
+      )}
       {sets.map((set, index) => (
         <View key={index} style={styles.row}>
           <Text style={styles.setLabel}>Set {set.setNumber}</Text>
@@ -87,9 +107,9 @@ export function ExerciseSetsTable({ sets, onChange, readOnly = false }: Exercise
       ))}
       {!readOnly && (
         <PrimaryButton
-          label="+ Agregar set"
+          label={addSetLabel}
           onPress={handleAddSet}
-          disabled={sets.length >= 10}
+          disabled={sets.length >= maxSets}
         />
       )}
     </View>
@@ -104,6 +124,18 @@ const styles = StyleSheet.create({
   row: {
     width: '100%',
     gap: theme.spacing.sm,
+  },
+  emptyState: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
   setLabel: {
     color: theme.colors.textSecondary,

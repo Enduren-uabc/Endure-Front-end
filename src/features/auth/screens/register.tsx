@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormData } from '@/features/auth/validations/auth';
@@ -18,9 +18,11 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { theme } from '@/theme';
+import type { AuthStackParamList } from '@/navigation/types';
 
-export default function RegisterScreen() {
-  const router = useRouter();
+type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+
+export default function RegisterScreen({ navigation }: Props) {
   const registerMutation = useRegister();
 
   const {
@@ -48,9 +50,9 @@ export default function RegisterScreen() {
 
   React.useEffect(() => {
     if (registerMutation.isSuccess) {
-      router.replace('/login');
+      navigation.replace('Login');
     }
-  }, [registerMutation.isSuccess, router]);
+  }, [registerMutation.isSuccess, navigation]);
 
   const onSubmit = (data: RegisterFormData) => {
     registerMutation.mutate({
@@ -171,7 +173,7 @@ export default function RegisterScreen() {
             </View>
           </BaseCard>
 
-          <TouchableOpacity onPress={() => router.push('/login')} style={styles.footerLink}>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.footerLink}>
             <Text style={styles.footerText}>
               ¿Ya tienes cuenta? <Text style={styles.footerTextBold}>Inicia sesión</Text>
             </Text>

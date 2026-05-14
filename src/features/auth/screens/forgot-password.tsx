@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { forgotPasswordSchema, ForgotPasswordFormData } from '@/features/auth/validations/auth';
@@ -18,9 +18,11 @@ import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { theme } from '@/theme';
+import type { AuthStackParamList } from '@/navigation/types';
 
-export default function ForgotPasswordScreen() {
-  const router = useRouter();
+type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
+
+export default function ForgotPasswordScreen({ navigation }: Props) {
   const recoveryMutation = usePasswordRecovery();
 
   const {
@@ -70,7 +72,7 @@ export default function ForgotPasswordScreen() {
                 </Text>
                 <SecondaryButton
                   label="Volver al inicio de sesión"
-                  onPress={() => router.push('/login')}
+                  onPress={() => navigation.navigate('Login')}
                 />
               </View>
             </BaseCard>

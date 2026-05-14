@@ -28,19 +28,20 @@ export const DAY_OF_WEEK_ORDER: DayOfWeek[] = [
 ];
 
 export interface ExerciseSet {
+  id?: string;
   setNumber: number;
   reps: number;
   weight: number;
-  restSeconds?: number;
+  restSeconds?: number | null;
 }
 
 export interface ExerciseConfig {
   id: string;
   name: string;
   order: number;
-  sets: number;
-  repsPerSet: number;
-  weight: number;
+  sets: number | ExerciseSet[];
+  repsPerSet?: number;
+  weight?: number;
   detailedSets?: ExerciseSet[];
 }
 

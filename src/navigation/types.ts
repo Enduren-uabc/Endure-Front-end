@@ -1,9 +1,12 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { ExerciseConfig } from '@/features/training/types/routine';
+
 export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
-  ResetPassword: { token: string } | undefined;
+  ResetPassword: { token?: string } | undefined;
 };
 
 export type OnboardingStackParamList = {
@@ -15,19 +18,25 @@ export type OnboardingStackParamList = {
 
 export type AppTabsParamList = {
   Home: undefined;
-  Routines: undefined;
+  Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
 };
 
 export type TrainingStackParamList = {
   RoutinesList: undefined;
   RoutineDetail: { id: string };
-  CreateRoutine: undefined;
   RoutineBuilder: { id: string };
-  ExerciseCatalog: { onSelect: (name: string) => void };
+  ExerciseDetail: { routineId: string; exercise: ExerciseConfig };
+};
+
+export type AppDrawerParamList = {
+  MainTabs: NavigatorScreenParams<AppTabsParamList> | undefined;
+  Settings: undefined;
+  Help: undefined;
 };
 
 export type RootStackParamList = {
-  AuthStack: undefined;
-  OnboardingStack: undefined;
-  AppDrawer: undefined;
+  AuthStack: NavigatorScreenParams<AuthStackParamList> | undefined;
+  OnboardingStack: NavigatorScreenParams<OnboardingStackParamList> | undefined;
+  AppDrawer: NavigatorScreenParams<AppDrawerParamList> | undefined;
+  ExerciseCatalogModal: undefined;
 };
