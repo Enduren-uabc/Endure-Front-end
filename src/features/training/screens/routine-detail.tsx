@@ -12,7 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { 
   NativeStackNavigationProp,
   NativeStackScreenProps 
@@ -25,10 +25,12 @@ import {
   useDeleteRoutine,
 } from "@/features/training/hooks/use-routines";
 import { useSyncRoutine } from "@/features/training/hooks/use-sync-routine";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRoutineDraftStore } from "@/features/training/stores/routine-draft-store";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { generateId } from "@/lib/generate-id";
 import { theme } from "@/theme";
 import {
   DAY_OF_WEEK_LABELS,
@@ -107,11 +109,20 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
     }
   }, [showAddModal, selectedDay]);
 
+  const queryClient = useQueryClient();
+  const catalogProcessingRef = React.useRef(false);
+
   // Watch for exercise name selected from catalog
-  React.useEffect(() => {
-    const pendingName = draftStore.pendingExerciseName;
-    const pendingConfig = draftStore.pendingCatalogConfig;
-    if (pendingName && pendingConfig && routine) {
+  useFocusEffect(
+    React.useCallback(() => {
+      const pendingName = draftStore.pendingExerciseName;
+      const pendingConfig = draftStore.pendingCatalogConfig;
+      if (!pendingName || !pendingConfig || !routine || catalogProcessingRef.current) {
+        return;
+      }
+
+      catalogProcessingRef.current = true;
+
       // Create a copy of current routine days to mutate
       const updatedDays = routine.days.map((day) => ({
         dayOfWeek: day.dayOfWeek,
@@ -137,7 +148,7 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
         }
         const order = dayObj.exercises.length;
         dayObj.exercises.push({
-          id: crypto.randomUUID(),
+          id: generateId(),
           name: pendingName,
           order,
           sets: [],
@@ -150,11 +161,19 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
           onSuccess: () => {
             draftStore.setPendingExerciseName(null);
             draftStore.setPendingCatalogConfig(null);
+            queryClient.invalidateQueries({ queryKey: ["routine", id] });
+            queryClient.invalidateQueries({ queryKey: ["routines"] });
+            catalogProcessingRef.current = false;
+          },
+          onError: () => {
+            catalogProcessingRef.current = false;
+            draftStore.setPendingExerciseName(null);
+            draftStore.setPendingCatalogConfig(null);
           },
         }
       );
-    }
-  }, [draftStore.pendingExerciseName, routine]);
+    }, [id, routine, syncRoutineMutation])
+  );
 
   const handleAddExercise = () => {
     if (selectedDaysForNewExercise.length === 0) {
@@ -193,7 +212,7 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
       }
       const order = dayObj.exercises.length;
       dayObj.exercises.push({
-        id: crypto.randomUUID(),
+        id: generateId(),
         name,
         order,
         sets: [],

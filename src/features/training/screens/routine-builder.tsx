@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type {
   NativeStackNavigationProp,
   NativeStackScreenProps,
@@ -36,6 +36,7 @@ import { ExerciseSetsTable } from "@/features/training/components/ExerciseSetsTa
 import { BaseCard } from "@/components/ui/BaseCard";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { generateId } from "@/lib/generate-id";
 import { theme } from "@/theme";
 import {
   DAY_OF_WEEK_LABELS,
@@ -263,14 +264,18 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
   }, [routine]);
 
   // Watch for exercise name selected from catalog
-  React.useEffect(() => {
-    const pendingName = draftStore.pendingExerciseName;
-    const pendingConfig = draftStore.pendingCatalogConfig;
-    if (pendingName && pendingConfig) {
+  useFocusEffect(
+    React.useCallback(() => {
+      const pendingName = draftStore.pendingExerciseName;
+      const pendingConfig = draftStore.pendingCatalogConfig;
+      if (!pendingName || !pendingConfig) {
+        return;
+      }
+
       pendingConfig.days.forEach((day) => {
         const order = draftStore.draftExercises[day]?.length ?? 0;
         draftStore.addDraftExercise(day, {
-          id: crypto.randomUUID(),
+          id: generateId(),
           name: pendingName,
           order,
           sets: 0,
@@ -280,8 +285,8 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
       });
       draftStore.setPendingExerciseName(null);
       draftStore.setPendingCatalogConfig(null);
-    }
-  }, [draftStore.pendingExerciseName]);
+    }, [draftStore])
+  );
 
   const sortedDays = [...(routine?.dayOfWeeks ?? [])].sort(
     (a, b) => DAY_OF_WEEK_ORDER.indexOf(a) - DAY_OF_WEEK_ORDER.indexOf(b),
@@ -342,7 +347,7 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
     selectedDaysForNewExercise.forEach((day) => {
       const order = draftStore.draftExercises[day]?.length ?? 0;
       draftStore.addDraftExercise(day, {
-        id: crypto.randomUUID(),
+        id: generateId(),
         name,
         order,
         sets: 0,
