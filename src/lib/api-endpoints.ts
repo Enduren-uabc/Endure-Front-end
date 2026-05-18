@@ -53,6 +53,7 @@ export const API_ENDPOINTS = {
       `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}/complete`,
   },
   trainerVerification: {
+    flowConfig: '/trainer-verification/flow-config',
     specialties: '/trainer-verification/specialties',
     myStatus: '/trainer-verification/my-status',
     submit: '/trainer-verification',
