@@ -17,6 +17,7 @@ import { useRegister } from '@/features/auth/hooks/use-auth';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import { theme } from '@/theme';
 
 export default function RegisterScreen() {
@@ -86,6 +87,9 @@ export default function RegisterScreen() {
                     placeholder="ejemplo@correo.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    textContentType="emailAddress"
+                    autoComplete="email"
+                    disabled={registerMutation.isPending}
                     error={errors.email?.message}
                   />
                 )}
@@ -101,6 +105,7 @@ export default function RegisterScreen() {
                     onChangeText={onChange}
                     placeholder="usuario123"
                     autoCapitalize="none"
+                    disabled={registerMutation.isPending}
                     error={errors.username?.message}
                   />
                 )}
@@ -110,12 +115,14 @@ export default function RegisterScreen() {
                 control={control}
                 name="password"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput
+                  <PasswordInput
                     label="Contraseña"
                     value={value}
                     onChangeText={onChange}
                     placeholder="Mínimo 8 caracteres"
-                    secureTextEntry
+                    disabled={registerMutation.isPending}
+                    textContentType="newPassword"
+                    autoComplete="new-password"
                     error={errors.password?.message}
                   />
                 )}
@@ -125,12 +132,14 @@ export default function RegisterScreen() {
                 control={control}
                 name="confirmPassword"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput
+                  <PasswordInput
                     label="Confirmar contraseña"
                     value={value}
                     onChangeText={onChange}
                     placeholder="Repite tu contraseña"
-                    secureTextEntry
+                    disabled={registerMutation.isPending}
+                    textContentType="newPassword"
+                    autoComplete="new-password"
                     error={errors.confirmPassword?.message}
                   />
                 )}

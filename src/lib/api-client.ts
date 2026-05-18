@@ -68,21 +68,30 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly code: string = 'API_ERROR',
   ) {
     super(message);
     this.name = 'ApiError';
   }
 }
 
+function getUserMessage(status: number): string {
+  if (status === 0) return 'Revisa tu conexión a internet e intenta de nuevo.';
+  if (status === 400) return 'Revisa los datos ingresados.';
+  if (status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente.';
+  if (status === 403) return 'No tienes permisos para realizar esta acción.';
+  if (status === 404) return 'No encontramos lo que buscas.';
+  if (status === 409) return 'Ya existe un recurso con esos datos.';
+  if (status === 422) return 'Algunos datos no son válidos. Revísalos e intenta de nuevo.';
+  return 'Tuvimos un problema. Intenta de nuevo en un momento.';
+}
+
 function handleError(error: unknown): never {
   if (axios.isAxiosError(error)) {
-    const message =
-      (error.response?.data as { message?: string })?.message ||
-      error.message ||
-      'Error de red';
-    throw new ApiError(error.response?.status ?? 0, message);
+    const status = error.response?.status ?? 0;
+    throw new ApiError(status, getUserMessage(status));
   }
-  throw new ApiError(0, 'Error desconocido');
+  throw new ApiError(0, getUserMessage(0));
 }
 
 export const apiClient = {

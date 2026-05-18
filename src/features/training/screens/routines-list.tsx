@@ -1,33 +1,41 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Dumbbell, Plus, ChevronRight } from 'lucide-react-native';
-import { useRoutines } from '@/features/training/hooks/use-routines';
-import type { TrainingStackParamList } from '@/navigation/types';
+import { useRouter } from 'expo-router';
+import { Dumbbell, Plus } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { theme } from '@/theme';
-import type { Routine } from '@/features/training/types/routine';
+import { useRoutines, useStartWorkout } from '@/shared/api/services/trainingService';
+import type { RoutineResponseDto } from '@/shared/api/types/training';
 
 export default function RoutinesListScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<TrainingStackParamList>>();
+  const router = useRouter();
   const { data: routines = [], isLoading, isError, refetch, isRefetching } = useRoutines();
+  const startWorkout = useStartWorkout();
+  const [startError, setStartError] = React.useState<string | null>(null);
 
-  const activeRoutine = routines.find((r) => r.isActive);
-  const inactiveRoutines = routines.filter((r) => !r.isActive);
-
-  const handleRoutinePress = (routine: Routine) => {
-    navigation.navigate('RoutineDetail', { id: routine.id });
+  const handleStartWorkout = (routine: RoutineResponseDto) => {
+    setStartError(null);
+    startWorkout.mutate(
+      { routineId: routine.id },
+      {
+        onSuccess: (session) => {
+          router.push(`/training/workout/${session.id}`);
+        },
+        onError: (error) => {
+          setStartError(error.message);
+        },
+      },
+    );
   };
 
   return (
@@ -39,20 +47,21 @@ export default function RoutinesListScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.greeting}>Tus Rutinas</Text>
-          <Text style={styles.subtitle}>Gestiona tus entrenamientos</Text>
+          <Text style={styles.title}>Entrenamiento</Text>
+          <Text style={styles.subtitle}>Elige una rutina y empieza una sesión real.</Text>
         </View>
 
         {isLoading && (
-          <View style={styles.center}>
+          <View style={styles.centerBlock}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={styles.mutedText}>Cargando rutinas...</Text>
           </View>
         )}
 
         {isError && (
           <BaseCard>
-            <View style={styles.center}>
-              <Text style={styles.errorText}>Error al cargar rutinas</Text>
+            <View style={styles.centerBlock}>
+              <Text style={styles.errorText}>No pudimos cargar tus rutinas.</Text>
               <PrimaryButton label="Reintentar" onPress={() => refetch()} />
             </View>
           </BaseCard>
@@ -61,80 +70,83 @@ export default function RoutinesListScreen() {
         {!isLoading && !isError && routines.length === 0 && (
           <BaseCard>
             <View style={styles.emptyState}>
-              <Dumbbell size={48} color={theme.colors.textMuted} />
-              <Text style={styles.emptyTitle}>Aún no tienes rutinas</Text>
+              <Dumbbell size={44} color={theme.colors.textMuted} />
+              <Text style={styles.emptyTitle}>Aun no tienes rutinas</Text>
               <Text style={styles.emptySubtitle}>
-                Crea tu primera rutina para empezar a entrenar de forma estructurada.
+                Crea una rutina con los dias que entrenas para iniciar tu primer workout.
               </Text>
               <PrimaryButton
                 label="Crear rutina"
-                onPress={() => navigation.navigate('CreateRoutine')}
+                onPress={() => router.push('/training/routines/create')}
               />
             </View>
           </BaseCard>
         )}
 
-        {activeRoutine && (
+        {!isLoading && !isError && routines.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Rutina Activa</Text>
-            <TouchableOpacity onPress={() => handleRoutinePress(activeRoutine)}>
-              <BaseCard style={styles.activeCard}>
-                <View style={styles.activeHeader}>
-                  <View style={styles.activeBadge}>
-                    <Text style={styles.activeBadgeText}>ACTIVA</Text>
-                  </View>
-                </View>
-                <Text style={styles.routineName}>{activeRoutine.name}</Text>
-                <Text style={styles.routineMeta}>
-                  {(activeRoutine.dayOfWeeks ?? []).length} días · {countExercises(activeRoutine)} ejercicios
-                </Text>
-              </BaseCard>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {inactiveRoutines.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {activeRoutine ? 'Otras rutinas' : 'Tus rutinas'}
-            </Text>
-            {inactiveRoutines.map((routine) => (
-              <TouchableOpacity
+            {startError ? <Text style={styles.errorText}>{startError}</Text> : null}
+            {routines.map((routine) => (
+              <RoutineCard
                 key={routine.id}
-                onPress={() => handleRoutinePress(routine)}
-                style={styles.routineItem}
-              >
-                <BaseCard style={styles.routineCard}>
-                  <View style={styles.routineRow}>
-                    <View style={styles.routineInfo}>
-                      <Text style={styles.routineName}>{routine.name}</Text>
-                      <Text style={styles.routineMeta}>
-                        {(routine.dayOfWeeks ?? []).length} días · {countExercises(routine)} ejercicios
-                      </Text>
-                    </View>
-                    <ChevronRight size={20} color={theme.colors.textMuted} />
-                  </View>
-                </BaseCard>
-              </TouchableOpacity>
+                routine={routine}
+                isStarting={startWorkout.isPending && startWorkout.variables?.routineId === routine.id}
+                isDisabled={startWorkout.isPending}
+                onStart={() => handleStartWorkout(routine)}
+              />
             ))}
           </View>
         )}
       </ScrollView>
 
-      <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate('CreateRoutine')}
-        >
-          <Plus size={24} color={theme.colors.background} />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push('/training/routines/create')}
+        activeOpacity={0.85}
+      >
+        <Plus size={24} color={theme.colors.background} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
-function countExercises(routine: Routine): number {
-  return (routine.days ?? []).reduce((sum, day) => sum + (day.exercises ?? []).length, 0);
+interface RoutineCardProps {
+  routine: RoutineResponseDto;
+  isStarting: boolean;
+  isDisabled: boolean;
+  onStart: () => void;
+}
+
+function RoutineCard({ routine, isStarting, isDisabled, onStart }: RoutineCardProps) {
+  const exerciseCount = routine.days.reduce((total, day) => total + day.exercises.length, 0);
+  const dayCount = routine.days.length;
+
+  return (
+    <BaseCard style={styles.routineCard}>
+      <View style={styles.routineHeader}>
+        <View style={styles.iconBubble}>
+          <Dumbbell size={20} color={theme.colors.primary} />
+        </View>
+        {routine.isActive ? (
+          <View style={styles.activeBadge}>
+            <Text style={styles.activeBadgeText}>ACTIVA</Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.routineBody}>
+        <Text style={styles.routineName}>{routine.name}</Text>
+        <Text style={styles.routineMeta}>
+          {dayCount} dias programados · {exerciseCount} ejercicios
+        </Text>
+      </View>
+      <PrimaryButton
+        label="Iniciar entrenamiento"
+        onPress={onStart}
+        loading={isStarting}
+        disabled={isDisabled}
+      />
+    </BaseCard>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -151,7 +163,7 @@ const styles = StyleSheet.create({
   header: {
     gap: theme.spacing.xs,
   },
-  greeting: {
+  title: {
     color: theme.colors.textPrimary,
     fontSize: theme.typography.heading1.fontSize,
     lineHeight: theme.typography.heading1.lineHeight,
@@ -162,15 +174,20 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
   },
-  center: {
+  centerBlock: {
     alignItems: 'center',
     gap: theme.spacing.md,
     paddingVertical: theme.spacing.xl,
   },
+  mutedText: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
   errorText: {
     color: theme.colors.error,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
   emptyState: {
     alignItems: 'center',
@@ -193,22 +210,21 @@ const styles = StyleSheet.create({
   section: {
     gap: theme.spacing.md,
   },
-  sectionTitle: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  routineCard: {
+    gap: theme.spacing.md,
   },
-  activeCard: {
-    borderColor: theme.colors.primary,
-    borderWidth: 1,
-    gap: theme.spacing.sm,
-  },
-  activeHeader: {
+  routineHeader: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  iconBubble: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${theme.colors.primary}1F`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activeBadge: {
     backgroundColor: `${theme.colors.primary}33`,
@@ -222,19 +238,7 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.caption.lineHeight,
     fontWeight: '700',
   },
-  routineItem: {
-    marginBottom: theme.spacing.md,
-  },
-  routineCard: {
-    padding: theme.spacing.md,
-  },
-  routineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  routineInfo: {
-    flex: 1,
+  routineBody: {
     gap: theme.spacing.xs,
   },
   routineName: {
@@ -248,12 +252,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
-  fabContainer: {
+  fab: {
     position: 'absolute',
     right: theme.spacing.lg,
     bottom: theme.spacing.lg,
-  },
-  fab: {
     width: 56,
     height: 56,
     borderRadius: 28,

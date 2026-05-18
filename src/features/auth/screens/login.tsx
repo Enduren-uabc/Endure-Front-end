@@ -9,9 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '@/navigation/types';
+import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginFormData } from '@/features/auth/validations/auth';
@@ -19,10 +17,11 @@ import { useLogin } from '@/features/auth/hooks/use-auth';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import { theme } from '@/theme';
 
 export default function LoginScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const router = useRouter();
   const loginMutation = useLogin();
 
   const {
@@ -44,6 +43,12 @@ export default function LoginScreen() {
       setError('root', { message });
     }
   }, [loginMutation.isError, loginMutation.error, setError]);
+
+  React.useEffect(() => {
+    if (loginMutation.isSuccess) {
+      router.replace('/training');
+    }
+  }, [loginMutation.isSuccess, router]);
 
   const onSubmit = (data: LoginFormData) => {
     loginMutation.mutate(data);
@@ -75,6 +80,9 @@ export default function LoginScreen() {
                     placeholder="ejemplo@correo.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    textContentType="emailAddress"
+                    autoComplete="email"
+                    disabled={loginMutation.isPending}
                     error={errors.email?.message}
                   />
                 )}
@@ -84,19 +92,21 @@ export default function LoginScreen() {
                 control={control}
                 name="password"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput
+                  <PasswordInput
                     label="Contraseña"
                     value={value}
                     onChangeText={onChange}
                     placeholder="Tu contraseña"
-                    secureTextEntry
+                    disabled={loginMutation.isPending}
+                    textContentType="password"
+                    autoComplete="current-password"
                     error={errors.password?.message}
                   />
                 )}
               />
 
               <TouchableOpacity
-                onPress={() => navigation.navigate('ForgotPassword')}
+                onPress={() => router.push('/forgot-password')}
                 style={styles.forgotLink}
               >
                 <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
@@ -113,7 +123,7 @@ export default function LoginScreen() {
             </View>
           </BaseCard>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.footerLink}>
+          <TouchableOpacity onPress={() => router.push('/register')} style={styles.footerLink}>
             <Text style={styles.footerText}>
               ¿No tienes cuenta? <Text style={styles.footerTextBold}>Regístrate</Text>
             </Text>

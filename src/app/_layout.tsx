@@ -17,7 +17,9 @@ export default function RootLayout() {
             headerTintColor: theme.colors.textPrimary,
             contentStyle: { backgroundColor: theme.colors.background },
           }}
-        />
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
       </SafeAreaProvider>
     </QueryClientProvider>
   );

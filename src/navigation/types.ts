@@ -16,6 +16,9 @@ export type OnboardingStackParamList = {
 export type AppTabsParamList = {
   Home: undefined;
   Routines: undefined;
+  SocialFeed: undefined;
+  PublicProfile: { userId: string };
+  PostDetail: { postId: string; title?: string; content?: string; authorUserId?: string };
 };
 
 export type TrainingStackParamList = {

@@ -49,5 +49,23 @@ export const API_ENDPOINTS = {
     finish: (id: string) => `/workout-sessions/${id}/finish`,
     registerSet: (id: string, exerciseIndex: number, setNumber: number) =>
       `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}`,
+    completeSet: (id: string, exerciseIndex: number, setNumber: number) =>
+      `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}/complete`,
+  },
+  publications: {
+    feed: '/publications',
+    detail: (id: string) => `/publications/${id}`,
+    reactions: (id: string) => `/publications/${id}/reactions`,
+    comments: (id: string) => `/publications/${id}/comments`,
+    comment: (commentId: string) => `/comments/${commentId}`,
+  },
+  socialProfiles: {
+    search: '/profiles/search',
+    detail: (userId: string) => `/profiles/${userId}`,
+    publications: (userId: string) => `/profiles/${userId}/publications`,
+    followers: (userId: string) => `/profiles/${userId}/followers`,
+    following: (userId: string) => `/profiles/${userId}/following`,
+    follow: (userId: string) => `/profiles/${userId}/follow`,
+    me: '/profiles/me',
   },
 } as const;
