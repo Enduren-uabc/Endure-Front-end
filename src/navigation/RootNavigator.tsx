@@ -50,6 +50,14 @@ const linking: LinkingOptions<RootStackParamList> = {
           MainTabs: {
             screens: {
               Home: 'home',
+              Workout: {
+                screens: {
+                  WorkoutStart: 'workout',
+                  WorkoutSession: 'workout/session/:sessionId',
+                  WorkoutFinishSummary: 'workout/summary/:sessionId',
+                  WorkoutHistory: 'workout/history',
+                },
+              },
               Routines: {
                 screens: {
                   RoutinesList: 'routines',

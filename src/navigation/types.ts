@@ -18,7 +18,15 @@ export type OnboardingStackParamList = {
 
 export type AppTabsParamList = {
   Home: undefined;
+  Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
   Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
+};
+
+export type WorkoutStackParamList = {
+  WorkoutStart: undefined;
+  WorkoutSession: { sessionId: string };
+  WorkoutFinishSummary: { sessionId: string };
+  WorkoutHistory: undefined;
 };
 
 export type TrainingStackParamList = {
@@ -28,10 +36,18 @@ export type TrainingStackParamList = {
   ExerciseDetail: { routineId: string; exercise: ExerciseConfig };
 };
 
+export type CoachStackParamList = {
+  CoachHome: undefined;
+  CoachForm: { isResubmit?: boolean } | undefined;
+  CoachStatus: undefined;
+  CoachRejected: undefined;
+};
+
 export type AppDrawerParamList = {
   MainTabs: NavigatorScreenParams<AppTabsParamList> | undefined;
   Settings: undefined;
   Help: undefined;
+  CoachStack: NavigatorScreenParams<CoachStackParamList> | undefined;
 };
 
 export type RootStackParamList = {

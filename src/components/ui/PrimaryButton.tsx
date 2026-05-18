@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, StyleProp } from 'react-native';
 import { theme } from '@/theme';
 
 interface PrimaryButtonProps {
@@ -7,20 +7,25 @@ interface PrimaryButtonProps {
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
+  style?: StyleProp<ViewStyle>;
+  icon?: React.ReactNode;
 }
 
-export function PrimaryButton({ label, onPress, disabled, loading }: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, disabled, loading, style, icon }: PrimaryButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[styles.button, (disabled || loading) && styles.disabled]}
+      style={[styles.button, (disabled || loading) && styles.disabled, style]}
       activeOpacity={0.8}
     >
       {loading ? (
         <ActivityIndicator color={theme.colors.background} />
       ) : (
-        <Text style={styles.text}>{label}</Text>
+        <>
+          {icon && icon}
+          <Text style={[styles.text, icon ? { marginLeft: 8 } : null]}>{label}</Text>
+        </>
       )}
     </TouchableOpacity>
   );
@@ -28,6 +33,7 @@ export function PrimaryButton({ label, onPress, disabled, loading }: PrimaryButt
 
 const styles = StyleSheet.create({
   button: {
+    flexDirection: 'row',
     backgroundColor: theme.colors.primary,
     minHeight: 48,
     borderRadius: theme.radius.lg,

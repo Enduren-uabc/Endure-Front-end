@@ -49,5 +49,13 @@ export const API_ENDPOINTS = {
     finish: (id: string) => `/workout-sessions/${id}/finish`,
     registerSet: (id: string, exerciseIndex: number, setNumber: number) =>
       `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}`,
+    completeSet: (id: string, exerciseIndex: number, setNumber: number) =>
+      `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}/complete`,
+  },
+  trainerVerification: {
+    specialties: '/trainer-verification/specialties',
+    myStatus: '/trainer-verification/my-status',
+    submit: '/trainer-verification',
+    update: '/trainer-verification',
   },
 } as const;

@@ -150,4 +150,24 @@ export const apiClient = {
       handleError(error);
     }
   },
+  postMultipart: async <T>(path: string, formData: FormData): Promise<T> => {
+    try {
+      const { data } = await api.post<T>(path, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    } catch (error) {
+      handleError(error);
+    }
+  },
+  patchMultipart: async <T>(path: string, formData: FormData): Promise<T> => {
+    try {
+      const { data } = await api.patch<T>(path, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    } catch (error) {
+      handleError(error);
+    }
+  },
 };

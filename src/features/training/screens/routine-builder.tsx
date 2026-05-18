@@ -127,7 +127,7 @@ function deriveNextSet(
   const previous = sets.at(-1);
 
   if (!previous) {
-    return { setNumber, reps: 10, weight: 0 };
+    return { setNumber, reps: 15, weight: 0 };
   }
 
   const rules = strategy?.rules;
@@ -279,7 +279,7 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
           name: pendingName,
           order,
           sets: 0,
-          repsPerSet: 0,
+          repsPerSet: 15,
           weight: 0,
         });
       });
@@ -351,7 +351,7 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
         name,
         order,
         sets: 0,
-        repsPerSet: 0,
+        repsPerSet: 15,
         weight: 0,
       });
     });

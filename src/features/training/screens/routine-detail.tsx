@@ -17,7 +17,7 @@ import type {
   NativeStackNavigationProp,
   NativeStackScreenProps 
 } from "@react-navigation/native-stack";
-import { ArrowLeft, Trash2, ChevronRight, Search } from "lucide-react-native";
+import { ArrowLeft, Trash2, ChevronRight, Search, Plus } from "lucide-react-native";
 import {
   useRoutineDetail,
   useActivateRoutine,
@@ -100,6 +100,8 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
   const [newExerciseName, setNewExerciseName] = React.useState("");
   const [selectedDaysForNewExercise, setSelectedDaysForNewExercise] = React.useState<DayOfWeek[]>([]);
   const [mutationError, setMutationError] = React.useState<string | null>(null);
+  const [showAddDayModal, setShowAddDayModal] = React.useState(false);
+  const [selectedNewDays, setSelectedNewDays] = React.useState<DayOfWeek[]>([]);
 
   React.useEffect(() => {
     if (showAddModal && selectedDay) {
@@ -243,6 +245,52 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
     });
   };
 
+  const toggleNewDay = (day: DayOfWeek) => {
+    setSelectedNewDays((prev) => {
+      if (prev.includes(day)) {
+        return prev.filter((d) => d !== day);
+      }
+      return [...prev, day];
+    });
+  };
+
+  const handleAddDays = () => {
+    if (selectedNewDays.length === 0 || !routine) return;
+
+    const updatedDays = routine.days.map((day) => ({
+      dayOfWeek: day.dayOfWeek,
+      exercises: day.exercises.map((ex) => ({
+        id: ex.id,
+        name: ex.name,
+        order: ex.order,
+        sets: getExerciseSets(ex).map((s) => ({
+          setNumber: s.setNumber,
+          reps: s.reps,
+          weight: s.weight,
+          restSeconds: s.restSeconds ?? undefined,
+        })),
+      })),
+    }));
+
+    selectedNewDays.forEach((dayOfWeek) => {
+      if (!updatedDays.find((d) => d.dayOfWeek === dayOfWeek)) {
+        updatedDays.push({ dayOfWeek, exercises: [] });
+      }
+    });
+
+    syncRoutineMutation.mutate(
+      { routineId: id, days: updatedDays },
+      {
+        onSuccess: () => {
+          setSelectedNewDays([]);
+          setShowAddDayModal(false);
+          queryClient.invalidateQueries({ queryKey: ["routine", id] });
+          queryClient.invalidateQueries({ queryKey: ["routines"] });
+        },
+      },
+    );
+  };
+
   React.useEffect(() => {
     if (routine && (routine.dayOfWeeks ?? []).length > 0 && !selectedDay) {
       setSelectedDay(routine.dayOfWeeks[0]);
@@ -271,6 +319,10 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
 
   const sortedDays = [...(routine?.dayOfWeeks ?? [])].sort(
     (a, b) => DAY_OF_WEEK_ORDER.indexOf(a) - DAY_OF_WEEK_ORDER.indexOf(b),
+  );
+
+  const availableDays = DAY_OF_WEEK_ORDER.filter(
+    (day) => !routine?.dayOfWeeks?.includes(day),
   );
 
   return (
@@ -326,6 +378,14 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
                 </Text>
               </TouchableOpacity>
             ))}
+            {availableDays.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setShowAddDayModal(true)}
+                style={styles.addDayTab}
+              >
+                <Plus size={16} color={theme.colors.primary} />
+              </TouchableOpacity>
+            )}
           </ScrollView>
 
           {/* Exercises for selected day */}
@@ -514,6 +574,67 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Add Day Modal */}
+      <Modal
+        visible={showAddDayModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddDayModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BaseCard style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Agregar días</Text>
+            <Text style={styles.modalLabel}>
+              Selecciona los días que quieres agregar a la rutina
+            </Text>
+            <View style={styles.daysChipsRow}>
+              {availableDays.map((day) => {
+                const isSelected = selectedNewDays.includes(day);
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    onPress={() => toggleNewDay(day)}
+                    style={[
+                      styles.dayChip,
+                      isSelected && styles.dayChipSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayChipText,
+                        isSelected && styles.dayChipTextSelected,
+                      ]}
+                    >
+                      {DAY_OF_WEEK_LABELS[day]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {selectedNewDays.length === 0 && (
+              <Text style={styles.modalHintText}>
+                Selecciona al menos un día
+              </Text>
+            )}
+            <View style={styles.modalButtons}>
+              <SecondaryButton
+                label="Cancelar"
+                onPress={() => {
+                  setSelectedNewDays([]);
+                  setShowAddDayModal(false);
+                }}
+              />
+              <PrimaryButton
+                label="Agregar"
+                onPress={handleAddDays}
+                disabled={selectedNewDays.length === 0}
+                loading={syncRoutineMutation.isPending}
+              />
+            </View>
+          </BaseCard>
+        </View>
+      </Modal>
+
       {/* Delete confirmation modal */}
       <Modal
         visible={showDeleteModal}
@@ -624,6 +745,16 @@ const styles = StyleSheet.create({
   dayTabTextSelected: {
     color: theme.colors.primary,
     fontWeight: "700",
+  },
+  addDayTab: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.primary,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
   },
   exercisesSection: {
     gap: theme.spacing.md,

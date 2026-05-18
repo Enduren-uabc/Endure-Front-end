@@ -48,7 +48,7 @@ export function ExerciseSetsTable({
 
     const newSet: ExerciseSet = {
       setNumber: sets.length + 1,
-      reps: 0,
+      reps: sets.length === 0 ? 15 : 0,
       weight: 0,
     };
     onChange([...sets, newSet]);

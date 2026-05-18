@@ -1,19 +1,20 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { theme } from '@/theme';
 
 interface SecondaryButtonProps {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function SecondaryButton({ label, onPress, disabled }: SecondaryButtonProps) {
+export function SecondaryButton({ label, onPress, disabled, style }: SecondaryButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
-      style={[styles.button, disabled && styles.disabled]}
+      style={[styles.button, disabled && styles.disabled, style]}
       activeOpacity={0.8}
     >
       <Text style={[styles.text, disabled && styles.textDisabled]}>{label}</Text>

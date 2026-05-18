@@ -75,8 +75,8 @@ export default function ExerciseDetailScreen({ navigation, route }: Props) {
 
   const handleEditToggle = () => {
     if (!isEditing && localSets.length === 0) {
-      // If entering edit mode and there are no sets, add one by default
-      setLocalSets([{ setNumber: 1, reps: 0, weight: 0 }]);
+      // If entering edit mode and there are no sets, add one by default with 15 reps
+      setLocalSets([{ setNumber: 1, reps: 15, weight: 0 }]);
     }
     setIsEditing(true);
   };

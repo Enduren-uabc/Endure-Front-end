@@ -1,17 +1,56 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Dumbbell } from 'lucide-react-native';
+import { Dumbbell, Award, Clock, CheckCircle, XCircle } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useLogout } from '@/features/auth/hooks/use-auth';
 import { useSessionStore } from '@/features/auth/stores/session-store';
+import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import { theme } from '@/theme';
 import type { AppTabsParamList } from '@/navigation/types';
 
 type HomeNavigation = BottomTabNavigationProp<AppTabsParamList, 'Home'>;
+
+function CoachStatusBadge() {
+  const { data: statusData } = useMyVerificationStatus();
+  const navigation = useNavigation<HomeNavigation>();
+
+  if (!statusData || statusData.status === 'none') return null;
+
+  let icon = <Award size={18} color={theme.colors.textSecondary} />;
+  let color: string = theme.colors.textSecondary;
+  let label = 'Coach';
+
+  if (statusData.status === 'pending') {
+    icon = <Clock size={18} color={theme.colors.warning} />;
+    color = theme.colors.warning;
+    label = 'En revisión';
+  } else if (statusData.status === 'approved') {
+    icon = <CheckCircle size={18} color={theme.colors.success} />;
+    color = theme.colors.success;
+    label = 'Coach verificado';
+  } else if (statusData.status === 'rejected') {
+    icon = <XCircle size={18} color={theme.colors.error} />;
+    color = theme.colors.error;
+    label = 'Rechazado';
+  }
+
+  return (
+    <TouchableOpacity
+      style={[styles.statusBadge, { borderColor: color }]}
+      onPress={() => {
+        // Navigate to CoachStack via drawer - use any cast since CoachStack is in drawer, not tabs
+        (navigation as any).navigate('CoachStack', { screen: 'CoachHome' });
+      }}
+    >
+      {icon}
+      <Text style={[styles.statusBadgeText, { color }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
@@ -29,9 +68,16 @@ export default function HomeScreen() {
           <Text style={styles.subtitle}>
             {role ? `Sesión activa · ${role}` : 'Sesión activa'}
           </Text>
+          <CoachStatusBadge />
         </View>
 
         <View style={styles.actions}>
+          <PrimaryButton
+            label="Empezar entrenamiento"
+            onPress={() =>
+              navigation.navigate('Workout', { screen: 'WorkoutStart' })
+            }
+          />
           <PrimaryButton
             label="Ver rutinas"
             onPress={() =>
@@ -85,5 +131,21 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: theme.spacing.md,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    alignSelf: 'flex-start',
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  statusBadgeText: {
+    fontSize: theme.typography.small.fontSize,
+    fontWeight: '600',
   },
 });
