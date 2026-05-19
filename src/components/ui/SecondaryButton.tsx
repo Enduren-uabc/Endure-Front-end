@@ -25,10 +25,10 @@ export function SecondaryButton({ label, onPress, disabled, style }: SecondaryBu
 const styles = StyleSheet.create({
   button: {
     backgroundColor: 'transparent',
-    minHeight: 48,
-    borderRadius: theme.radius.lg,
+    minHeight: 52,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.lg,

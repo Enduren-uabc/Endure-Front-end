@@ -11,6 +11,7 @@ interface TextInputProps {
   error?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  maxLength?: number;
 }
 
 export function TextInput({
@@ -22,7 +23,10 @@ export function TextInput({
   error,
   autoCapitalize = 'none',
   keyboardType = 'default',
+  maxLength,
 }: TextInputProps) {
+  const [isFocused, setIsFocused] = React.useState(false);
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -34,7 +38,15 @@ export function TextInput({
         secureTextEntry={secureTextEntry}
         autoCapitalize={autoCapitalize}
         keyboardType={keyboardType}
-        style={[styles.input, error ? styles.inputError : null]}
+        maxLength={maxLength}
+        selectionColor={theme.colors.primary}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        style={[
+          styles.input,
+          isFocused ? styles.inputFocused : null,
+          error ? styles.inputError : null,
+        ]}
       />
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
@@ -61,8 +73,12 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    minHeight: 48,
+    paddingVertical: theme.spacing.md,
+    minHeight: 52,
+  },
+  inputFocused: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surface,
   },
   inputError: {
     borderColor: theme.colors.error,

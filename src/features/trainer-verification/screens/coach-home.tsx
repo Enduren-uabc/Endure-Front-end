@@ -7,20 +7,9 @@ import { Award, CheckCircle2, ChevronRight, Zap, Target, Users } from 'lucide-re
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import type { CoachStackParamList } from '@/navigation/types';
+import { theme } from '@/theme';
 
 type CoachNav = NativeStackNavigationProp<CoachStackParamList>;
-
-const COLORS = {
-  bg: '#0E0E10',
-  surface: '#18181B',
-  surface2: '#27272A',
-  primary: '#FACC15',
-  textPrimary: '#FAFAFA',
-  textSecondary: '#A1A1AA',
-  border: '#3F3F46',
-  buttonText: '#0A0A0A',
-  success: '#22C55E',
-};
 
 export default function CoachHome() {
   const navigation = useNavigation<CoachNav>();
@@ -50,7 +39,7 @@ export default function CoachHome() {
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.approvedScroll} bounces={false}>
           <View style={styles.approvedIconWrapper}>
-            <Award size={80} color={COLORS.success} />
+            <Award size={80} color={theme.colors.success} />
           </View>
           <Text style={styles.approvedTitle}>Entrenador Verificado</Text>
           <Text style={styles.approvedSubtitle}>
@@ -75,7 +64,7 @@ export default function CoachHome() {
       >
         <View style={styles.header}>
           <View style={styles.badgeWrapper}>
-            <Award size={24} color={COLORS.primary} />
+            <Award size={24} color={theme.colors.primary} />
           </View>
           <Text style={styles.title}>Potencia tu carrera fitness</Text>
           <Text style={styles.description}>
@@ -88,7 +77,7 @@ export default function CoachHome() {
           
           <View style={styles.benefitRow}>
             <View style={styles.benefitIconBox}>
-              <Zap size={20} color={COLORS.textPrimary} />
+              <Zap size={20} color={theme.colors.textPrimary} />
             </View>
             <View style={styles.benefitTextCol}>
               <Text style={styles.benefitTitle}>Herramientas pro</Text>
@@ -98,7 +87,7 @@ export default function CoachHome() {
 
           <View style={styles.benefitRow}>
             <View style={styles.benefitIconBox}>
-              <Users size={20} color={COLORS.textPrimary} />
+              <Users size={20} color={theme.colors.textPrimary} />
             </View>
             <View style={styles.benefitTextCol}>
               <Text style={styles.benefitTitle}>Más clientes</Text>
@@ -108,7 +97,7 @@ export default function CoachHome() {
 
           <View style={styles.benefitRow}>
             <View style={styles.benefitIconBox}>
-              <Target size={20} color={COLORS.textPrimary} />
+              <Target size={20} color={theme.colors.textPrimary} />
             </View>
             <View style={styles.benefitTextCol}>
               <Text style={styles.benefitTitle}>Control total</Text>
@@ -120,15 +109,15 @@ export default function CoachHome() {
         <View style={styles.requirementsCard}>
           <Text style={styles.reqHeader}>Requisitos</Text>
           <View style={styles.reqItem}>
-            <CheckCircle2 size={16} color={COLORS.textSecondary} />
+            <CheckCircle2 size={16} color={theme.colors.textSecondary} />
             <Text style={styles.reqText}>Identificación oficial</Text>
           </View>
           <View style={styles.reqItem}>
-            <CheckCircle2 size={16} color={COLORS.textSecondary} />
+            <CheckCircle2 size={16} color={theme.colors.textSecondary} />
             <Text style={styles.reqText}>Certificado o título profesional</Text>
           </View>
           <View style={styles.reqItem}>
-            <CheckCircle2 size={16} color={COLORS.textSecondary} />
+            <CheckCircle2 size={16} color={theme.colors.textSecondary} />
             <Text style={styles.reqText}>Información de perfil completa</Text>
           </View>
         </View>
@@ -147,7 +136,7 @@ export default function CoachHome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.colors.background,
   },
   center: {
     flex: 1,
@@ -155,7 +144,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
   },
   scrollContent: {
@@ -170,22 +159,22 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: COLORS.surface2,
+    backgroundColor: theme.colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
   },
   title: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 32,
     fontWeight: '700',
     lineHeight: 38,
     marginBottom: 12,
   },
   description: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 17,
     lineHeight: 24,
   },
@@ -194,7 +183,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   sectionTitle: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 20,
     fontWeight: '600',
     marginBottom: 8,
@@ -208,35 +197,35 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
   },
   benefitTextCol: {
     flex: 1,
   },
   benefitTitle: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 17,
     fontWeight: '600',
     marginBottom: 4,
   },
   benefitDesc: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
     lineHeight: 22,
   },
   requirementsCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
   },
   reqHeader: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 12,
@@ -248,15 +237,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   reqText: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
   },
   footer: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 0 : 20,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.bg,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
   },
   approvedScroll: {
     flexGrow: 1,
@@ -268,32 +257,32 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     padding: 24,
     borderRadius: 40,
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(47, 224, 113, 0.1)',
   },
   approvedTitle: {
-    color: COLORS.success,
+    color: theme.colors.success,
     fontSize: 28,
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
   },
   approvedSubtitle: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 17,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
   },
   approvedCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.colors.surface,
     padding: 24,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     width: '100%',
   },
   approvedCardText: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 24,

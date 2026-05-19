@@ -26,20 +26,7 @@ import { useCoachDraftStore } from '@/features/trainer-verification/stores/coach
 import { coachFormSchema } from '@/features/trainer-verification/validations/trainer-verification';
 import type { CoachStackParamList } from '@/navigation/types';
 import type { FileInfo, DocumentType } from '@/features/trainer-verification/types/trainer-verification';
-
-const COLORS = {
-  bg: '#0E0E10',
-  surface: '#18181B',
-  surface2: '#27272A',
-  primary: '#FACC15',
-  textPrimary: '#FAFAFA',
-  textSecondary: '#A1A1AA',
-  textTertiary: '#71717A',
-  border: '#3F3F46',
-  buttonText: '#0A0A0A',
-  error: '#EF4444',
-  success: '#22C55E',
-};
+import { theme } from '@/theme';
 
 type CoachNav = NativeStackNavigationProp<CoachStackParamList>;
 type RouteParams = { isResubmit?: boolean } | undefined;
@@ -187,7 +174,7 @@ export default function CoachForm() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ChevronLeft size={24} color={COLORS.textPrimary} />
+            <ChevronLeft size={24} color={theme.colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Aplicación de coach</Text>
           <TouchableOpacity onPress={saveDraft} style={styles.saveBtn}>
@@ -204,7 +191,7 @@ export default function CoachForm() {
                 <View style={styles.stepItem}>
                   <View style={[styles.stepDot, isActive && styles.stepDotActive, isCompleted && styles.stepDotCompleted]}>
                     {isCompleted ? (
-                      <CheckCircle2 size={12} color={COLORS.buttonText} />
+                      <CheckCircle2 size={12} color={theme.colors.background} />
                     ) : (
                       <Text style={[styles.stepNum, (isActive || isCompleted) && styles.stepNumActive]}>
                         {i + 1}
@@ -274,7 +261,7 @@ export default function CoachForm() {
                       style={styles.input}
                       keyboardType="numeric"
                       placeholder="Ej: 5"
-                      placeholderTextColor={COLORS.textTertiary}
+                      placeholderTextColor={theme.colors.textMuted}
                       value={value !== undefined ? String(value) : ''}
                       onChangeText={(t) => onChange(t === '' ? undefined : parseInt(t, 10))}
                     />
@@ -298,7 +285,7 @@ export default function CoachForm() {
                       numberOfLines={4}
                       maxLength={500}
                       placeholder="Resume tu experiencia, métodos y logros..."
-                      placeholderTextColor={COLORS.textTertiary}
+                      placeholderTextColor={theme.colors.textMuted}
                       value={value ?? ''}
                       onChangeText={onChange}
                     />
@@ -316,7 +303,7 @@ export default function CoachForm() {
                     <TextInput
                       style={styles.input}
                       placeholder="Para validación interna"
-                      placeholderTextColor={COLORS.textTertiary}
+                      placeholderTextColor={theme.colors.textMuted}
                       value={value ?? ''}
                       onChangeText={onChange}
                       autoCapitalize="characters"
@@ -342,14 +329,14 @@ export default function CoachForm() {
                         setValue('certificates', current.filter((_: any, i: number) => i !== index), { shouldValidate: true });
                       }}
                     >
-                      <Trash2 size={20} color={COLORS.error} />
+                      <Trash2 size={20} color={theme.colors.error} />
                     </TouchableOpacity>
                   </View>
                   
                   <TextInput
                     style={[styles.input, styles.marginBottom]}
                     placeholder="Nombre del certificado"
-                    placeholderTextColor={COLORS.textTertiary}
+                    placeholderTextColor={theme.colors.textMuted}
                     value={cert?.name ?? ''}
                     onChangeText={(t) => {
                       const updated = [...getValues('certificates')];
@@ -360,7 +347,7 @@ export default function CoachForm() {
                   <TextInput
                     style={[styles.input, styles.marginBottom]}
                     placeholder="Organización emisora"
-                    placeholderTextColor={COLORS.textTertiary}
+                    placeholderTextColor={theme.colors.textMuted}
                     value={cert?.issuingOrganization ?? ''}
                     onChangeText={(t) => {
                       const updated = [...getValues('certificates')];
@@ -372,7 +359,7 @@ export default function CoachForm() {
                   {cert?.file ? (
                     <View style={styles.fileAttached}>
                       <View style={styles.fileAttachedInfo}>
-                        <CheckCircle2 size={20} color={COLORS.success} />
+                        <CheckCircle2 size={20} color={theme.colors.success} />
                         <View style={styles.fileAttachedText}>
                           <Text style={styles.fileName} numberOfLines={1}>{cert.file.name}</Text>
                           {cert.file.size ? (
@@ -390,7 +377,7 @@ export default function CoachForm() {
                         }}
                         style={styles.removeFileBtn}
                       >
-                        <X size={18} color={COLORS.textSecondary} />
+                        <X size={18} color={theme.colors.textSecondary} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -406,7 +393,7 @@ export default function CoachForm() {
                           }
                         }}
                       >
-                        <Camera size={18} color={COLORS.textPrimary} />
+                        <Camera size={18} color={theme.colors.textPrimary} />
                         <Text style={styles.actionText}>Tomar foto</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -420,7 +407,7 @@ export default function CoachForm() {
                           }
                         }}
                       >
-                        <FileText size={18} color={COLORS.textPrimary} />
+                        <FileText size={18} color={theme.colors.textPrimary} />
                         <Text style={styles.actionText}>Subir archivo</Text>
                       </TouchableOpacity>
                     </View>
@@ -460,7 +447,7 @@ export default function CoachForm() {
                         setValue('idDocuments', updated.filter((_: any, i: number) => i !== index), { shouldValidate: true });
                       }}
                     >
-                      <Trash2 size={20} color={COLORS.error} />
+                      <Trash2 size={20} color={theme.colors.error} />
                     </TouchableOpacity>
                   </View>
 
@@ -488,7 +475,7 @@ export default function CoachForm() {
                   {doc?.file ? (
                     <View style={styles.fileAttached}>
                       <View style={styles.fileAttachedInfo}>
-                        <CheckCircle2 size={20} color={COLORS.success} />
+                        <CheckCircle2 size={20} color={theme.colors.success} />
                         <View style={styles.fileAttachedText}>
                           <Text style={styles.fileName} numberOfLines={1}>{doc.file.name}</Text>
                           {doc.file.size ? (
@@ -506,7 +493,7 @@ export default function CoachForm() {
                         }}
                         style={styles.removeFileBtn}
                       >
-                        <X size={18} color={COLORS.textSecondary} />
+                        <X size={18} color={theme.colors.textSecondary} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -526,7 +513,7 @@ export default function CoachForm() {
                           }
                         }}
                       >
-                        <Camera size={18} color={COLORS.textPrimary} />
+                        <Camera size={18} color={theme.colors.textPrimary} />
                         <Text style={styles.actionText}>Tomar foto</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -544,7 +531,7 @@ export default function CoachForm() {
                           }
                         }}
                       >
-                        <FileText size={18} color={COLORS.textPrimary} />
+                        <FileText size={18} color={theme.colors.textPrimary} />
                         <Text style={styles.actionText}>Subir archivo</Text>
                       </TouchableOpacity>
                     </View>
@@ -608,15 +595,15 @@ export default function CoachForm() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.colors.background,
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: theme.colors.border,
   },
   headerTop: {
     flexDirection: 'row',
@@ -628,7 +615,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 17,
     fontWeight: '600',
   },
@@ -636,7 +623,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   saveBtnText: {
-    color: COLORS.primary,
+    color: theme.colors.primary,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -658,48 +645,48 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.surface2,
+    backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepDotActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: 'rgba(250, 204, 21, 0.1)',
+    borderColor: theme.colors.primary,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
   },
   stepDotCompleted: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   stepNum: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   stepNumActive: {
-    color: COLORS.primary,
+    color: theme.colors.primary,
   },
   stepLabel: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
   },
   stepLabelActive: {
-    color: COLORS.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   stepLabelCompleted: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
   },
   stepLine: {
     flex: 1,
     height: 2,
-    backgroundColor: COLORS.surface2,
+    backgroundColor: theme.colors.surfaceElevated,
     marginHorizontal: 12,
     marginTop: -18,
   },
   stepLineActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.colors.primary,
   },
   keyboardContainer: {
     flex: 1,
@@ -711,7 +698,7 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   sectionDesc: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
     lineHeight: 22,
     marginBottom: 8,
@@ -720,7 +707,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   inputLabel: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -730,17 +717,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   charCount: {
-    color: COLORS.textTertiary,
+    color: theme.colors.textMuted,
     fontSize: 13,
   },
   input: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 15,
   },
   textArea: {
@@ -753,34 +740,34 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: COLORS.surface2,
+    backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   chipActive: {
-    backgroundColor: '#422006',
-    borderColor: COLORS.primary,
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
   },
   chipText: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '500',
   },
   chipTextActive: {
-    color: COLORS.primary,
+    color: theme.colors.primary,
   },
   errorText: {
-    color: COLORS.error,
+    color: theme.colors.error,
     fontSize: 13,
     marginTop: 4,
   },
   fileCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
     borderRadius: 16,
     padding: 16,
   },
@@ -791,7 +778,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -808,14 +795,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: COLORS.surface2,
+    backgroundColor: theme.colors.surfaceElevated,
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
   },
   actionText: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -823,9 +810,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    backgroundColor: 'rgba(47, 224, 113, 0.08)',
     borderWidth: 1,
-    borderColor: COLORS.success,
+    borderColor: theme.colors.success,
     padding: 12,
     borderRadius: 10,
   },
@@ -839,12 +826,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fileName: {
-    color: COLORS.success,
+    color: theme.colors.success,
     fontSize: 14,
     fontWeight: '500',
   },
   fileSize: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
@@ -858,10 +845,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: COLORS.textSecondary,
+    borderColor: theme.colors.textSecondary,
   },
   addMoreText: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -869,7 +856,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   typeChip: {
-    backgroundColor: COLORS.surface2,
+    backgroundColor: theme.colors.surfaceElevated,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -878,25 +865,25 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   typeChipActive: {
-    backgroundColor: '#422006',
-    borderColor: COLORS.primary,
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
   },
   typeChipText: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 13,
     fontWeight: '500',
   },
   typeChipTextActive: {
-    color: COLORS.primary,
+    color: theme.colors.primary,
   },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.colors.background,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: theme.colors.border,
   },
   bottomBarInner: {
     flexDirection: 'row',
@@ -909,7 +896,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   secondaryActionText: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 16,
     fontWeight: '600',
   },
