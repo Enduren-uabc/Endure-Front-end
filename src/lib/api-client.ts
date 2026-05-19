@@ -1,5 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { useSessionStore } from '@/features/auth/stores/session-store';
+import { tokenStore } from './secure-token-store';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
@@ -11,6 +12,20 @@ export const api = axios.create({
   },
   withCredentials: true,
 });
+
+api.interceptors.request.use(
+  async (config) => {
+    config.headers['X-Client-Type'] = 'mobile';
+
+    const accessToken = await tokenStore.getAccessToken();
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
 
 let isRefreshing = false;
 let failedQueue: { resolve: (value: unknown) => void; reject: (reason?: unknown) => void }[] = [];
@@ -33,6 +48,10 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
+        if (originalRequest.url === '/auth/refresh') {
+          return Promise.reject(error);
+        }
+
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -44,11 +63,23 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.post('/auth/refresh');
+        const refreshToken = await tokenStore.getRefreshToken();
+        const { data } = await api.post<{
+          success: boolean;
+          accessToken?: string;
+          refreshToken?: string;
+        }>('/auth/refresh', refreshToken ? { refreshToken } : undefined);
+
+        if (data.success && data.accessToken && data.refreshToken) {
+          await tokenStore.setAccessToken(data.accessToken);
+          await tokenStore.setRefreshToken(data.refreshToken);
+        }
+
         processQueue(null);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as AxiosError);
+        await tokenStore.clear();
         useSessionStore.getState().clearSession();
         return Promise.reject(refreshError);
       } finally {
@@ -57,6 +88,7 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
+      await tokenStore.clear();
       useSessionStore.getState().clearSession();
     }
 
@@ -122,6 +154,26 @@ export const apiClient = {
   del: async <T>(path: string): Promise<T> => {
     try {
       const { data } = await api.delete<T>(path);
+      return data;
+    } catch (error) {
+      handleError(error);
+    }
+  },
+  postMultipart: async <T>(path: string, formData: FormData): Promise<T> => {
+    try {
+      const { data } = await api.post<T>(path, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    } catch (error) {
+      handleError(error);
+    }
+  },
+  patchMultipart: async <T>(path: string, formData: FormData): Promise<T> => {
+    try {
+      const { data } = await api.patch<T>(path, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return data;
     } catch (error) {
       handleError(error);

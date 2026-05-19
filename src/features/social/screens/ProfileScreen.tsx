@@ -11,12 +11,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Edit3, UserCircle, X } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import { useSessionStore } from '@/features/auth/stores/session-store';
+import type { SocialStackParamList } from '@/navigation/types';
 import { PostCard } from '../components/PostCard';
 import { SocialEmptyState, SocialErrorState, SocialLoadingState } from '../components/SocialState';
 import {
@@ -35,6 +37,7 @@ import type { Profile, Publication } from '../types/social.types';
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 function ProfilePost({ publication }: { publication: Publication }) {
+  const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
   const interactions = useInteractions(publication.id);
   const deletePublication = useDeletePublication();
   const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
@@ -45,14 +48,11 @@ function ProfilePost({ publication }: { publication: Publication }) {
     <PostCard
       publication={publication}
       onOpenPost={(post) =>
-        router.push({
-          pathname: '/posts/[postId]',
-          params: {
-            postId: post.id,
-            title: post.title,
-            content: post.content,
-            authorUserId: post.authorUserId,
-          },
+        navigation.navigate('PostDetail', {
+          postId: post.id,
+          title: post.title,
+          content: post.content,
+          authorUserId: post.authorUserId,
         })
       }
       onOpenProfile={() => undefined}
@@ -80,6 +80,8 @@ function ProfileListModal({
   isLoading: boolean;
   onClose: () => void;
 }) {
+  const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.modalOverlay}>
@@ -100,7 +102,7 @@ function ProfileListModal({
               style={styles.profileListRow}
               onPress={() => {
                 onClose();
-                router.push({ pathname: '/profiles/[userId]', params: { userId: profile.userId } });
+                navigation.navigate('PublicProfile', { userId: profile.userId });
               }}
             >
               <Text style={styles.profileListName}>{profile.displayName}</Text>

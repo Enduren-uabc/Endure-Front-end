@@ -5,14 +5,15 @@ import LoginScreen from '@/features/auth/screens/login';
 import RegisterScreen from '@/features/auth/screens/register';
 import ForgotPasswordScreen from '@/features/auth/screens/forgot-password';
 import ResetPasswordScreen from '@/features/auth/screens/reset-password';
-import type { AuthStackParamList } from './types';
 import { theme } from '@/theme';
+import type { AuthStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export default function AuthStack() {
   return (
     <Stack.Navigator
+      initialRouteName="Welcome"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.colors.background },

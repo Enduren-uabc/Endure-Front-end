@@ -15,12 +15,13 @@ interface TextInputProps {
   placeholder?: string;
   secureTextEntry?: boolean;
   error?: string;
-  disabled?: boolean;
-  rightElement?: React.ReactNode;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  maxLength?: number;
+  disabled?: boolean;
   textContentType?: RNTextInputProps['textContentType'];
   autoComplete?: RNTextInputProps['autoComplete'];
+  rightElement?: React.ReactNode;
 }
 
 export function TextInput({
@@ -30,24 +31,25 @@ export function TextInput({
   placeholder,
   secureTextEntry,
   error,
-  disabled,
-  rightElement,
   autoCapitalize = 'none',
   keyboardType = 'default',
+  maxLength,
+  disabled = false,
   textContentType,
   autoComplete,
+  rightElement,
 }: TextInputProps) {
   const [isFocused, setIsFocused] = React.useState(false);
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, disabled && styles.labelDisabled]}>{label}</Text>
+      <Text style={styles.label}>{label}</Text>
       <View
         style={[
-          styles.inputShell,
-          isFocused && styles.inputFocused,
+          styles.inputWrapper,
+          isFocused ? styles.inputFocused : null,
           error ? styles.inputError : null,
-          disabled && styles.inputDisabled,
+          disabled ? styles.inputDisabled : null,
         ]}
       >
         <RNTextInput
@@ -58,12 +60,14 @@ export function TextInput({
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
+          maxLength={maxLength}
           editable={!disabled}
           textContentType={textContentType}
           autoComplete={autoComplete}
+          selectionColor={theme.colors.primary}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          style={[styles.input, rightElement ? styles.inputWithAction : null]}
+          style={[styles.input, disabled ? styles.inputTextDisabled : null]}
         />
         {rightElement ? <View style={styles.rightElement}>{rightElement}</View> : null}
       </View>
@@ -83,21 +87,14 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.small.fontWeight,
     marginBottom: theme.spacing.xs,
   },
-  labelDisabled: {
-    color: theme.colors.textDisabled,
-  },
-  inputShell: {
+  inputWrapper: {
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.border,
     borderWidth: 1,
     borderRadius: theme.radius.md,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 48,
-  },
-  inputFocused: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.surfacePressed,
+    minHeight: 52,
   },
   input: {
     flex: 1,
@@ -105,22 +102,23 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    minHeight: 46,
+    paddingVertical: theme.spacing.md,
   },
-  inputWithAction: {
-    paddingRight: theme.spacing.sm,
+  inputFocused: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surface,
   },
   inputError: {
     borderColor: theme.colors.error,
   },
   inputDisabled: {
-    backgroundColor: theme.colors.borderSoft,
-    borderColor: theme.colors.borderSoft,
-    opacity: 0.75,
+    opacity: 0.72,
+  },
+  inputTextDisabled: {
+    color: theme.colors.textDisabled,
   },
   rightElement: {
-    paddingRight: theme.spacing.sm,
+    paddingRight: theme.spacing.md,
   },
   errorText: {
     color: theme.colors.error,

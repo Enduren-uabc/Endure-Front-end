@@ -1,34 +1,30 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { theme } from '@/theme';
-import TrainingStack from './TrainingStack';
-import type { AppTabsParamList } from './types';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dumbbell, Home, Play, Users } from 'lucide-react-native';
+import HomeScreen from '@/features/home/screens/home';
 import FeedScreen from '@/features/social/screens/FeedScreen';
-import ProfileScreen from '@/features/social/screens/ProfileScreen';
 import PostDetailScreen from '@/features/social/screens/PostDetailScreen';
+import ProfileScreen from '@/features/social/screens/ProfileScreen';
+import TrainingStack from './TrainingStack';
+import WorkoutStack from './WorkoutStack';
+import type { AppTabsParamList, SocialStackParamList } from './types';
 
-const Stack = createNativeStackNavigator<AppTabsParamList>();
+const Tabs = createBottomTabNavigator<AppTabsParamList>();
+const SocialStack = createNativeStackNavigator<SocialStackParamList>();
 
-function HomeScreen({ navigation }: { navigation: NativeStackNavigationProp<AppTabsParamList> }) {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Endure</Text>
-      <Text style={styles.subtitle}>Entrena, registra tu progreso y comparte avances.</Text>
-      <View style={styles.actions}>
-        <Pressable style={styles.card} onPress={() => navigation.navigate('Routines')}>
-          <Text style={styles.cardTitle}>Rutinas</Text>
-          <Text style={styles.cardText}>Gestiona tu entrenamiento.</Text>
-        </Pressable>
-        <Pressable style={styles.card} onPress={() => navigation.navigate('SocialFeed')}>
-          <Text style={styles.cardTitle}>Comunidad</Text>
-          <Text style={styles.cardText}>Abre el feed social de Endure.</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
+const TAB_COLORS = {
+  active: '#101D3D',
+  inactive: '#9E9EAD',
+  barBg: '#FFFFFF',
+  barBorder: '#E5E5EA',
+  workoutBtnBg: '#101D3D',
+  workoutBtnIcon: '#FFFFFF',
+  workoutBtnBgInactive: '#F2F2F7',
+  workoutBtnIconInactive: '#9E9EAD',
+  workoutBtnBorder: '#E5E5EA',
+};
 
 function PublicProfileRoute({ route }: { route: { params: { userId: string } } }) {
   return <ProfileScreen userId={route.params.userId} />;
@@ -44,61 +40,114 @@ function PostDetailRoute({
   return <PostDetailScreen {...route.params} />;
 }
 
+function SocialStackNavigator() {
+  return (
+    <SocialStack.Navigator screenOptions={{ headerShown: false }}>
+      <SocialStack.Screen name="SocialFeed" component={FeedScreen} />
+      <SocialStack.Screen name="PublicProfile" component={PublicProfileRoute} />
+      <SocialStack.Screen name="PostDetail" component={PostDetailRoute} />
+    </SocialStack.Navigator>
+  );
+}
+
 export default function AppTabs() {
   return (
-    <Stack.Navigator
+    <Tabs.Navigator
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: theme.colors.background },
+        tabBarStyle: {
+          backgroundColor: TAB_COLORS.barBg,
+          borderTopColor: TAB_COLORS.barBorder,
+          height: 72,
+          paddingBottom: 10,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: TAB_COLORS.active,
+        tabBarInactiveTintColor: TAB_COLORS.inactive,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '700',
+        },
       }}
     >
-      <Stack.Screen name="Home" component={HomeScreen} />
-      <Stack.Screen name="Routines" component={TrainingStack} />
-      <Stack.Screen name="SocialFeed" component={FeedScreen} />
-      <Stack.Screen name="PublicProfile" component={PublicProfileRoute} />
-      <Stack.Screen name="PostDetail" component={PostDetailRoute} />
-    </Stack.Navigator>
+      <Tabs.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          title: 'Inicio',
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="Workout"
+        component={WorkoutStack}
+        options={{
+          title: 'Entrenar',
+          tabBarIcon: ({ color, size }) => <Play size={size} color={color} />,
+          tabBarButton: ({ children, onPress, accessibilityState }) => (
+            <TouchableOpacity
+              onPress={onPress}
+              activeOpacity={0.86}
+              style={styles.workoutTabOuter}
+            >
+              <View
+                style={[
+                  styles.workoutTabButton,
+                  accessibilityState?.selected
+                    ? styles.workoutTabButtonActive
+                    : styles.workoutTabButtonInactive,
+                ]}
+              >
+                {children}
+              </View>
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Routines"
+        component={TrainingStack}
+        options={{
+          title: 'Rutinas',
+          tabBarIcon: ({ color, size }) => (
+            <Dumbbell size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Social"
+        component={SocialStackNavigator}
+        options={{
+          title: 'Comunidad',
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+        }}
+      />
+    </Tabs.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  workoutTabOuter: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.lg,
+    alignItems: 'center',
     justifyContent: 'center',
+    marginTop: -18,
   },
-  title: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.heading1.fontSize,
-    lineHeight: theme.typography.heading1.lineHeight,
-    fontWeight: theme.typography.heading1.fontWeight,
-  },
-  subtitle: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
-    marginTop: theme.spacing.sm,
-  },
-  actions: {
-    gap: theme.spacing.md,
-    marginTop: theme.spacing.xl,
-  },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.border,
+  workoutTabButton: {
+    width: 76,
+    minHeight: 60,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
   },
-  cardTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.heading3.fontSize,
-    lineHeight: theme.typography.heading3.lineHeight,
-    fontWeight: theme.typography.heading3.fontWeight,
+  workoutTabButtonActive: {
+    backgroundColor: TAB_COLORS.workoutBtnBg,
+    borderColor: TAB_COLORS.workoutBtnBg,
   },
-  cardText: {
-    color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xs,
+  workoutTabButtonInactive: {
+    backgroundColor: TAB_COLORS.workoutBtnBgInactive,
+    borderColor: TAB_COLORS.workoutBtnBorder,
   },
 });

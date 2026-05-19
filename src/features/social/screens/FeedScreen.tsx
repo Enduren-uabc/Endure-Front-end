@@ -10,12 +10,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Plus, Search, X } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import { useSessionStore } from '@/features/auth/stores/session-store';
+import type { SocialStackParamList } from '@/navigation/types';
 import { PostCard } from '../components/PostCard';
 import { SocialEmptyState, SocialErrorState, SocialLoadingState } from '../components/SocialState';
 import {
@@ -30,6 +32,7 @@ import type { FeedFilter, Publication } from '../types/social.types';
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 function FeedPost({ publication, currentUserId }: { publication: Publication; currentUserId: string }) {
+  const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
   const interactions = useInteractions(publication.id);
   const deletePublication = useDeletePublication();
   const [liked, setLiked] = React.useState(false);
@@ -39,18 +42,15 @@ function FeedPost({ publication, currentUserId }: { publication: Publication; cu
     <PostCard
       publication={publication}
       onOpenPost={(post) =>
-        router.push({
-          pathname: '/posts/[postId]',
-          params: {
-            postId: post.id,
-            title: post.title,
-            content: post.content,
-            authorUserId: post.authorUserId,
-          },
+        navigation.navigate('PostDetail', {
+          postId: post.id,
+          title: post.title,
+          content: post.content,
+          authorUserId: post.authorUserId,
         })
       }
       onOpenProfile={(userId) =>
-        router.push({ pathname: '/profiles/[userId]', params: { userId } })
+        navigation.navigate('PublicProfile', { userId })
       }
       onLike={() => interactions.like.mutate(undefined, { onSuccess: () => setLiked(true) })}
       onUnlike={() => interactions.unlike.mutate(undefined, { onSuccess: () => setLiked(false) })}
@@ -64,6 +64,7 @@ function FeedPost({ publication, currentUserId }: { publication: Publication; cu
 }
 
 export default function FeedScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
   const [filter] = React.useState<FeedFilter>('all');
   const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
   const feed = useFeed(filter);
@@ -153,7 +154,7 @@ export default function FeedScreen() {
                 style={styles.searchResultRow}
                 onPress={() => {
                   setSearchQuery('');
-                  router.push({ pathname: '/profiles/[userId]', params: { userId: profile.userId } });
+                  navigation.navigate('PublicProfile', { userId: profile.userId });
                 }}
               >
                 <Text style={styles.searchName}>{profile.displayName}</Text>

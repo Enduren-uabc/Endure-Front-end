@@ -37,6 +37,8 @@ export interface ExerciseCatalogItem {
   category: ExerciseCategory;
   muscleGroups: MuscleGroup[];
   equipment: Equipment;
+  videoUrl: string | null;
+  imageUrl: string | null;
 }
 
 export interface ExerciseCatalogFilters {

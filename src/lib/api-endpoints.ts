@@ -68,4 +68,11 @@ export const API_ENDPOINTS = {
     follow: (userId: string) => `/profiles/${userId}/follow`,
     me: '/profiles/me',
   },
+  trainerVerification: {
+    flowConfig: '/trainer-verification/flow-config',
+    specialties: '/trainer-verification/specialties',
+    myStatus: '/trainer-verification/my-status',
+    submit: '/trainer-verification',
+    update: '/trainer-verification',
+  },
 } as const;

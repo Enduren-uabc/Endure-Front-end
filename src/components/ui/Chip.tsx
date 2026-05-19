@@ -26,12 +26,12 @@ export function Chip({ label, selected, onPress, disabled }: ChipProps) {
 
 const styles = StyleSheet.create({
   chip: {
-    backgroundColor: theme.colors.backgroundAlt,
+    backgroundColor: 'transparent',
     borderColor: theme.colors.border,
     borderWidth: 1,
     borderRadius: theme.radius.full,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 14,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   disabled: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'transparent',
     borderColor: theme.colors.borderSoft,
   },
   text: {

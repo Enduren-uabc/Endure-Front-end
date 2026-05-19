@@ -1,15 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Dumbbell } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
+import type { AuthStackParamList } from '@/navigation/types';
 
-export default function WelcomeScreen() {
-  const router = useRouter();
+type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
+export default function WelcomeScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -22,8 +23,8 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.ctaSection}>
-          <PrimaryButton label="Comenzar" onPress={() => router.push('/register')} />
-          <SecondaryButton label="Ya tengo cuenta" onPress={() => router.push('/login')} />
+          <PrimaryButton label="Comenzar" onPress={() => navigation.navigate('Register')} />
+          <SecondaryButton label="Ya tengo cuenta" onPress={() => navigation.navigate('Login')} />
         </View>
       </View>
     </SafeAreaView>
