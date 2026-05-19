@@ -35,8 +35,8 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
     backgroundColor: theme.colors.primary,
-    minHeight: 48,
-    borderRadius: theme.radius.lg,
+    minHeight: 52,
+    borderRadius: theme.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.lg,

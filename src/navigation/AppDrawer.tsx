@@ -18,24 +18,24 @@ function CustomDrawerContent(props: any) {
 
   let ctaTitle = 'Hazte coach';
   let ctaSubtitle = 'Verifica tu perfil como entrenador';
-  let ctaColor: string = '#FACC15'; // theme.colors.primary
-  let ctaBg = 'rgba(250, 204, 21, 0.05)';
+  let ctaColor: string = theme.colors.primary;
+  let ctaBg = 'rgba(59, 130, 246, 0.08)';
 
   if (statusData?.status === 'approved') {
     ctaTitle = 'Panel de coach';
     ctaSubtitle = 'Gestiona tus clientes y rutinas';
-    ctaColor = '#22C55E'; // success
-    ctaBg = 'rgba(34, 197, 94, 0.05)';
+    ctaColor = theme.colors.success;
+    ctaBg = 'rgba(47, 224, 113, 0.08)';
   } else if (statusData?.status === 'pending') {
-    ctaTitle = 'Verificación en curso';
-    ctaSubtitle = 'Tu solicitud está en revisión';
-    ctaColor = '#F59E0B'; // warning
-    ctaBg = 'rgba(245, 158, 11, 0.05)';
+    ctaTitle = 'Verificacion en curso';
+    ctaSubtitle = 'Tu solicitud esta en revision';
+    ctaColor = theme.colors.warning;
+    ctaBg = 'rgba(255, 138, 0, 0.08)';
   } else if (statusData?.status === 'rejected') {
     ctaTitle = 'Reenviar solicitud';
     ctaSubtitle = 'Tu solicitud fue rechazada';
-    ctaColor = '#EF4444'; // error
-    ctaBg = 'rgba(239, 68, 68, 0.05)';
+    ctaColor = theme.colors.error;
+    ctaBg = 'rgba(255, 77, 79, 0.08)';
   }
 
   return (
@@ -66,22 +66,22 @@ export default function AppDrawer() {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: '#0E0E10',
+          backgroundColor: theme.colors.background,
           shadowColor: 'transparent',
           elevation: 0,
         },
-        headerTintColor: '#FAFAFA',
+        headerTintColor: theme.colors.textPrimary,
         headerTitleStyle: {
           fontSize: 18,
           fontWeight: '600',
         },
         drawerStyle: {
-          backgroundColor: '#18181B',
+          backgroundColor: theme.colors.surface,
           width: '80%',
         },
-        drawerActiveTintColor: '#FACC15',
-        drawerInactiveTintColor: '#A1A1AA',
-        drawerActiveBackgroundColor: 'rgba(250, 204, 21, 0.1)',
+        drawerActiveTintColor: theme.colors.primary,
+        drawerInactiveTintColor: theme.colors.textSecondary,
+        drawerActiveBackgroundColor: 'rgba(59, 130, 246, 0.12)',
         drawerItemStyle: {
           borderRadius: 12,
           paddingHorizontal: 8,
@@ -93,6 +93,7 @@ export default function AppDrawer() {
         component={AppTabs}
         options={{
           title: 'Inicio',
+          headerShown: false,
           drawerIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
         }}
       />
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   },
   ctaSubtitle: {
     fontSize: 13,
-    color: '#A1A1AA',
+    color: theme.colors.textSecondary,
   },
   menuContainer: {
     paddingHorizontal: 8,

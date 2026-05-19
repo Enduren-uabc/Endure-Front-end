@@ -5,10 +5,21 @@ import { Dumbbell, Home, Play } from 'lucide-react-native';
 import HomeScreen from '@/features/home/screens/home';
 import TrainingStack from './TrainingStack';
 import WorkoutStack from './WorkoutStack';
-import { theme } from '@/theme';
 import type { AppTabsParamList } from './types';
 
 const Tabs = createBottomTabNavigator<AppTabsParamList>();
+
+const TAB_COLORS = {
+  active: '#101D3D',
+  inactive: '#9E9EAD',
+  barBg: '#FFFFFF',
+  barBorder: '#E5E5EA',
+  workoutBtnBg: '#101D3D',
+  workoutBtnIcon: '#FFFFFF',
+  workoutBtnBgInactive: '#F2F2F7',
+  workoutBtnIconInactive: '#9E9EAD',
+  workoutBtnBorder: '#E5E5EA',
+};
 
 export default function AppTabs() {
   return (
@@ -17,17 +28,17 @@ export default function AppTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
+          backgroundColor: TAB_COLORS.barBg,
+          borderTopColor: TAB_COLORS.barBorder,
           height: 72,
           paddingBottom: 10,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarActiveTintColor: TAB_COLORS.active,
+        tabBarInactiveTintColor: TAB_COLORS.inactive,
         tabBarLabelStyle: {
-          fontSize: theme.typography.caption.fontSize,
-          fontWeight: '600',
+          fontSize: 11,
+          fontWeight: '700',
         },
       }}
     >
@@ -54,7 +65,9 @@ export default function AppTabs() {
               <View
                 style={[
                   styles.workoutTabButton,
-                  accessibilityState?.selected && styles.workoutTabButtonActive,
+                  accessibilityState?.selected
+                    ? styles.workoutTabButtonActive
+                    : styles.workoutTabButtonInactive,
                 ]}
               >
                 {children}
@@ -87,15 +100,17 @@ const styles = StyleSheet.create({
   workoutTabButton: {
     width: 76,
     minHeight: 60,
-    borderRadius: theme.radius.lg,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   workoutTabButtonActive: {
-    backgroundColor: theme.colors.primaryMuted,
-    borderColor: theme.colors.primary,
+    backgroundColor: TAB_COLORS.workoutBtnBg,
+    borderColor: TAB_COLORS.workoutBtnBg,
+  },
+  workoutTabButtonInactive: {
+    backgroundColor: TAB_COLORS.workoutBtnBgInactive,
+    borderColor: TAB_COLORS.workoutBtnBorder,
   },
 });

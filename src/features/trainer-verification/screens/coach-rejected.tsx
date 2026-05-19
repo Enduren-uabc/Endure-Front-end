@@ -7,20 +7,9 @@ import { XCircle, AlertCircle, RefreshCw } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import type { CoachStackParamList } from '@/navigation/types';
+import { theme } from '@/theme';
 
 type CoachNav = NativeStackNavigationProp<CoachStackParamList>;
-
-const COLORS = {
-  bg: '#0E0E10',
-  surface: '#18181B',
-  surface2: '#27272A',
-  primary: '#FACC15',
-  textPrimary: '#FAFAFA',
-  textSecondary: '#A1A1AA',
-  border: '#3F3F46',
-  error: '#EF4444',
-  errorMuted: 'rgba(239, 68, 68, 0.1)',
-};
 
 export default function CoachRejected() {
   const navigation = useNavigation<CoachNav>();
@@ -30,7 +19,7 @@ export default function CoachRejected() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
         <View style={styles.iconWrapper}>
-          <XCircle size={64} color={COLORS.error} />
+          <XCircle size={64} color={theme.colors.error} />
         </View>
 
         <Text style={styles.title}>Solicitud rechazada</Text>
@@ -40,7 +29,7 @@ export default function CoachRejected() {
 
         <View style={styles.reasonCard}>
           <View style={styles.reasonHeader}>
-            <AlertCircle size={20} color={COLORS.error} />
+            <AlertCircle size={20} color={theme.colors.error} />
             <Text style={styles.reasonTitle}>Motivo del rechazo</Text>
           </View>
           <Text style={styles.reasonText}>
@@ -68,7 +57,7 @@ export default function CoachRejected() {
 
       <View style={styles.footer}>
         <PrimaryButton
-          icon={<RefreshCw size={20} color="#0A0A0A" />}
+          icon={<RefreshCw size={20} color={theme.colors.background} />}
           label="Corregir y reenviar"
           onPress={() => navigation.replace('CoachForm', { isResubmit: true })}
         />
@@ -80,7 +69,7 @@ export default function CoachRejected() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.colors.background,
   },
   scrollContent: {
     padding: 24,
@@ -90,18 +79,18 @@ const styles = StyleSheet.create({
   iconWrapper: {
     padding: 24,
     borderRadius: 40,
-    backgroundColor: COLORS.errorMuted,
+    backgroundColor: 'rgba(255, 77, 79, 0.1)',
     marginBottom: 24,
   },
   title: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 12,
   },
   subtitle: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 17,
     textAlign: 'center',
     lineHeight: 24,
@@ -109,11 +98,11 @@ const styles = StyleSheet.create({
   },
   reasonCard: {
     width: '100%',
-    backgroundColor: COLORS.errorMuted,
+    backgroundColor: 'rgba(255, 77, 79, 0.1)',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(255, 77, 79, 0.3)',
     marginBottom: 24,
   },
   reasonHeader: {
@@ -123,25 +112,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reasonTitle: {
-    color: COLORS.error,
+    color: theme.colors.error,
     fontSize: 17,
     fontWeight: '600',
   },
   reasonText: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 15,
     lineHeight: 24,
   },
   stepsCard: {
     width: '100%',
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: theme.colors.border,
   },
   stepsTitle: {
-    color: COLORS.textPrimary,
+    color: theme.colors.textPrimary,
     fontSize: 17,
     fontWeight: '600',
     marginBottom: 16,
@@ -156,19 +145,19 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.textSecondary,
+    backgroundColor: theme.colors.textSecondary,
     marginTop: 8,
   },
   stepText: {
-    color: COLORS.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
     lineHeight: 22,
     flex: 1,
   },
   footer: {
     padding: 20,
-    backgroundColor: COLORS.bg,
+    backgroundColor: theme.colors.background,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: theme.colors.border,
   },
 });
