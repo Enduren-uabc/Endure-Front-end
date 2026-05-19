@@ -1,34 +1,76 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Award, CheckCircle2, ChevronRight, Zap, Target, Users } from 'lucide-react-native';
+import { Award, CheckCircle2, Zap, Target, Users } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
+import { useFlowConfig, useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import type { CoachStackParamList } from '@/navigation/types';
+import type { AdvancedStatus } from '@/features/trainer-verification/types/trainer-verification';
 import { theme } from '@/theme';
 
 type CoachNav = NativeStackNavigationProp<CoachStackParamList>;
 
+const FORM_STATUSES: AdvancedStatus[] = [
+  'draft',
+  'certificate_uploaded',
+  'certificate_extraction_pending',
+  'certificate_extracted',
+  'certificate_extraction_failed',
+  'id_uploaded',
+  'id_extraction_pending',
+  'id_extracted',
+  'id_extraction_failed',
+  'identity_compared',
+  'risk_calculated',
+  'correction_required',
+];
+
+const STATUS_SCREEN_STATUSES: AdvancedStatus[] = [
+  'manual_review_pending',
+  'manual_review_in_progress',
+  'approved',
+  'rejected',
+  'blocked_for_risk',
+];
+
 export default function CoachHome() {
   const navigation = useNavigation<CoachNav>();
-  const { data: statusData, isLoading } = useMyVerificationStatus();
+  const { data: flowConfig, isLoading: flowLoading } = useFlowConfig();
+  const { data: statusData, isLoading: statusLoading } = useMyVerificationStatus();
+
+  const isLoading = flowLoading || statusLoading;
 
   useEffect(() => {
-    if (!statusData) return;
-    if (statusData.status === 'pending') {
-      navigation.replace('CoachStatus');
-    } else if (statusData.status === 'rejected') {
-      navigation.replace('CoachRejected');
+    if (!flowConfig || !statusData) return;
+
+    if (flowConfig.powerspike) {
+      const advStatus = statusData.advancedStatus;
+
+      if (!advStatus || advStatus === 'draft') {
+        navigation.replace('PowerspikeHome');
+      } else if (FORM_STATUSES.includes(advStatus)) {
+        navigation.replace('PowerspikeForm');
+      } else if (STATUS_SCREEN_STATUSES.includes(advStatus)) {
+        navigation.replace('PowerspikeStatus');
+      } else {
+        navigation.replace('PowerspikeHome');
+      }
+    } else {
+      if (statusData.status === 'pending') {
+        navigation.replace('CoachStatus');
+      } else if (statusData.status === 'rejected') {
+        navigation.replace('CoachRejected');
+      }
     }
-  }, [statusData, navigation]);
+  }, [flowConfig, statusData, navigation]);
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
-          <Text style={styles.loadingText}>Cargando información...</Text>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
         </View>
       </SafeAreaView>
     );

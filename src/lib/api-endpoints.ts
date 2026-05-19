@@ -74,5 +74,10 @@ export const API_ENDPOINTS = {
     myStatus: '/trainer-verification/my-status',
     submit: '/trainer-verification',
     update: '/trainer-verification',
+    powerspikeDraft: '/trainer-verification/powerspike/draft',
+    powerspikeCertificate: '/trainer-verification/powerspike/certificate',
+    powerspikeCertificateConfirm: '/trainer-verification/powerspike/certificate/confirm',
+    powerspikeIdDocument: '/trainer-verification/powerspike/id-document',
+    powerspikeSubmit: '/trainer-verification/powerspike/submit',
   },
 } as const;

@@ -48,6 +48,9 @@ export type CoachStackParamList = {
   CoachForm: { isResubmit?: boolean } | undefined;
   CoachStatus: undefined;
   CoachRejected: undefined;
+  PowerspikeHome: undefined;
+  PowerspikeForm: undefined;
+  PowerspikeStatus: undefined;
 };
 
 export type AppDrawerParamList = {

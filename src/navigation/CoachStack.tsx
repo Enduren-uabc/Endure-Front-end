@@ -5,6 +5,9 @@ import CoachHome from '@/features/trainer-verification/screens/coach-home';
 import CoachForm from '@/features/trainer-verification/screens/coach-form';
 import CoachStatus from '@/features/trainer-verification/screens/coach-status';
 import CoachRejected from '@/features/trainer-verification/screens/coach-rejected';
+import PowerspikeHome from '@/features/trainer-verification/screens/coach-powerspike-home';
+import PowerspikeForm from '@/features/trainer-verification/screens/coach-powerspike-form';
+import PowerspikeStatus from '@/features/trainer-verification/screens/coach-powerspike-status';
 import type { CoachStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<CoachStackParamList>();
@@ -46,6 +49,21 @@ export default function CoachStack() {
         name="CoachRejected"
         component={CoachRejected}
         options={{ title: 'Solicitud Rechazada' }}
+      />
+      <Stack.Screen
+        name="PowerspikeHome"
+        component={PowerspikeHome}
+        options={{ title: 'Solicitud de Entrenador' }}
+      />
+      <Stack.Screen
+        name="PowerspikeForm"
+        component={PowerspikeForm}
+        options={{ title: 'Tu solicitud' }}
+      />
+      <Stack.Screen
+        name="PowerspikeStatus"
+        component={PowerspikeStatus}
+        options={{ title: 'Estado de Solicitud' }}
       />
     </Stack.Navigator>
   );
