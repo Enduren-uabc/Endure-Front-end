@@ -233,8 +233,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.md,
     marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-    minHeight: 48,
+    marginBottom: theme.spacing.md,
+    height: 52,
   },
   searchInput: {
     flex: 1,
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xxxl,
-    gap: theme.spacing.sm,
+    gap: theme.spacing.md,
   },
   center: {
     alignItems: "center",
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
   },
   exerciseCard: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
   },
   exerciseRow: {
     flexDirection: "row",
@@ -281,10 +281,10 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   exerciseIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: theme.radius.md,
-    backgroundColor: `${theme.colors.primary}22`,
+    backgroundColor: theme.colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
   },
