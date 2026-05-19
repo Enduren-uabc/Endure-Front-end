@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -7,22 +7,22 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '@/navigation/types';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { loginSchema, LoginFormData } from '@/features/auth/validations/auth';
-import { useLogin } from '@/features/auth/hooks/use-auth';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { TextInput } from '@/components/ui/TextInput';
-import { BaseCard } from '@/components/ui/BaseCard';
-import { theme } from '@/theme';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, LoginFormData } from "@/features/auth/validations/auth";
+import { useLogin } from "@/features/auth/hooks/use-auth";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { TextInput } from "@/components/ui/TextInput";
+import { BaseCard } from "@/components/ui/BaseCard";
+import { theme } from "@/theme";
+import type { AuthStackParamList } from "@/navigation/types";
 
-export default function LoginScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
+
+export default function LoginScreen({ navigation }: Props) {
   const loginMutation = useLogin();
 
   const {
@@ -33,15 +33,15 @@ export default function LoginScreen() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
   });
 
   React.useEffect(() => {
     if (loginMutation.isError) {
-      const message = loginMutation.error.message || 'Error al iniciar sesión';
-      setError('root', { message });
+      const message = loginMutation.error.message || "Error al iniciar sesión";
+      setError("root", { message });
     }
   }, [loginMutation.isError, loginMutation.error, setError]);
 
@@ -52,7 +52,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
         <ScrollView
@@ -96,13 +96,15 @@ export default function LoginScreen() {
               />
 
               <TouchableOpacity
-                onPress={() => navigation.navigate('ForgotPassword')}
+                onPress={() => navigation.navigate("ForgotPassword")}
                 style={styles.forgotLink}
               >
                 <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
 
-              {errors.root && <Text style={styles.rootError}>{errors.root.message}</Text>}
+              {errors.root && (
+                <Text style={styles.rootError}>{errors.root.message}</Text>
+              )}
 
               <PrimaryButton
                 label="Iniciar sesión"
@@ -113,9 +115,13 @@ export default function LoginScreen() {
             </View>
           </BaseCard>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.footerLink}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Register")}
+            style={styles.footerLink}
+          >
             <Text style={styles.footerText}>
-              ¿No tienes cuenta? <Text style={styles.footerTextBold}>Regístrate</Text>
+              ¿No tienes cuenta?{" "}
+              <Text style={styles.footerTextBold}>Regístrate</Text>
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -152,7 +158,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   forgotLink: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
   },
   forgotText: {
     color: theme.colors.primary,
@@ -163,10 +169,10 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   footerLink: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: theme.spacing.sm,
   },
   footerText: {
@@ -176,6 +182,6 @@ const styles = StyleSheet.create({
   },
   footerTextBold: {
     color: theme.colors.primary,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -9,38 +9,166 @@ import {
   TextInput as RNTextInput,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Search } from 'lucide-react-native';
-import { useRoutineDetail } from '@/features/training/hooks/use-routines';
-import { useSyncRoutine } from '@/features/training/hooks/use-sync-routine';
-import { useTrainingStrategies } from '@/features/training/hooks/use-training-strategies';
-import { useSetRoutineStrategy } from '@/features/training/hooks/use-set-routine-strategy';
-import { useGenerateExerciseSets } from '@/features/training/hooks/use-generate-exercise-sets';
-import { useRoutineDraftStore } from '@/features/training/stores/routine-draft-store';
-import { TrainingStrategySelector } from '@/features/training/components/TrainingStrategySelector';
-import { ExerciseSetsTable } from '@/features/training/components/ExerciseSetsTable';
-import type { TrainingStackParamList } from '@/navigation/types';
-import { BaseCard } from '@/components/ui/BaseCard';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SecondaryButton } from '@/components/ui/SecondaryButton';
-import { theme } from '@/theme';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import type {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from "@react-navigation/native-stack";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  Search,
+} from "lucide-react-native";
+import { useRoutineDetail } from "@/features/training/hooks/use-routines";
+import { useSyncRoutine } from "@/features/training/hooks/use-sync-routine";
+import { useTrainingStrategies } from "@/features/training/hooks/use-training-strategies";
+import { useSetRoutineStrategy } from "@/features/training/hooks/use-set-routine-strategy";
+import { useGenerateExerciseSets } from "@/features/training/hooks/use-generate-exercise-sets";
+import { useRoutineDraftStore } from "@/features/training/stores/routine-draft-store";
+import { TrainingStrategySelector } from "@/features/training/components/TrainingStrategySelector";
+import { ExerciseSetsTable } from "@/features/training/components/ExerciseSetsTable";
+
+import { BaseCard } from "@/components/ui/BaseCard";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { generateId } from "@/lib/generate-id";
+import { theme } from "@/theme";
 import {
   DAY_OF_WEEK_LABELS,
   DAY_OF_WEEK_ORDER,
   type DayOfWeek,
   type ExerciseConfig,
   type ExerciseSet,
-} from '@/features/training/types/routine';
+} from "@/features/training/types/routine";
+import type {
+  RootStackParamList,
+  TrainingStackParamList,
+} from "@/navigation/types";
+import type { TrainingStrategy } from "@/features/training/types/training-strategy";
 
-export default function RoutineBuilderScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<TrainingStackParamList>>();
-  const route = useRoute<RouteProp<TrainingStackParamList, 'RoutineBuilder'>>();
-  const { id } = route.params;
+type Props = NativeStackScreenProps<TrainingStackParamList, "RoutineBuilder">;
+type RootNavigation = NativeStackNavigationProp<RootStackParamList>;
 
-  const { data: routine, isLoading } = useRoutineDetail(id);
+function getExerciseSetCount(exercise: ExerciseConfig): number {
+  return Array.isArray(exercise.sets) ? exercise.sets.length : exercise.sets;
+}
+
+function formatExerciseMeta(exercise: ExerciseConfig): string {
+  const detailedSets = Array.isArray(exercise.sets)
+    ? exercise.sets
+    : (exercise.detailedSets ?? []);
+
+  if (detailedSets.length > 0) {
+    const [firstSet] = detailedSets;
+    const sameReps = detailedSets.every((set) => set.reps === firstSet.reps);
+    const sameWeight = detailedSets.every((set) => set.weight === firstSet.weight);
+
+    if (sameReps && sameWeight) {
+      return `${detailedSets.length} sets x ${firstSet.reps} reps${
+        firstSet.weight > 0 ? ` @ ${firstSet.weight}kg` : ""
+      }`;
+    }
+
+    return `${detailedSets.length} sets configurados`;
+  }
+
+  if (typeof exercise.sets === "number" && exercise.sets > 0) {
+    return `${exercise.sets} sets x ${exercise.repsPerSet ?? 0} reps${
+      (exercise.weight ?? 0) > 0 ? ` @ ${exercise.weight}kg` : ""
+    }`;
+  }
+
+  return "Sin sets configurados";
+}
+
+function roundWeight(value: number): number {
+  return parseFloat(value.toFixed(2));
+}
+
+function normalizeExerciseSets(exercise: ExerciseConfig): ExerciseSet[] {
+  if (Array.isArray(exercise.sets)) {
+    return exercise.sets.map((set, index) => ({
+      id: set.id,
+      setNumber: index + 1,
+      reps: set.reps,
+      weight: set.weight,
+      restSeconds: set.restSeconds,
+    }));
+  }
+
+  if (exercise.detailedSets && exercise.detailedSets.length > 0) {
+    return exercise.detailedSets.map((set, index) => ({
+      ...set,
+      setNumber: index + 1,
+    }));
+  }
+
+  if (exercise.sets > 0) {
+    return Array.from({ length: exercise.sets }, (_, index) => ({
+      setNumber: index + 1,
+      reps: exercise.repsPerSet ?? 10,
+      weight: exercise.weight ?? 0,
+    }));
+  }
+
+  return [];
+}
+
+function deriveNextSet(
+  sets: ExerciseSet[],
+  strategy: TrainingStrategy | undefined,
+): ExerciseSet {
+  const setNumber = sets.length + 1;
+  const previous = sets.at(-1);
+
+  if (!previous) {
+    return { setNumber, reps: 15, weight: 0 };
+  }
+
+  const rules = strategy?.rules;
+  const first = sets[0];
+
+  if (rules?.type === "percentage") {
+    const weightPercentage = rules.weightPercentage ?? 1;
+    const repStep = rules.repStep ?? 0;
+    return {
+      setNumber,
+      reps: Math.max(1, first.reps + (setNumber - 1) * repStep),
+      weight: roundWeight(previous.weight * weightPercentage),
+    };
+  }
+
+  if (rules?.type === "wave") {
+    const percentages = rules.wavePercentages?.length
+      ? rules.wavePercentages
+      : [0];
+    const pct = percentages[(setNumber - 1) % percentages.length] ?? 0;
+    return {
+      setNumber,
+      reps: first.reps,
+      weight: roundWeight(first.weight * (1 + pct)),
+    };
+  }
+
+  const weightStep = rules?.weightStep ?? 0;
+  const repStep = rules?.repStep ?? 0;
+  return {
+    setNumber,
+    reps: Math.max(1, previous.reps + repStep),
+    weight: roundWeight(previous.weight + weightStep),
+  };
+}
+
+export default function RoutineBuilderScreen({ navigation, route }: Props) {
+  const rootNavigation = useNavigation<RootNavigation>();
+  const routineId = route.params.id;
+
+  const { data: routine, isLoading } = useRoutineDetail(routineId);
   const { data: strategies } = useTrainingStrategies();
   const syncRoutineMutation = useSyncRoutine();
   const setStrategyMutation = useSetRoutineStrategy();
@@ -50,12 +178,20 @@ export default function RoutineBuilderScreen() {
 
   const [selectedDay, setSelectedDay] = React.useState<DayOfWeek | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
-  const [newExerciseName, setNewExerciseName] = React.useState('');
-  const [selectedDaysForNewExercise, setSelectedDaysForNewExercise] = React.useState<DayOfWeek[]>([]);
-  const [editingExercise, setEditingExercise] = React.useState<string | null>(null);
-  const [editValues, setEditValues] = React.useState({ sets: '', repsPerSet: '', weight: '' });
-  const [autoGenValues, setAutoGenValues] = React.useState({ sets: '4', weight: '0', reps: '10' });
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<string | null>(null);
+  const [newExerciseName, setNewExerciseName] = React.useState("");
+  const [selectedDaysForNewExercise, setSelectedDaysForNewExercise] =
+    React.useState<DayOfWeek[]>([]);
+  const [editingExercise, setEditingExercise] = React.useState<string | null>(
+    null,
+  );
+  const [autoGenValues, setAutoGenValues] = React.useState({
+    sets: "4",
+    weight: "0",
+    reps: "10",
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState<
+    string | null
+  >(null);
   const [mutationError, setMutationError] = React.useState<string | null>(null);
 
   const hasInitializedRef = React.useRef(false);
@@ -65,13 +201,13 @@ export default function RoutineBuilderScreen() {
     hasInitializedRef.current = false;
     setSelectedDay(null);
     setShowAddModal(false);
-    setNewExerciseName('');
+    setNewExerciseName("");
     setSelectedDaysForNewExercise([]);
     setEditingExercise(null);
     setShowDeleteConfirm(null);
     setMutationError(null);
     draftStore.clearDraft();
-  }, [id]);
+  }, [routineId]);
 
   // Initialize selected days for new exercise when modal opens
   React.useEffect(() => {
@@ -89,12 +225,22 @@ export default function RoutineBuilderScreen() {
       draftStore.clearDraft();
       (routine.days ?? []).forEach((day) => {
         const exercises = (day.exercises ?? []).map((ex) => {
-          const backendSets = (ex as unknown as { sets?: Array<{ setNumber: number; reps: number; weight: number }> }).sets;
+          const backendSets = (ex as unknown as { sets?: ExerciseSet[] }).sets;
           const isArray = Array.isArray(backendSets);
           const detailedSets: ExerciseSet[] | undefined = isArray
-            ? backendSets.map((s) => ({ setNumber: s.setNumber, reps: s.reps, weight: s.weight }))
+            ? backendSets.map((s, index) => ({
+                id: s.id,
+                setNumber: s.setNumber ?? index + 1,
+                reps: s.reps,
+                weight: s.weight,
+                restSeconds: s.restSeconds,
+              }))
             : undefined;
-          const setCount = isArray ? backendSets.length : (ex.sets as number) || 0;
+          const setCount = isArray
+            ? backendSets.length
+            : typeof ex.sets === "number"
+              ? ex.sets
+              : 0;
           const firstSet = detailedSets?.[0];
           return {
             ...ex,
@@ -117,20 +263,56 @@ export default function RoutineBuilderScreen() {
     }
   }, [routine]);
 
+  // Watch for exercise name selected from catalog
+  useFocusEffect(
+    React.useCallback(() => {
+      const pendingName = draftStore.pendingExerciseName;
+      const pendingConfig = draftStore.pendingCatalogConfig;
+      if (!pendingName || !pendingConfig) {
+        return;
+      }
+
+      pendingConfig.days.forEach((day) => {
+        const order = draftStore.draftExercises[day]?.length ?? 0;
+        draftStore.addDraftExercise(day, {
+          id: generateId(),
+          name: pendingName,
+          order,
+          sets: 0,
+          repsPerSet: 15,
+          weight: 0,
+        });
+      });
+      draftStore.setPendingExerciseName(null);
+      draftStore.setPendingCatalogConfig(null);
+    }, [draftStore])
+  );
+
   const sortedDays = [...(routine?.dayOfWeeks ?? [])].sort(
     (a, b) => DAY_OF_WEEK_ORDER.indexOf(a) - DAY_OF_WEEK_ORDER.indexOf(b),
   );
 
-  const currentExercises = selectedDay ? draftStore.draftExercises[selectedDay] ?? [] : [];
+  const currentExercises = selectedDay
+    ? (draftStore.draftExercises[selectedDay] ?? [])
+    : [];
   const hasStrategy = !!routine?.trainingStrategyKey;
+  const selectedStrategy = (strategies ?? []).find(
+    (strategy) => strategy.key === routine?.trainingStrategyKey,
+  );
 
   const buildSyncPayload = () => {
     const days = sortedDays.map((day) => ({
       dayOfWeek: day,
       exercises: (draftStore.draftExercises[day] ?? []).map((ex) => {
         const detailedSets = draftStore.generatedSets[ex.id];
-        const hasConfig = ex.sets > 0 && ex.repsPerSet > 0;
-        const payload: { id: string; name: string; order: number; sets?: Array<{ setNumber: number; reps: number; weight: number }> } = {
+        const setCount = getExerciseSetCount(ex);
+        const hasConfig = setCount > 0 && (ex.repsPerSet ?? 0) > 0;
+        const payload: {
+          id: string;
+          name: string;
+          order: number;
+          sets?: Array<{ setNumber: number; reps: number; weight: number }>;
+        } = {
           id: ex.id,
           name: ex.name,
           order: ex.order,
@@ -138,25 +320,25 @@ export default function RoutineBuilderScreen() {
         if (detailedSets && detailedSets.length > 0) {
           payload.sets = detailedSets;
         } else if (hasConfig) {
-          payload.sets = Array.from({ length: ex.sets }, (_, i) => ({
+          payload.sets = Array.from({ length: setCount }, (_, i) => ({
             setNumber: i + 1,
-            reps: ex.repsPerSet,
-            weight: ex.weight,
+            reps: ex.repsPerSet ?? 0,
+            weight: ex.weight ?? 0,
           }));
         }
         return payload;
       }),
     }));
-    return { routineId: id, days };
+    return { routineId: routineId, days };
   };
 
   const handleAddExercise = () => {
     if (selectedDaysForNewExercise.length === 0) {
-      setMutationError('Selecciona al menos un día para el ejercicio');
+      setMutationError("Selecciona al menos un día para el ejercicio");
       return;
     }
     if (!newExerciseName.trim()) {
-      setMutationError('Ingresa un nombre para el ejercicio');
+      setMutationError("Ingresa un nombre para el ejercicio");
       return;
     }
     const name = newExerciseName.trim();
@@ -165,16 +347,16 @@ export default function RoutineBuilderScreen() {
     selectedDaysForNewExercise.forEach((day) => {
       const order = draftStore.draftExercises[day]?.length ?? 0;
       draftStore.addDraftExercise(day, {
-        id: crypto.randomUUID(),
+        id: generateId(),
         name,
         order,
         sets: 0,
-        repsPerSet: 0,
+        repsPerSet: 15,
         weight: 0,
       });
     });
 
-    setNewExerciseName('');
+    setNewExerciseName("");
     setShowAddModal(false);
     setMutationError(null);
   };
@@ -198,42 +380,37 @@ export default function RoutineBuilderScreen() {
   const startEditing = (exercise: ExerciseConfig) => {
     setEditingExercise(exercise.id);
     const existingGenerated = draftStore.generatedSets[exercise.id];
-    const existingDetailed = exercise.detailedSets;
+    const normalizedSets = normalizeExerciseSets(exercise);
 
-    if (!existingGenerated && existingDetailed && existingDetailed.length > 0) {
-      draftStore.setGeneratedSets(exercise.id, existingDetailed);
-    } else if (!existingGenerated) {
-      draftStore.setGeneratedSets(exercise.id, []);
+    if (!existingGenerated) {
+      draftStore.setGeneratedSets(exercise.id, normalizedSets);
     }
 
-    setEditValues({
-      sets: String(exercise.sets || 4),
-      repsPerSet: String(exercise.repsPerSet || 10),
-      weight: String(exercise.weight || 0),
-    });
     setAutoGenValues({
-      sets: String(exercise.sets || 4),
+      sets: String(getExerciseSetCount(exercise) || 4),
       weight: String(exercise.weight || 0),
       reps: String(exercise.repsPerSet || 10),
     });
   };
 
+  const handleAddSet = (exercise: ExerciseConfig) => {
+    const currentSets =
+      draftStore.generatedSets[exercise.id] ?? normalizeExerciseSets(exercise);
+    const nextSet = deriveNextSet(currentSets, selectedStrategy);
+    draftStore.setGeneratedSets(exercise.id, [...currentSets, nextSet]);
+  };
+
   const saveExerciseConfig = (exerciseId: string) => {
     if (!selectedDay) return;
     const detailedSets = draftStore.generatedSets[exerciseId] ?? [];
-    const sets = detailedSets.length || parseInt(editValues.sets, 10) || 1;
-    const repsPerSet = detailedSets.length > 0
-      ? detailedSets[0].reps
-      : (parseInt(editValues.repsPerSet, 10) || 1);
-    const weight = detailedSets.length > 0
-      ? detailedSets[0].weight
-      : (parseFloat(editValues.weight) || 0);
+    const sets = detailedSets.length;
+    const firstSet = detailedSets[0];
 
     setMutationError(null);
     draftStore.updateDraftExercise(selectedDay, exerciseId, {
       sets,
-      repsPerSet,
-      weight,
+      repsPerSet: firstSet?.reps ?? 0,
+      weight: firstSet?.weight ?? 0,
       detailedSets: detailedSets.length > 0 ? detailedSets : undefined,
     });
     setEditingExercise(null);
@@ -248,7 +425,7 @@ export default function RoutineBuilderScreen() {
     setMutationError(null);
     generateSetsMutation.mutate(
       {
-        routineId: id,
+        routineId: routineId,
         strategyKey: routine.trainingStrategyKey,
         numberOfSets,
         initialWeight,
@@ -259,7 +436,7 @@ export default function RoutineBuilderScreen() {
           draftStore.setGeneratedSets(exerciseId, sets);
         },
         onError: (error) => {
-          setMutationError(error.message || 'Error al generar sets');
+          setMutationError(error.message || "Error al generar sets");
         },
       },
     );
@@ -272,7 +449,7 @@ export default function RoutineBuilderScreen() {
         navigation.goBack();
       },
       onError: (error) => {
-        setMutationError(error.message || 'Error al guardar cambios');
+        setMutationError(error.message || "Error al guardar cambios");
       },
     });
   };
@@ -280,10 +457,10 @@ export default function RoutineBuilderScreen() {
   const handleStrategyChange = (key: string | null) => {
     setMutationError(null);
     setStrategyMutation.mutate(
-      { routineId: id, strategyKey: key },
+      { routineId: routineId, strategyKey: key },
       {
         onError: (error) => {
-          setMutationError(error.message || 'Error al guardar estrategia');
+          setMutationError(error.message || "Error al guardar estrategia");
         },
       },
     );
@@ -292,10 +469,13 @@ export default function RoutineBuilderScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>{routine?.name ?? 'Editar Rutina'}</Text>
+        <Text style={styles.title}>{routine?.name ?? "Editar Rutina"}</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -349,7 +529,7 @@ export default function RoutineBuilderScreen() {
 
             <View style={styles.exercisesHeader}>
               <Text style={styles.sectionTitle}>
-                Ejercicios · {DAY_OF_WEEK_LABELS[selectedDay ?? 'monday']}
+                Ejercicios · {DAY_OF_WEEK_LABELS[selectedDay ?? "monday"]}
               </Text>
               <TouchableOpacity
                 style={styles.addButton}
@@ -378,36 +558,48 @@ export default function RoutineBuilderScreen() {
 
                       {hasStrategy && (
                         <View style={styles.autoGenSection}>
-                          <Text style={styles.editLabel}>Configuración rápida</Text>
+                          <Text style={styles.editLabel}>
+                            Configuración rápida
+                          </Text>
                           <View style={styles.editRow}>
                             <View style={styles.editField}>
                               <Text style={styles.editLabel}>Sets</Text>
                               <RNTextInput
                                 style={styles.editInput}
                                 value={autoGenValues.sets}
-                                onChangeText={(t) => setAutoGenValues((v) => ({ ...v, sets: t }))}
+                                onChangeText={(t) =>
+                                  setAutoGenValues((v) => ({ ...v, sets: t }))
+                                }
                                 keyboardType="numeric"
                                 placeholder="4"
                                 placeholderTextColor={theme.colors.textMuted}
                               />
                             </View>
                             <View style={styles.editField}>
-                              <Text style={styles.editLabel}>Peso inicial (kg)</Text>
+                              <Text style={styles.editLabel}>
+                                Peso inicial (kg)
+                              </Text>
                               <RNTextInput
                                 style={styles.editInput}
                                 value={autoGenValues.weight}
-                                onChangeText={(t) => setAutoGenValues((v) => ({ ...v, weight: t }))}
+                                onChangeText={(t) =>
+                                  setAutoGenValues((v) => ({ ...v, weight: t }))
+                                }
                                 keyboardType="numeric"
                                 placeholder="0"
                                 placeholderTextColor={theme.colors.textMuted}
                               />
                             </View>
                             <View style={styles.editField}>
-                              <Text style={styles.editLabel}>Reps iniciales</Text>
+                              <Text style={styles.editLabel}>
+                                Reps iniciales
+                              </Text>
                               <RNTextInput
                                 style={styles.editInput}
                                 value={autoGenValues.reps}
-                                onChangeText={(t) => setAutoGenValues((v) => ({ ...v, reps: t }))}
+                                onChangeText={(t) =>
+                                  setAutoGenValues((v) => ({ ...v, reps: t }))
+                                }
                                 keyboardType="numeric"
                                 placeholder="10"
                                 placeholderTextColor={theme.colors.textMuted}
@@ -423,53 +615,20 @@ export default function RoutineBuilderScreen() {
                         </View>
                       )}
 
-                      {!hasStrategy && (
-                        <View style={styles.editRow}>
-                          <View style={styles.editField}>
-                            <Text style={styles.editLabel}>Sets</Text>
-                            <RNTextInput
-                              style={styles.editInput}
-                              value={editValues.sets}
-                              onChangeText={(t) => setEditValues((v) => ({ ...v, sets: t }))}
-                              keyboardType="numeric"
-                              placeholder="4"
-                              placeholderTextColor={theme.colors.textMuted}
-                            />
-                          </View>
-                          <View style={styles.editField}>
-                            <Text style={styles.editLabel}>Reps</Text>
-                            <RNTextInput
-                              style={styles.editInput}
-                              value={editValues.repsPerSet}
-                              onChangeText={(t) => setEditValues((v) => ({ ...v, repsPerSet: t }))}
-                              keyboardType="numeric"
-                              placeholder="8"
-                              placeholderTextColor={theme.colors.textMuted}
-                            />
-                          </View>
-                          <View style={styles.editField}>
-                            <Text style={styles.editLabel}>Peso (kg)</Text>
-                            <RNTextInput
-                              style={styles.editInput}
-                              value={editValues.weight}
-                              onChangeText={(t) => setEditValues((v) => ({ ...v, weight: t }))}
-                              keyboardType="numeric"
-                              placeholder="0"
-                              placeholderTextColor={theme.colors.textMuted}
-                            />
-                          </View>
-                        </View>
-                      )}
-
-                      {hasStrategy && (
-                        <View style={styles.tableSection}>
-                          <Text style={styles.editLabel}>Sets generados</Text>
-                          <ExerciseSetsTable
-                            sets={draftStore.generatedSets[exercise.id] ?? []}
-                            onChange={(sets) => draftStore.setGeneratedSets(exercise.id, sets)}
-                          />
-                        </View>
-                      )}
+                      <View style={styles.tableSection}>
+                        <Text style={styles.editLabel}>Sets del ejercicio</Text>
+                        <ExerciseSetsTable
+                          sets={
+                            draftStore.generatedSets[exercise.id] ??
+                            normalizeExerciseSets(exercise)
+                          }
+                          onChange={(sets) =>
+                            draftStore.setGeneratedSets(exercise.id, sets)
+                          }
+                          onAddSet={() => handleAddSet(exercise)}
+                          addSetLabel="Agregar set"
+                        />
+                      </View>
 
                       <View style={styles.editActions}>
                         <SecondaryButton
@@ -487,8 +646,7 @@ export default function RoutineBuilderScreen() {
                       <View style={styles.exerciseMain}>
                         <Text style={styles.exerciseName}>{exercise.name}</Text>
                         <Text style={styles.exerciseMeta}>
-                          {exercise.sets} sets × {exercise.repsPerSet} reps
-                          {exercise.weight > 0 ? ` @ ${exercise.weight}kg` : ''}
+                          {formatExerciseMeta(exercise)}
                         </Text>
                       </View>
                       <View style={styles.exerciseActions}>
@@ -498,29 +656,39 @@ export default function RoutineBuilderScreen() {
                               draftStore.reorderDraftExercise(
                                 selectedDay as DayOfWeek,
                                 exercise.id,
-                                'up',
+                                "up",
                               )
                             }
                             disabled={index === 0}
-                            style={[styles.iconBtn, index === 0 && styles.iconBtnDisabled]}
+                            style={[
+                              styles.iconBtn,
+                              index === 0 && styles.iconBtnDisabled,
+                            ]}
                           >
-                            <ChevronUp size={18} color={theme.colors.textSecondary} />
+                            <ChevronUp
+                              size={18}
+                              color={theme.colors.textSecondary}
+                            />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() =>
                               draftStore.reorderDraftExercise(
                                 selectedDay as DayOfWeek,
                                 exercise.id,
-                                'down',
+                                "down",
                               )
                             }
                             disabled={index === currentExercises.length - 1}
                             style={[
                               styles.iconBtn,
-                              index === currentExercises.length - 1 && styles.iconBtnDisabled,
+                              index === currentExercises.length - 1 &&
+                                styles.iconBtnDisabled,
                             ]}
                           >
-                            <ChevronDown size={18} color={theme.colors.textSecondary} />
+                            <ChevronDown
+                              size={18}
+                              color={theme.colors.textSecondary}
+                            />
                           </TouchableOpacity>
                         </View>
                         <TouchableOpacity
@@ -559,7 +727,7 @@ export default function RoutineBuilderScreen() {
         onRequestClose={() => setShowAddModal(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalOverlay}
         >
           <BaseCard style={styles.modalCard}>
@@ -590,30 +758,19 @@ export default function RoutineBuilderScreen() {
               })}
             </View>
             {selectedDaysForNewExercise.length === 0 && (
-              <Text style={styles.modalHintText}>Selecciona al menos un día</Text>
+              <Text style={styles.modalHintText}>
+                Selecciona al menos un día
+              </Text>
             )}
             <Text style={styles.modalLabel}>Nombre</Text>
             <TouchableOpacity
               style={styles.catalogButton}
               onPress={() => {
                 setShowAddModal(false);
-                navigation.navigate('ExerciseCatalog', {
-                  onSelect: (name: string) => {
-                    setNewExerciseName(name);
-                    selectedDaysForNewExercise.forEach((day) => {
-                      const order = draftStore.draftExercises[day]?.length ?? 0;
-                      draftStore.addDraftExercise(day, {
-                        id: crypto.randomUUID(),
-                        name,
-                        order,
-                        sets: 0,
-                        repsPerSet: 0,
-                        weight: 0,
-                      });
-                    });
-                    setShowAddModal(false);
-                  },
+                draftStore.setPendingCatalogConfig({
+                  days: selectedDaysForNewExercise,
                 });
+                rootNavigation.navigate("ExerciseCatalogModal");
               }}
             >
               <Search size={18} color={theme.colors.primary} />
@@ -635,11 +792,17 @@ export default function RoutineBuilderScreen() {
               <Text style={styles.modalErrorText}>{mutationError}</Text>
             )}
             <View style={styles.modalButtons}>
-              <SecondaryButton label="Cancelar" onPress={() => setShowAddModal(false)} />
+              <SecondaryButton
+                label="Cancelar"
+                onPress={() => setShowAddModal(false)}
+              />
               <PrimaryButton
                 label="Agregar"
                 onPress={handleAddExercise}
-                disabled={selectedDaysForNewExercise.length === 0 || !newExerciseName.trim()}
+                disabled={
+                  selectedDaysForNewExercise.length === 0 ||
+                  !newExerciseName.trim()
+                }
               />
             </View>
           </BaseCard>
@@ -656,12 +819,19 @@ export default function RoutineBuilderScreen() {
         <View style={styles.modalOverlay}>
           <BaseCard style={styles.modalCard}>
             <Text style={styles.modalTitle}>¿Eliminar ejercicio?</Text>
-            <Text style={styles.modalText}>Esta acción no se puede deshacer.</Text>
+            <Text style={styles.modalText}>
+              Esta acción no se puede deshacer.
+            </Text>
             <View style={styles.modalButtons}>
-              <SecondaryButton label="Cancelar" onPress={() => setShowDeleteConfirm(null)} />
+              <SecondaryButton
+                label="Cancelar"
+                onPress={() => setShowDeleteConfirm(null)}
+              />
               <PrimaryButton
                 label="Eliminar"
-                onPress={() => showDeleteConfirm && handleRemoveExercise(showDeleteConfirm)}
+                onPress={() =>
+                  showDeleteConfirm && handleRemoveExercise(showDeleteConfirm)
+                }
               />
             </View>
           </BaseCard>
@@ -677,17 +847,17 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
   backButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     color: theme.colors.textPrimary,
@@ -697,15 +867,15 @@ const styles = StyleSheet.create({
   },
   center: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   loadingText: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
   },
   daysRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.sm,
@@ -726,11 +896,11 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   dayTabTextSelected: {
     color: theme.colors.primary,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
@@ -738,37 +908,37 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   exercisesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginTop: theme.spacing.sm,
   },
   sectionTitle: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: theme.spacing.xs,
   },
   addButtonText: {
     color: theme.colors.primary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   exerciseCard: {
     padding: theme.spacing.md,
   },
   exerciseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: theme.spacing.sm,
   },
   exerciseMain: {
@@ -779,7 +949,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   exerciseMeta: {
     color: theme.colors.textMuted,
@@ -787,19 +957,19 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.small.lineHeight,
   },
   exerciseActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: theme.spacing.xs,
   },
   reorderButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconBtn: {
     padding: theme.spacing.xs,
     minWidth: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconBtnDisabled: {
     opacity: 0.3,
@@ -808,7 +978,7 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   editForm: {
     gap: theme.spacing.md,
@@ -820,7 +990,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   editRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: theme.spacing.md,
   },
   editField: {
@@ -845,11 +1015,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   editActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: theme.spacing.md,
   },
   emptyDay: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: theme.spacing.xl,
     gap: theme.spacing.sm,
   },
@@ -866,12 +1036,12 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: theme.colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: theme.spacing.lg,
   },
   modalCard: {
-    width: '100%',
+    width: "100%",
     gap: theme.spacing.md,
   },
   modalTitle: {
@@ -879,7 +1049,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.heading3.fontSize,
     lineHeight: theme.typography.heading3.lineHeight,
     fontWeight: theme.typography.heading3.fontWeight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalLabel: {
     color: theme.colors.textSecondary,
@@ -887,8 +1057,8 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.small.lineHeight,
   },
   daysChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: theme.spacing.sm,
   },
   dayChip: {
@@ -907,11 +1077,11 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   dayChipTextSelected: {
     color: theme.colors.background,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   modalHintText: {
     color: theme.colors.error,
@@ -934,13 +1104,13 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalErrorText: {
     color: theme.colors.error,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalButtons: {
     gap: theme.spacing.md,
@@ -958,12 +1128,12 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   catalogButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: theme.spacing.sm,
     backgroundColor: `${theme.colors.primary}22`,
     borderColor: theme.colors.primary,
@@ -976,11 +1146,11 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   orDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: theme.spacing.sm,
   },
   orLine: {

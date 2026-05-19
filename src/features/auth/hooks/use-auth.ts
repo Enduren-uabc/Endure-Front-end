@@ -1,13 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
+import { tokenStore } from '@/lib/secure-token-store';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 
 export interface AuthResponse {
-  userId: string;
+  id: string;
   role: string;
   email: string;
   username: string;
+  accessToken?: string;
+  refreshToken?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface RegisterBody {
@@ -31,7 +35,7 @@ export interface PasswordResetBody {
 }
 
 export interface MeResponse {
-  userId: string;
+  id: string;
   role: string;
   email: string;
   username: string;
@@ -49,8 +53,13 @@ export function useLogin() {
 
   return useMutation<AuthResponse, ApiError, LoginBody>({
     mutationFn: (body) => apiClient.post<AuthResponse>(API_ENDPOINTS.auth.login, body),
-    onSuccess: (data) => {
-      setSession(data.userId, data.role);
+    onSuccess: async (data) => {
+      if (data.accessToken && data.refreshToken) {
+        await tokenStore.setAccessToken(data.accessToken);
+        await tokenStore.setRefreshToken(data.refreshToken);
+      }
+
+      setSession(data.id, data.role, data.onboardingCompleted ?? null);
     },
   });
 }
@@ -75,7 +84,8 @@ export function useLogout() {
 
   return useMutation<{ message: string }, ApiError>({
     mutationFn: () => apiClient.post<{ message: string }>(API_ENDPOINTS.auth.logout),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await tokenStore.clear();
       clearSession();
       queryClient.clear();
     },

@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { resetPasswordSchema, ResetPasswordFormData } from '@/features/auth/validations/auth';
@@ -18,10 +18,12 @@ import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { theme } from '@/theme';
+import type { AuthStackParamList } from '@/navigation/types';
 
-export default function ResetPasswordScreen() {
-  const router = useRouter();
-  const { token } = useLocalSearchParams<{ token?: string }>();
+type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
+
+export default function ResetPasswordScreen({ navigation, route }: Props) {
+  const token = route.params?.token;
   const resetMutation = usePasswordReset();
 
   const {
@@ -47,10 +49,10 @@ export default function ResetPasswordScreen() {
   React.useEffect(() => {
     if (resetMutation.isSuccess) {
       setTimeout(() => {
-        router.replace('/login');
+        navigation.replace('Login');
       }, 2000);
     }
-  }, [resetMutation.isSuccess, router]);
+  }, [resetMutation.isSuccess, navigation]);
 
   const onSubmit = (data: ResetPasswordFormData) => {
     if (!token) {
@@ -75,7 +77,7 @@ export default function ResetPasswordScreen() {
               </Text>
               <SecondaryButton
                 label="Solicitar nuevo enlace"
-                onPress={() => router.push('/forgot-password')}
+                onPress={() => navigation.navigate('ForgotPassword')}
               />
             </View>
           </BaseCard>

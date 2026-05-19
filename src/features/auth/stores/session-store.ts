@@ -7,14 +7,16 @@ interface SessionState {
   role: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  onboardingCompleted: boolean;
+  hasHydrated: boolean;
+  onboardingCompleted: boolean | null;
 }
 
 interface SessionActions {
-  setSession: (userId: string, role: string) => void;
+  setSession: (userId: string, role: string, onboardingCompleted?: boolean | null) => void;
   clearSession: () => void;
   setLoading: (isLoading: boolean) => void;
-  setOnboardingCompleted: (completed: boolean) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
+  setOnboardingCompleted: (completed: boolean | null) => void;
 }
 
 const initialState: SessionState = {
@@ -22,21 +24,24 @@ const initialState: SessionState = {
   role: null,
   isAuthenticated: false,
   isLoading: false,
-  onboardingCompleted: false,
+  hasHydrated: false,
+  onboardingCompleted: null,
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
   persist(
     (set) => ({
       ...initialState,
-      setSession: (userId, role) =>
+      setSession: (userId, role, onboardingCompleted = null) =>
         set({
           userId,
           role,
           isAuthenticated: true,
+          onboardingCompleted,
         }),
-      clearSession: () => set({ ...initialState }),
+      clearSession: () => set({ ...initialState, hasHydrated: true }),
       setLoading: (isLoading) => set({ isLoading }),
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       setOnboardingCompleted: (onboardingCompleted) => set({ onboardingCompleted }),
     }),
     {
@@ -48,6 +53,10 @@ export const useSessionStore = create<SessionState & SessionActions>()(
         isAuthenticated: state.isAuthenticated,
         onboardingCompleted: state.onboardingCompleted,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setLoading(false);
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

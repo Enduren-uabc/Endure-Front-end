@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -7,27 +7,87 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Dumbbell, Plus, ChevronRight } from 'lucide-react-native';
-import { useRoutines } from '@/features/training/hooks/use-routines';
-import type { TrainingStackParamList } from '@/navigation/types';
-import { BaseCard } from '@/components/ui/BaseCard';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { theme } from '@/theme';
-import type { Routine } from '@/features/training/types/routine';
+  Modal,
+  TextInput as RNTextInput,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Dumbbell, Plus, ChevronRight } from "lucide-react-native";
+import {
+  useRoutines,
+  useCreateRoutine,
+} from "@/features/training/hooks/use-routines";
+import { BaseCard } from "@/components/ui/BaseCard";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { theme } from "@/theme";
+import type { Routine } from "@/features/training/types/routine";
+import {
+  DAY_OF_WEEK_LABELS,
+  DAY_OF_WEEK_ORDER,
+  type DayOfWeek,
+} from "@/features/training/types/routine";
+import type { TrainingStackParamList } from "@/navigation/types";
 
-export default function RoutinesListScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<TrainingStackParamList>>();
-  const { data: routines = [], isLoading, isError, refetch, isRefetching } = useRoutines();
+type Props = NativeStackScreenProps<TrainingStackParamList, "RoutinesList">;
+
+export default function RoutinesListScreen({ navigation }: Props) {
+  const {
+    data: routines = [],
+    isLoading,
+    isError,
+    refetch,
+    isRefetching,
+  } = useRoutines();
+  const createMutation = useCreateRoutine();
+
+  const [showCreateModal, setShowCreateModal] = React.useState(false);
+  const [newRoutineName, setNewRoutineName] = React.useState("");
+  const [selectedDays, setSelectedDays] = React.useState<DayOfWeek[]>([]);
+  const [createError, setCreateError] = React.useState<string | null>(null);
 
   const activeRoutine = routines.find((r) => r.isActive);
   const inactiveRoutines = routines.filter((r) => !r.isActive);
 
   const handleRoutinePress = (routine: Routine) => {
-    navigation.navigate('RoutineDetail', { id: routine.id });
+    navigation.navigate("RoutineDetail", { id: routine.id });
+  };
+
+  const handleOpenCreate = () => {
+    setNewRoutineName("");
+    setSelectedDays([]);
+    setCreateError(null);
+    setShowCreateModal(true);
+  };
+
+  const toggleDay = (day: DayOfWeek) => {
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
+  };
+
+  const handleCreateRoutine = () => {
+    if (!newRoutineName.trim()) {
+      setCreateError("Ingresa un nombre para la rutina");
+      return;
+    }
+    if (selectedDays.length === 0) {
+      setCreateError("Selecciona al menos un día");
+      return;
+    }
+    setCreateError(null);
+    createMutation.mutate(
+      { name: newRoutineName.trim(), dayOfWeeks: selectedDays },
+      {
+        onSuccess: (routine) => {
+          setShowCreateModal(false);
+          navigation.navigate("RoutineBuilder", { id: routine.id });
+        },
+        onError: () => {
+          setCreateError("Error al crear la rutina");
+        },
+      },
+    );
   };
 
   return (
@@ -35,7 +95,11 @@ export default function RoutinesListScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={theme.colors.primary} />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor={theme.colors.primary}
+          />
         }
       >
         <View style={styles.header}>
@@ -64,12 +128,10 @@ export default function RoutinesListScreen() {
               <Dumbbell size={48} color={theme.colors.textMuted} />
               <Text style={styles.emptyTitle}>Aún no tienes rutinas</Text>
               <Text style={styles.emptySubtitle}>
-                Crea tu primera rutina para empezar a entrenar de forma estructurada.
+                Crea tu primera rutina para empezar a entrenar de forma
+                estructurada.
               </Text>
-              <PrimaryButton
-                label="Crear rutina"
-                onPress={() => navigation.navigate('CreateRoutine')}
-              />
+              <PrimaryButton label="Crear rutina" onPress={handleOpenCreate} />
             </View>
           </BaseCard>
         )}
@@ -86,7 +148,8 @@ export default function RoutinesListScreen() {
                 </View>
                 <Text style={styles.routineName}>{activeRoutine.name}</Text>
                 <Text style={styles.routineMeta}>
-                  {(activeRoutine.dayOfWeeks ?? []).length} días · {countExercises(activeRoutine)} ejercicios
+                  {(activeRoutine.dayOfWeeks ?? []).length} días ·{" "}
+                  {countExercises(activeRoutine)} ejercicios
                 </Text>
               </BaseCard>
             </TouchableOpacity>
@@ -96,7 +159,7 @@ export default function RoutinesListScreen() {
         {inactiveRoutines.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              {activeRoutine ? 'Otras rutinas' : 'Tus rutinas'}
+              {activeRoutine ? "Otras rutinas" : "Tus rutinas"}
             </Text>
             {inactiveRoutines.map((routine) => (
               <TouchableOpacity
@@ -109,7 +172,8 @@ export default function RoutinesListScreen() {
                     <View style={styles.routineInfo}>
                       <Text style={styles.routineName}>{routine.name}</Text>
                       <Text style={styles.routineMeta}>
-                        {(routine.dayOfWeeks ?? []).length} días · {countExercises(routine)} ejercicios
+                        {(routine.dayOfWeeks ?? []).length} días ·{" "}
+                        {countExercises(routine)} ejercicios
                       </Text>
                     </View>
                     <ChevronRight size={20} color={theme.colors.textMuted} />
@@ -122,19 +186,80 @@ export default function RoutinesListScreen() {
       </ScrollView>
 
       <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate('CreateRoutine')}
-        >
+        <TouchableOpacity style={styles.fab} onPress={handleOpenCreate}>
           <Plus size={24} color={theme.colors.background} />
         </TouchableOpacity>
       </View>
+
+      {/* Create Routine Modal */}
+      <Modal
+        visible={showCreateModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BaseCard style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Nueva rutina</Text>
+
+            <Text style={styles.modalLabel}>Nombre</Text>
+            <RNTextInput
+              style={styles.modalInput}
+              value={newRoutineName}
+              onChangeText={setNewRoutineName}
+              placeholder="Ej: Rutina de fuerza"
+              placeholderTextColor={theme.colors.textMuted}
+            />
+
+            <Text style={styles.modalLabel}>Días de entrenamiento</Text>
+            <View style={styles.daysGrid}>
+              {DAY_OF_WEEK_ORDER.map((day) => (
+                <TouchableOpacity
+                  key={day}
+                  onPress={() => toggleDay(day)}
+                  style={[
+                    styles.dayChip,
+                    selectedDays.includes(day) && styles.dayChipSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayChipText,
+                      selectedDays.includes(day) && styles.dayChipTextSelected,
+                    ]}
+                  >
+                    {DAY_OF_WEEK_LABELS[day]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {createError && <Text style={styles.errorText}>{createError}</Text>}
+
+            <View style={styles.modalButtons}>
+              <SecondaryButton
+                label="Cancelar"
+                onPress={() => setShowCreateModal(false)}
+              />
+              <PrimaryButton
+                label="Crear"
+                onPress={handleCreateRoutine}
+                loading={createMutation.isPending}
+                disabled={createMutation.isPending}
+              />
+            </View>
+          </BaseCard>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 function countExercises(routine: Routine): number {
-  return (routine.days ?? []).reduce((sum, day) => sum + (day.exercises ?? []).length, 0);
+  return (routine.days ?? []).reduce(
+    (sum, day) => sum + (day.exercises ?? []).length,
+    0,
+  );
 }
 
 const styles = StyleSheet.create({
@@ -163,7 +288,7 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.body.lineHeight,
   },
   center: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: theme.spacing.md,
     paddingVertical: theme.spacing.xl,
   },
@@ -171,9 +296,10 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
+    textAlign: "center",
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: theme.spacing.md,
     paddingVertical: theme.spacing.xl,
   },
@@ -182,13 +308,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.heading3.fontSize,
     lineHeight: theme.typography.heading3.lineHeight,
     fontWeight: theme.typography.heading3.fontWeight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptySubtitle: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   section: {
     gap: theme.spacing.md,
@@ -197,8 +323,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontWeight: "600",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   activeCard: {
@@ -207,8 +333,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   activeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "flex-start",
   },
   activeBadge: {
     backgroundColor: `${theme.colors.primary}33`,
@@ -220,7 +346,7 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typography.caption.fontSize,
     lineHeight: theme.typography.caption.lineHeight,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   routineItem: {
     marginBottom: theme.spacing.md,
@@ -229,9 +355,9 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   routineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   routineInfo: {
     flex: 1,
@@ -249,7 +375,7 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.small.lineHeight,
   },
   fabContainer: {
-    position: 'absolute',
+    position: "absolute",
     right: theme.spacing.lg,
     bottom: theme.spacing.lg,
   },
@@ -258,12 +384,78 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: theme.colors.overlay,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: theme.spacing.lg,
+  },
+  modalCard: {
+    width: "100%",
+    gap: theme.spacing.md,
+  },
+  modalTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading3.fontSize,
+    lineHeight: theme.typography.heading3.lineHeight,
+    fontWeight: theme.typography.heading3.fontWeight,
+    textAlign: "center",
+  },
+  modalLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  modalInput: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    minHeight: 48,
+  },
+  daysGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+  dayChip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+  },
+  dayChipSelected: {
+    backgroundColor: `${theme.colors.primary}33`,
+    borderColor: theme.colors.primary,
+  },
+  dayChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: "500",
+  },
+  dayChipTextSelected: {
+    color: theme.colors.primary,
+    fontWeight: "700",
+  },
+  modalButtons: {
+    gap: theme.spacing.md,
   },
 });

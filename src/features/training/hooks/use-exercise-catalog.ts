@@ -6,6 +6,21 @@ import type {
   ExerciseCatalogFilters,
 } from '../types/exercise-catalog';
 
+interface ExerciseCatalogApiResponse {
+  data: Array<{
+    id: string;
+    name: string;
+    category: string;
+    primaryMuscleGroup: string;
+    equipment: string;
+    videoUrl: string | null;
+    imageUrl: string | null;
+  }>;
+  total: number;
+  page: number;
+  limit: number;
+}
+
 interface ExerciseCatalogResponse {
   exercises: ExerciseCatalogItem[];
 }
@@ -24,12 +39,25 @@ export function useExerciseCatalog(filters: ExerciseCatalogFilters = {}) {
         ? `${API_ENDPOINTS.exercises.catalog}?${params.toString()}`
         : API_ENDPOINTS.exercises.catalog;
 
-      const data = await apiClient.get<ExerciseCatalogItem[] | ExerciseCatalogResponse>(endpoint);
+      const data = await apiClient.get<ExerciseCatalogApiResponse | ExerciseCatalogItem[] | ExerciseCatalogResponse>(endpoint);
 
       if (Array.isArray(data)) {
         return data;
       }
-      return data.exercises ?? [];
+
+      if ('data' in data && Array.isArray(data.data)) {
+        return data.data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          category: item.category as ExerciseCatalogItem['category'],
+          muscleGroups: [item.primaryMuscleGroup],
+          equipment: item.equipment,
+          videoUrl: item.videoUrl,
+          imageUrl: item.imageUrl,
+        }));
+      }
+
+      return (data as ExerciseCatalogResponse).exercises ?? [];
     },
     staleTime: 5 * 60 * 1000,
   });

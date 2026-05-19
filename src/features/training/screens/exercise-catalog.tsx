@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -7,35 +7,39 @@ import {
   TouchableOpacity,
   TextInput as RNTextInput,
   ActivityIndicator,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Search, Dumbbell, Plus } from 'lucide-react-native';
-import { useExerciseCatalog } from '@/features/training/hooks/use-exercise-catalog';
+  Linking,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { ArrowLeft, Search, Dumbbell, Plus, Play, Image } from "lucide-react-native";
+import { useExerciseCatalog } from "@/features/training/hooks/use-exercise-catalog";
 import {
   EXERCISE_CATEGORIES,
   EXERCISE_CATEGORY_LABELS,
   type ExerciseCategory,
   type ExerciseCatalogItem,
-} from '@/features/training/types/exercise-catalog';
-import { Chip } from '@/components/ui/Chip';
-import { BaseCard } from '@/components/ui/BaseCard';
-import { theme } from '@/theme';
-import type { TrainingStackParamList } from '@/navigation/types';
+} from "@/features/training/types/exercise-catalog";
+import { useRoutineDraftStore } from "@/features/training/stores/routine-draft-store";
+import { Chip } from "@/components/ui/Chip";
+import { BaseCard } from "@/components/ui/BaseCard";
+import { theme } from "@/theme";
+import type { RootStackParamList } from "@/navigation/types";
 
-export default function ExerciseCatalogScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<TrainingStackParamList>>();
-  const route = useRoute<RouteProp<TrainingStackParamList, 'ExerciseCatalog'>>();
-  const { onSelect } = route.params;
+type Props = NativeStackScreenProps<RootStackParamList, "ExerciseCatalogModal">;
 
-  const [search, setSearch] = React.useState('');
-  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+export default function ExerciseCatalogScreen({ navigation }: Props) {
+  const setPendingExerciseName = useRoutineDraftStore(
+    (s) => s.setPendingExerciseName,
+  );
+
+  const [search, setSearch] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] =
     React.useState<ExerciseCategory | null>(null);
 
-  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const debounceTimerRef = React.useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
 
   React.useEffect(() => {
     if (debounceTimerRef.current) {
@@ -51,13 +55,17 @@ export default function ExerciseCatalogScreen() {
     };
   }, [search]);
 
-  const { data: exercises, isLoading, isError } = useExerciseCatalog({
+  const {
+    data: exercises,
+    isLoading,
+    isError,
+  } = useExerciseCatalog({
     search: debouncedSearch || undefined,
     category: selectedCategory ?? undefined,
   });
 
   const handleSelect = (exercise: ExerciseCatalogItem) => {
-    onSelect(exercise.name);
+    setPendingExerciseName(exercise.name);
     navigation.goBack();
   };
 
@@ -68,7 +76,10 @@ export default function ExerciseCatalogScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Catálogo de Ejercicios</Text>
@@ -148,10 +159,30 @@ export default function ExerciseCatalogScreen() {
                     <Text style={styles.exerciseMeta}>
                       {EXERCISE_CATEGORY_LABELS[exercise.category]}
                       {exercise.muscleGroups?.length > 0
-                        ? ` · ${exercise.muscleGroups.join(', ')}`
-                        : ''}
-                      {exercise.equipment ? ` · ${exercise.equipment}` : ''}
+                        ? ` · ${exercise.muscleGroups.join(", ")}`
+                        : ""}
+                      {exercise.equipment ? ` · ${exercise.equipment}` : ""}
                     </Text>
+                    <View style={styles.mediaLinks}>
+                      {exercise.videoUrl && (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(exercise.videoUrl!)}
+                          style={styles.mediaLink}
+                        >
+                          <Play size={14} color={theme.colors.primary} />
+                          <Text style={styles.mediaLinkText}>Video</Text>
+                        </TouchableOpacity>
+                      )}
+                      {exercise.imageUrl && (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(exercise.imageUrl!)}
+                          style={styles.mediaLink}
+                        >
+                          <Image size={14} color={theme.colors.primary} />
+                          <Text style={styles.mediaLinkText}>Foto</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 </View>
               </BaseCard>
@@ -175,17 +206,17 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
   backButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     color: theme.colors.textPrimary,
@@ -194,16 +225,16 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.heading3.fontWeight,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: theme.colors.surfaceElevated,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     paddingHorizontal: theme.spacing.md,
     marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.sm,
-    minHeight: 48,
+    marginBottom: theme.spacing.md,
+    height: 52,
   },
   searchInput: {
     flex: 1,
@@ -221,11 +252,11 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xxxl,
-    gap: theme.spacing.sm,
+    gap: theme.spacing.md,
   },
   center: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: theme.spacing.xxl,
     gap: theme.spacing.sm,
   },
@@ -242,20 +273,20 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
   },
   exerciseCard: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
   },
   exerciseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: theme.spacing.md,
   },
   exerciseIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: theme.radius.md,
-    backgroundColor: `${theme.colors.primary}22`,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
   },
   exerciseInfo: {
     flex: 1,
@@ -265,17 +296,33 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   exerciseMeta: {
     color: theme.colors.textMuted,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
+  mediaLinks: {
+    flexDirection: "row",
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.xxs,
+  },
+  mediaLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xxs,
+  },
+  mediaLinkText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: "600",
+  },
   customRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: theme.spacing.sm,
     paddingVertical: theme.spacing.lg,
     marginTop: theme.spacing.sm,
@@ -284,6 +331,6 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
