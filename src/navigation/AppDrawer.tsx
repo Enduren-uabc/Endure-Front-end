@@ -1,14 +1,16 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { Dumbbell, Settings, HelpCircle, Award, ChevronRight } from 'lucide-react-native';
+import { Dumbbell, Settings, HelpCircle, Award, ChevronRight, Shield } from 'lucide-react-native';
 import AppTabs from './AppTabs';
 import CoachStack from './CoachStack';
+import AdminStack from './AdminStack';
 import SettingsScreen from '@/features/settings/screens/settings';
 import HelpScreen from '@/features/help/screens/help';
 import { theme } from '@/theme';
 import type { AppDrawerParamList } from './types';
 import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 
 const Drawer = createDrawerNavigator<AppDrawerParamList>();
 
@@ -60,6 +62,9 @@ function CustomDrawerContent(props: any) {
 }
 
 export default function AppDrawer() {
+  const role = useSessionStore((s) => s.role);
+  const isAdmin = role === 'admin';
+
   return (
     <Drawer.Navigator
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -97,15 +102,26 @@ export default function AppDrawer() {
           drawerIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
         }}
       />
-      <Drawer.Screen
-        name="CoachStack"
-        component={CoachStack}
-        options={{
-          title: 'Verificación de Entrenador',
-          drawerItemStyle: { display: 'none' },
-          drawerIcon: ({ color, size }) => <Award size={size} color={color} />,
-        }}
-      />
+      {isAdmin ? (
+        <Drawer.Screen
+          name="AdminStack"
+          component={AdminStack}
+          options={{
+            title: 'Administración',
+            drawerIcon: ({ color, size }) => <Shield size={size} color={color} />,
+          }}
+        />
+      ) : (
+        <Drawer.Screen
+          name="CoachStack"
+          component={CoachStack}
+          options={{
+            title: 'Verificación de Entrenador',
+            drawerItemStyle: { display: 'none' },
+            drawerIcon: ({ color, size }) => <Award size={size} color={color} />,
+          }}
+        />
+      )}
       <Drawer.Screen
         name="Settings"
         component={SettingsScreen}

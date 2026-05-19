@@ -53,11 +53,17 @@ export type CoachStackParamList = {
   PowerspikeStatus: undefined;
 };
 
+export type AdminStackParamList = {
+  PendingVerifications: undefined;
+  VerificationDetail: { verificationId: string };
+};
+
 export type AppDrawerParamList = {
   MainTabs: NavigatorScreenParams<AppTabsParamList> | undefined;
   Settings: undefined;
   Help: undefined;
   CoachStack: NavigatorScreenParams<CoachStackParamList> | undefined;
+  AdminStack: NavigatorScreenParams<AdminStackParamList> | undefined;
 };
 
 export type RootStackParamList = {

@@ -71,13 +71,15 @@ function determineStep(status: MyStatusResponse | undefined): StepKey {
 
 function needsExtractionPolling(status: MyStatusResponse | undefined): boolean {
   const adv = status?.advancedStatus;
-  return adv === 'certificate_extraction_pending' || adv === 'id_extraction_pending';
+  return adv === 'certificate_uploaded' || adv === 'certificate_extraction_pending' || adv === 'id_uploaded' || adv === 'id_extraction_pending';
 }
 
 export default function PowerspikeForm() {
   const navigation = useNavigation<CoachNav>();
+  const [certUploadStarted, setCertUploadStarted] = useState(false);
+  const [idUploadStarted, setIdUploadStarted] = useState(false);
   const { data: statusData } = useMyVerificationPolling(needsExtractionPolling(undefined));
-  const needsPoll = needsExtractionPolling(statusData);
+  const needsPoll = certUploadStarted || idUploadStarted || needsExtractionPolling(statusData);
   const { data: pollingData } = useMyVerificationPolling(needsPoll);
   const effectiveStatus = pollingData && needsPoll ? pollingData : statusData;
 
@@ -122,6 +124,28 @@ export default function PowerspikeForm() {
     }
   }, [effectiveStatus?.extractedCertificateInfo]);
 
+  useEffect(() => {
+    if (
+      effectiveStatus?.advancedStatus === 'certificate_extracted' ||
+      effectiveStatus?.advancedStatus === 'certificate_extraction_failed' ||
+      effectiveStatus?.certificateExtractionStatus === 'extracted' ||
+      effectiveStatus?.certificateExtractionStatus === 'failed'
+    ) {
+      setCertUploadStarted(false);
+    }
+  }, [effectiveStatus?.advancedStatus, effectiveStatus?.certificateExtractionStatus]);
+
+  useEffect(() => {
+    if (
+      effectiveStatus?.advancedStatus === 'id_extracted' ||
+      effectiveStatus?.advancedStatus === 'id_extraction_failed' ||
+      effectiveStatus?.idExtractionStatus === 'extracted' ||
+      effectiveStatus?.idExtractionStatus === 'failed'
+    ) {
+      setIdUploadStarted(false);
+    }
+  }, [effectiveStatus?.advancedStatus, effectiveStatus?.idExtractionStatus]);
+
   const handleToggleSpecialty = (key: string) => {
     setSpecialtyKeys((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : prev.length < 5 ? [...prev, key] : prev,
@@ -162,7 +186,9 @@ export default function PowerspikeForm() {
       await certMutation.mutateAsync({
         file: certFile,
       });
+      setCertUploadStarted(true);
     } catch {
+      setCertUploadStarted(false);
       Alert.alert('Error', 'No pudimos subir el certificado. Intenta de nuevo.');
     }
   };
@@ -193,7 +219,9 @@ export default function PowerspikeForm() {
         idDocumentType: idDocType,
         file: idFile,
       });
+      setIdUploadStarted(true);
     } catch {
+      setIdUploadStarted(false);
       Alert.alert('Error', 'No pudimos subir la identificación. Intenta de nuevo.');
     }
   };
@@ -401,14 +429,22 @@ export default function PowerspikeForm() {
   };
 
   const renderStep2 = () => {
-    const isProcessing = advStatus === 'certificate_extraction_pending';
-    const isExtracted = certExtractionStatus === 'extracted';
-    const isFailed = certExtractionStatus === 'failed';
+    const isUploaded = advStatus === 'certificate_uploaded';
+    const isProcessing = isUploaded || advStatus === 'certificate_extraction_pending' || certExtractionStatus === 'pending';
+    const isExtracted = advStatus === 'certificate_extracted' || certExtractionStatus === 'extracted';
+    const isFailed = advStatus === 'certificate_extraction_failed' || certExtractionStatus === 'failed';
     const certInfo = effectiveStatus?.extractedCertificateInfo;
     const lowConfidence = certInfo && certInfo.ocrConfidence < 0.5;
     const showConfirmForm = isExtracted || isFailed || lowConfidence;
     const needsManualInput = isFailed || (isExtracted && lowConfidence);
-    const hasFile = !!certFile || certExtractionStatus != null;
+    const hasSelectedLocalFile = !!certFile;
+    const hasRemoteCertificate = isUploaded || isProcessing || isExtracted || isFailed || certExtractionStatus != null;
+    const hasStartedUpload = certUploadStarted || (isProcessing && !isFailed) || isExtracted;
+    const canPickCertificate = !certMutation.isPending && !isProcessing && !isExtracted && (!certUploadStarted || isFailed);
+    const canUploadCertificate = hasSelectedLocalFile && !hasStartedUpload && !isExtracted;
+    const displayedExtractionStatus = (certMutation.isPending || isProcessing || (certUploadStarted && !isFailed && !isExtracted))
+      ? 'pending'
+      : certExtractionStatus;
 
     return (
       <View>
@@ -425,16 +461,19 @@ export default function PowerspikeForm() {
             style={styles.filePicker}
             onPress={async () => {
               const file = await pickFile('document');
-              if (file) setCertFile(file);
+              if (file) {
+                setCertFile(file);
+                setCertUploadStarted(false);
+              }
             }}
-            disabled={isProcessing || isExtracted || isFailed}
+            disabled={!canPickCertificate}
           >
             {certFile ? (
               <View style={styles.fileInfo}>
                 <FileText size={20} color={theme.colors.primary} />
                 <Text style={styles.fileName}>{certFile.name}</Text>
               </View>
-            ) : certExtractionStatus != null ? (
+            ) : hasRemoteCertificate ? (
               <View style={styles.fileInfo}>
                 <FileText size={20} color={theme.colors.primary} />
                 <Text style={styles.fileName}>Certificado subido</Text>
@@ -450,7 +489,7 @@ export default function PowerspikeForm() {
           </TouchableOpacity>
         </View>
 
-        {renderExtractionBadge(certExtractionStatus)}
+        {renderExtractionBadge(displayedExtractionStatus)}
 
         {showConfirmForm && (
           <>
@@ -484,19 +523,9 @@ export default function PowerspikeForm() {
           </>
         )}
 
-        {!hasFile && !isProcessing && (
+        {canUploadCertificate && (
           <PrimaryButton
-            label={certMutation.isPending ? 'Subiendo...' : 'Subir certificado'}
-            onPress={handleUploadCertificate}
-            disabled={certMutation.isPending || isProcessing}
-            loading={certMutation.isPending}
-            style={styles.stepButton}
-          />
-        )}
-
-        {isFailed && (
-          <PrimaryButton
-            label="Reintentar subida"
+            label={certMutation.isPending ? 'Subiendo...' : isFailed ? 'Reintentar subida' : 'Subir certificado'}
             onPress={handleUploadCertificate}
             disabled={certMutation.isPending}
             loading={certMutation.isPending}
@@ -508,10 +537,28 @@ export default function PowerspikeForm() {
   };
 
   const renderStep3 = () => {
-    const isProcessing = advStatus === 'id_extraction_pending';
-    const isExtracted = idExtractionStatus === 'extracted';
-    const isFailed = idExtractionStatus === 'failed';
+    const isUploaded = advStatus === 'id_uploaded';
+    const isProcessing = isUploaded || advStatus === 'id_extraction_pending' || idExtractionStatus === 'pending';
+    const isExtracted = advStatus === 'id_extracted' || idExtractionStatus === 'extracted';
+    const isFailed = advStatus === 'id_extraction_failed' || idExtractionStatus === 'failed';
+    const hasSelectedLocalFile = !!idFile;
+    const hasRemoteIdDocument = isUploaded || isProcessing || isExtracted || isFailed || idExtractionStatus != null;
+    const hasStartedUpload = idUploadStarted || (isProcessing && !isFailed) || isExtracted;
+    const canPickIdDocument = !idMutation.isPending && !isProcessing && !isExtracted && (!idUploadStarted || isFailed);
+    const canUploadIdDocument = hasSelectedLocalFile && !hasStartedUpload && !isExtracted;
+    const displayedExtractionStatus = (idMutation.isPending || isProcessing || (idUploadStarted && !isFailed && !isExtracted))
+      ? 'pending'
+      : idExtractionStatus;
     const canContinue = isExtracted || isFailed;
+
+    const setSelectedIdFile = (file: FileInfo | null) => {
+      if (!file) return;
+      setIdFile(file);
+      setIdUploadStarted(false);
+      if (isFailed) {
+        setIdDocumentNumber('');
+      }
+    };
 
     return (
       <View>
@@ -533,6 +580,7 @@ export default function PowerspikeForm() {
               label={type.label}
               selected={idDocType === type.key}
               onPress={() => setIdDocType(type.key)}
+              disabled={!canPickIdDocument}
             />
           ))}
         </View>
@@ -550,26 +598,37 @@ export default function PowerspikeForm() {
                     text: 'Cámara',
                     onPress: async () => {
                       const file = await pickFromCamera();
-                      if (file) setIdFile(file);
+                      setSelectedIdFile(file);
                     },
                   },
                   {
                     text: 'Galería',
                     onPress: async () => {
                       const file = await pickFile('image');
-                      if (file) setIdFile(file);
+                      setSelectedIdFile(file);
                     },
                   },
                   { text: 'Cancelar', style: 'cancel' },
                 ],
               );
             }}
-            disabled={isProcessing}
+            disabled={!canPickIdDocument}
           >
             {idFile ? (
               <View style={styles.fileInfo}>
                 <FileText size={20} color={theme.colors.primary} />
                 <Text style={styles.fileName}>{idFile.name}</Text>
+              </View>
+            ) : hasRemoteIdDocument ? (
+              <View style={styles.fileInfo}>
+                <FileText size={20} color={theme.colors.primary} />
+                <Text style={styles.fileName}>
+                  {isExtracted
+                    ? 'Identificación verificada'
+                    : isFailed
+                      ? 'Toca para reemplazar identificación'
+                      : 'Identificación subida'}
+                </Text>
               </View>
             ) : (
               <View style={styles.filePlaceholder}>
@@ -591,21 +650,11 @@ export default function PowerspikeForm() {
           />
         )}
 
-        {renderExtractionBadge(idExtractionStatus)}
+        {renderExtractionBadge(displayedExtractionStatus)}
 
-        {!isExtracted && !isProcessing && (
+        {canUploadIdDocument && (
           <PrimaryButton
-            label={idMutation.isPending ? 'Subiendo...' : 'Subir identificación'}
-            onPress={handleUploadId}
-            disabled={idMutation.isPending || isProcessing}
-            loading={idMutation.isPending}
-            style={styles.stepButton}
-          />
-        )}
-
-        {isFailed && (
-          <PrimaryButton
-            label="Reintentar"
+            label={idMutation.isPending ? 'Subiendo...' : isFailed ? 'Reintentar subida' : 'Subir identificación'}
             onPress={handleUploadId}
             disabled={idMutation.isPending}
             loading={idMutation.isPending}
