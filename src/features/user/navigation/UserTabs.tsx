@@ -1,18 +1,14 @@
 import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Dumbbell, Home, Play, Users } from 'lucide-react-native';
 import HomeScreen from '@/features/home/screens/home';
-import FeedScreen from '@/features/social/screens/FeedScreen';
-import PostDetailScreen from '@/features/social/screens/PostDetailScreen';
-import ProfileScreen from '@/features/social/screens/ProfileScreen';
-import TrainingStack from './TrainingStack';
-import WorkoutStack from './WorkoutStack';
-import type { AppTabsParamList, SocialStackParamList } from './types';
+import TrainingStack from '@/navigation/TrainingStack';
+import WorkoutStack from '@/navigation/WorkoutStack';
+import SocialStack from '@/navigation/SocialStack';
+import type { UserTabsParamList } from '../types/user-navigation.types';
 
-const Tabs = createBottomTabNavigator<AppTabsParamList>();
-const SocialStack = createNativeStackNavigator<SocialStackParamList>();
+const Tabs = createBottomTabNavigator<UserTabsParamList>();
 
 const TAB_COLORS = {
   active: '#101D3D',
@@ -26,31 +22,7 @@ const TAB_COLORS = {
   workoutBtnBorder: '#E5E5EA',
 };
 
-function PublicProfileRoute({ route }: { route: { params: { userId: string } } }) {
-  return <ProfileScreen userId={route.params.userId} />;
-}
-
-function PostDetailRoute({
-  route,
-}: {
-  route: {
-    params: { postId: string; title?: string; content?: string; authorUserId?: string };
-  };
-}) {
-  return <PostDetailScreen {...route.params} />;
-}
-
-function SocialStackNavigator() {
-  return (
-    <SocialStack.Navigator screenOptions={{ headerShown: false }}>
-      <SocialStack.Screen name="SocialFeed" component={FeedScreen} />
-      <SocialStack.Screen name="PublicProfile" component={PublicProfileRoute} />
-      <SocialStack.Screen name="PostDetail" component={PostDetailRoute} />
-    </SocialStack.Navigator>
-  );
-}
-
-export default function AppTabs() {
+export default function UserTabs() {
   return (
     <Tabs.Navigator
       initialRouteName="Home"
@@ -110,14 +82,12 @@ export default function AppTabs() {
         component={TrainingStack}
         options={{
           title: 'Rutinas',
-          tabBarIcon: ({ color, size }) => (
-            <Dumbbell size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="Social"
-        component={SocialStackNavigator}
+        component={SocialStack}
         options={{
           title: 'Comunidad',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
