@@ -6,11 +6,16 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Calendar } from 'lucide-react-native';
 import type { OnboardingStackParamList } from '@/navigation/types';
 import {
   onboardingBasicDataSchema,
@@ -31,24 +36,26 @@ const GENDERS = [
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'BasicData'>;
 
-const formatDateInput = (input: string) => {
-  const digits = input.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 4) {
-    return digits;
+const pad = (n: number) => String(n).padStart(2, '0');
+
+const formatDateDisplay = (value: string): string => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split('-');
+    return `${d}/${m}/${y}`;
   }
-  if (digits.length <= 6) {
-    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-  }
-  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+  return value;
 };
 
 export default function OnboardingBasicDataScreen({ navigation }: Props) {
+  const [showPicker, setShowPicker] = React.useState(false);
+  const [pickerDate, setPickerDate] = React.useState(new Date());
   const draft = useOnboardingStore();
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<OnboardingBasicDataFormData>({
     resolver: zodResolver(onboardingBasicDataSchema),
     defaultValues: {
@@ -63,6 +70,25 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
   const onSubmit = (data: OnboardingBasicDataFormData) => {
     draft.setBasicData(data);
     navigation.navigate('Level');
+  };
+
+  const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+    if (date) {
+      setPickerDate(date);
+      const formatted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      setValue('birthDate', formatted, { shouldValidate: true });
+    }
+  };
+
+  const openPicker = (currentValue: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(currentValue)) {
+      const [y, m, d] = currentValue.split('-');
+      setPickerDate(new Date(Number(y), Number(m) - 1, Number(d)));
+    }
+    setShowPicker(true);
   };
 
   return (
@@ -114,16 +140,57 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
               <Controller
                 control={control}
                 name="birthDate"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    label="Fecha de nacimiento"
-                    value={value}
-                    onChangeText={(text) => onChange(formatDateInput(text))}
-                    placeholder="YYYY-MM-DD"
-                    keyboardType="numeric"
-                    maxLength={10}
-                    error={errors.birthDate?.message}
-                  />
+                render={({ field: { value } }) => (
+                  <View style={styles.dateFieldContainer}>
+                    <Text style={styles.dateLabel}>Fecha de nacimiento</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.dateInputWrapper,
+                        errors.birthDate ? styles.dateInputError : null,
+                      ]}
+                      onPress={() => openPicker(value)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Seleccionar fecha de nacimiento"
+                    >
+                      <Text
+                        style={[
+                          styles.dateInputText,
+                          !value ? styles.datePlaceholder : null,
+                        ]}
+                      >
+                        {value ? formatDateDisplay(value) : 'DD/MM/AAAA'}
+                      </Text>
+                      <Calendar size={20} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                    {errors.birthDate ? (
+                      <Text style={styles.errorText}>{errors.birthDate.message}</Text>
+                    ) : null}
+
+                    {showPicker && (
+                      <>
+                        {Platform.OS === 'ios' && (
+                          <View style={styles.pickerHeader}>
+                            <TouchableOpacity
+                              onPress={() => setShowPicker(false)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Text style={styles.pickerDone}>Listo</Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                        <DateTimePicker
+                          value={pickerDate}
+                          mode="date"
+                          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                          onChange={handleDateChange}
+                          maximumDate={new Date()}
+                          locale="es-MX"
+                          themeVariant="dark"
+                        />
+                      </>
+                    )}
+                  </View>
                 )}
               />
 
@@ -305,5 +372,57 @@ const styles = StyleSheet.create({
   footer: {
     gap: theme.spacing.md,
     marginTop: theme.spacing.lg,
+  },
+
+  /* Date picker styles */
+  dateFieldContainer: {
+    width: '100%',
+  },
+  dateLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: theme.typography.small.fontWeight,
+    marginBottom: theme.spacing.xs,
+  },
+  dateInputWrapper: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: theme.radius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 56,
+    paddingHorizontal: theme.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dateInputError: {
+    borderColor: theme.colors.error,
+  },
+  dateInputText: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    paddingVertical: theme.spacing.md,
+    flex: 1,
+  },
+  datePlaceholder: {
+    color: theme.colors.textMuted,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingTop: theme.spacing.sm,
+    paddingRight: theme.spacing.xs,
+  },
+  pickerDone: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
   },
 });
