@@ -23,8 +23,9 @@ import type { AuthStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, route }: Props) {
   const loginMutation = useLogin();
+  const { email: prefillEmail, password: prefillPassword } = route.params ?? {};
 
   const {
     control,
@@ -34,8 +35,8 @@ export default function LoginScreen({ navigation }: Props) {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: prefillEmail ?? "",
+      password: prefillPassword ?? "",
     },
   });
 

@@ -3,7 +3,7 @@ import type { ExerciseConfig } from '@/features/training/types/routine';
 
 export type AuthStackParamList = {
   Welcome: undefined;
-  Login: undefined;
+  Login: { email?: string; password?: string } | undefined;
   Register: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;

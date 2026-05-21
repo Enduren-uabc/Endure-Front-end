@@ -31,6 +31,7 @@ export default function RegisterScreen({ navigation }: Props) {
     handleSubmit,
     formState: { errors },
     setError,
+    getValues,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -51,9 +52,10 @@ export default function RegisterScreen({ navigation }: Props) {
 
   React.useEffect(() => {
     if (registerMutation.isSuccess) {
-      navigation.replace('Login');
+      const { email, password } = getValues();
+      navigation.replace('Login', { email, password });
     }
-  }, [registerMutation.isSuccess, navigation]);
+  }, [registerMutation.isSuccess, navigation, getValues]);
 
   const onSubmit = (data: RegisterFormData) => {
     registerMutation.mutate({
@@ -89,6 +91,10 @@ export default function RegisterScreen({ navigation }: Props) {
                     placeholder="ejemplo@correo.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    inputMode="email"
+                    allowEmoji={false}
                     textContentType="emailAddress"
                     autoComplete="email"
                     disabled={registerMutation.isPending}
@@ -107,6 +113,9 @@ export default function RegisterScreen({ navigation }: Props) {
                     onChangeText={onChange}
                     placeholder="usuario123"
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    allowEmoji={false}
                     disabled={registerMutation.isPending}
                     error={errors.username?.message}
                   />
@@ -203,7 +212,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xl,
+    paddingTop: theme.spacing.xxxl,
+    paddingBottom: theme.spacing.xl,
     gap: theme.spacing.lg,
   },
   title: {

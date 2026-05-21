@@ -8,6 +8,15 @@ import {
 } from 'react-native';
 import { theme } from '@/theme';
 
+const EMOJI_REGEX = /[\p{Emoji}\u200D\uFE0F]/gu;
+
+function stripEmojis(text: string): string {
+  return text.replace(EMOJI_REGEX, (char) => {
+    if (/^[\x00-\x7F]$/.test(char)) return char;
+    return '';
+  });
+}
+
 interface TextInputProps {
   label: string;
   value: string;
@@ -17,6 +26,10 @@ interface TextInputProps {
   error?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  autoCorrect?: boolean;
+  spellCheck?: boolean;
+  inputMode?: RNTextInputProps['inputMode'];
+  allowEmoji?: boolean;
   maxLength?: number;
   disabled?: boolean;
   textContentType?: RNTextInputProps['textContentType'];
@@ -33,6 +46,10 @@ export function TextInput({
   error,
   autoCapitalize = 'none',
   keyboardType = 'default',
+  autoCorrect,
+  spellCheck,
+  inputMode,
+  allowEmoji = true,
   maxLength,
   disabled = false,
   textContentType,
@@ -40,6 +57,13 @@ export function TextInput({
   rightElement,
 }: TextInputProps) {
   const [isFocused, setIsFocused] = React.useState(false);
+
+  const handleChangeText = React.useCallback(
+    (text: string) => {
+      onChangeText(allowEmoji ? text : stripEmojis(text));
+    },
+    [onChangeText, allowEmoji],
+  );
 
   return (
     <View style={styles.container}>
@@ -54,12 +78,15 @@ export function TextInput({
       >
         <RNTextInput
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleChangeText}
           placeholder={placeholder}
           placeholderTextColor={theme.colors.textMuted}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
+          autoCorrect={autoCorrect}
+          spellCheck={spellCheck}
+          inputMode={inputMode}
           maxLength={maxLength}
           editable={!disabled}
           textContentType={textContentType}
