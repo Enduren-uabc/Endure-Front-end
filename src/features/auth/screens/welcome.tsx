@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Dumbbell } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from '@/navigation/types';
+
+const LogoImage = require('../../../../assets/Logo.png');
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
@@ -15,9 +16,13 @@ export default function WelcomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoSection}>
-          <View style={styles.iconCircle}>
-            <Dumbbell size={48} color={theme.colors.primary} strokeWidth={2} />
-          </View>
+          <Image
+            source={LogoImage}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Logo de Endure"
+            accessible
+          />
           <Text style={styles.title}>Endure</Text>
           <Text style={styles.subtitle}>Tu compañero de entrenamiento</Text>
         </View>
@@ -39,21 +44,17 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'space-between',
-    paddingVertical: theme.spacing.xl * 2,
+    paddingBottom: theme.spacing.xxl,
   },
   logoSection: {
-    alignItems: 'center',
-    marginTop: theme.spacing.xl * 2,
-  },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: theme.colors.surfaceElevated,
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    marginBottom: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 250,
+    height: 250,
+    marginBottom: theme.spacing.xl,
   },
   title: {
     color: theme.colors.primary,

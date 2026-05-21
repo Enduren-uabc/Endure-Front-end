@@ -207,18 +207,20 @@ const styles = StyleSheet.create({
     gap: theme.spacing.lg,
   },
   title: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.primary,
     fontSize: theme.typography.heading2.fontSize,
     lineHeight: theme.typography.heading2.lineHeight,
     fontWeight: theme.typography.heading2.fontWeight,
+    textAlign: 'center',
   },
   subtitle: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
   },
   form: {
-    gap: theme.spacing.md,
+    gap: theme.spacing.lg,
   },
   checkboxRow: {
     flexDirection: 'row',
