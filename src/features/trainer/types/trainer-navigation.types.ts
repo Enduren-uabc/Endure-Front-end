@@ -3,6 +3,7 @@ import type {
   WorkoutStackParamList,
   TrainingStackParamList,
   SocialStackParamList,
+  TrainerLinkStackParamList,
 } from '@/navigation/types';
 
 export type TrainerTabsParamList = {
@@ -15,6 +16,7 @@ export type TrainerTabsParamList = {
 
 export type TrainerDrawerParamList = {
   MainTabs: NavigatorScreenParams<TrainerTabsParamList> | undefined;
+  TrainerLinkStack: NavigatorScreenParams<TrainerLinkStackParamList> | undefined;
   Settings: undefined;
   Help: undefined;
 };

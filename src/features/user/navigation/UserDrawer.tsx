@@ -5,9 +5,10 @@ import {
   DrawerContentScrollView,
   DrawerItemList,
 } from '@react-navigation/drawer';
-import { Dumbbell, Settings, HelpCircle, Award, ChevronRight } from 'lucide-react-native';
+import { Dumbbell, Settings, HelpCircle, Award, ChevronRight, Link2 } from 'lucide-react-native';
 import UserTabs from './UserTabs';
 import CoachStack from '@/navigation/CoachStack';
+import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
 import SettingsScreen from '@/features/settings/screens/settings';
 import HelpScreen from '@/features/help/screens/help';
 import { theme } from '@/theme';
@@ -108,6 +109,15 @@ export default function UserDrawer() {
           title: 'Verificación de Entrenador',
           drawerItemStyle: { display: 'none' },
           drawerIcon: ({ color, size }) => <Award size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="TrainerLinkStack"
+        component={TrainerLinkStack}
+        options={{
+          title: 'Vinculación',
+          drawerItemStyle: { display: 'none' },
+          drawerIcon: ({ color, size }) => <Link2 size={size} color={color} />,
         }}
       />
       <Drawer.Screen

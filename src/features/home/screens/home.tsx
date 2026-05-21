@@ -11,10 +11,17 @@ import {
   Circle,
   TrendingUp,
   Clock,
+  User,
+  UserPlus,
+  Inbox,
+  ChevronRight,
+  AlertCircle,
 } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { AppTabsParamList } from '@/navigation/types';
+import { useSessionStore } from '@/features/auth/stores/session-store';
+import { useMyTrainer, useReceivedLinkRequests } from '@/features/trainer-link/hooks/use-trainer-link';
 
 type HomeNavigation = BottomTabNavigationProp<AppTabsParamList, 'Home'>;
 
@@ -38,6 +45,19 @@ function useDayName(): string {
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
   const dayName = useDayName();
+  const role = useSessionStore((s) => s.role);
+  const { data: myTrainerData } = useMyTrainer();
+  const { data: receivedData } = useReceivedLinkRequests('pendiente');
+
+  const hasTrainer = myTrainerData?.hasTrainer && myTrainerData?.trainer !== null;
+  const pendingCount = receivedData?.items?.length ?? 0;
+
+  const navigateToDrawerScreen = (screen: string, params?: any) => {
+    const drawerNav = navigation.getParent();
+    if (drawerNav) {
+      (drawerNav as any).navigate('TrainerLinkStack', { screen, params });
+    }
+  };
 
   const handleMenuPress = () => {
     navigation.dispatch(DrawerActions.openDrawer());
@@ -138,6 +158,75 @@ export default function HomeScreen() {
             <Text style={styles.metricLabel}>Racha</Text>
           </View>
         </View>
+
+        {/* Role-specific sections */}
+        {role === 'user' && (
+          <>
+            <Text style={styles.sectionTitle}>MI ENTRENADOR</Text>
+            {hasTrainer && myTrainerData?.trainer ? (
+              <TouchableOpacity
+                style={styles.trainerCard}
+                onPress={() => navigateToDrawerScreen('MyTrainer')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.trainerAvatarCircle}>
+                  <User size={22} color={COLORS.darkBlue} strokeWidth={2} />
+                </View>
+                <View style={styles.trainerInfo}>
+                  <Text style={styles.trainerName}>{myTrainerData.trainer.displayName}</Text>
+                  <Text style={styles.trainerCode}>{myTrainerData.trainer.trainerCode}</Text>
+                </View>
+                <ChevronRight size={20} color={COLORS.mediumGray} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.trainerEmptyCard}
+                onPress={() => navigateToDrawerScreen('SearchTrainer')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.trainerAvatarCircle, { backgroundColor: '#FFF0E5' }]}>
+                  <UserPlus size={22} color={COLORS.fire} strokeWidth={2} />
+                </View>
+                <View style={styles.trainerInfo}>
+                  <Text style={styles.trainerName}>Buscar entrenador</Text>
+                  <Text style={styles.trainerSubtext}>
+                    Vincula un entrenador para que te asigne rutinas
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={COLORS.mediumGray} />
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+
+        {role === 'trainer' && (
+          <>
+            <Text style={styles.sectionTitle}>SOLICITUDES</Text>
+            <TouchableOpacity
+              style={styles.trainerCard}
+              onPress={() => navigateToDrawerScreen('ReceivedRequests')}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.trainerAvatarCircle, { backgroundColor: '#FFF0E5' }]}>
+                <Inbox size={22} color={COLORS.fire} strokeWidth={2} />
+              </View>
+              <View style={styles.trainerInfo}>
+                <Text style={styles.trainerName}>Solicitudes de vinculación</Text>
+                <Text style={styles.trainerSubtext}>
+                  {pendingCount > 0
+                    ? `Tienes ${pendingCount} solicitud${pendingCount !== 1 ? 'es' : ''} pendiente${pendingCount !== 1 ? 's' : ''}`
+                    : 'No tienes solicitudes pendientes'}
+                </Text>
+              </View>
+              {pendingCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{pendingCount}</Text>
+                </View>
+              )}
+              <ChevronRight size={20} color={COLORS.mediumGray} />
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Quick Access */}
         <TouchableOpacity
@@ -360,5 +449,67 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.black,
+  },
+
+  // Trainer / Role Cards
+  trainerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    padding: 18,
+    gap: 14,
+  },
+  trainerEmptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    padding: 18,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderStyle: 'dashed',
+  },
+  trainerAvatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E8F0FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trainerInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  trainerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.black,
+  },
+  trainerCode: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: COLORS.darkBlue,
+  },
+  trainerSubtext: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: COLORS.mediumGray,
+  },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 });

@@ -51,6 +51,14 @@ export type AdminStackParamList = {
   VerificationDetail: { verificationId: string };
 };
 
+export type TrainerLinkStackParamList = {
+  SearchTrainer: undefined;
+  TrainerProfile: { trainerId: string };
+  SentRequests: undefined;
+  MyTrainer: undefined;
+  ReceivedRequests: undefined;
+};
+
 export type AppTabsParamList = {
   Home: undefined;
   Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
