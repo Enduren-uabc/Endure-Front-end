@@ -16,6 +16,7 @@ import { loginSchema, LoginFormData } from "@/features/auth/validations/auth";
 import { useLogin } from "@/features/auth/hooks/use-auth";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
+import { PasswordInput } from "@/shared/components/PasswordInput";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { theme } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
@@ -84,12 +85,11 @@ export default function LoginScreen({ navigation }: Props) {
                 control={control}
                 name="password"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput
+                  <PasswordInput
                     label="Contraseña"
                     value={value}
                     onChangeText={onChange}
                     placeholder="Tu contraseña"
-                    secureTextEntry
                     error={errors.password?.message}
                   />
                 )}

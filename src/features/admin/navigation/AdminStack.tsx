@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { theme } from '@/theme';
 import PendingVerificationsScreen from '@/features/admin/screens/PendingVerificationsScreen';
 import VerificationDetailScreen from '@/features/admin/screens/VerificationDetailScreen';
-import type { AdminStackParamList } from './types';
+import type { AdminStackParamList } from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
 

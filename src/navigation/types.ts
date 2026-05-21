@@ -16,13 +16,6 @@ export type OnboardingStackParamList = {
   Summary: undefined;
 };
 
-export type AppTabsParamList = {
-  Home: undefined;
-  Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
-  Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
-  Social: NavigatorScreenParams<SocialStackParamList> | undefined;
-};
-
 export type WorkoutStackParamList = {
   WorkoutStart: undefined;
   WorkoutSession: { sessionId: string };
@@ -58,17 +51,18 @@ export type AdminStackParamList = {
   VerificationDetail: { verificationId: string };
 };
 
-export type AppDrawerParamList = {
-  MainTabs: NavigatorScreenParams<AppTabsParamList> | undefined;
-  Settings: undefined;
-  Help: undefined;
-  CoachStack: NavigatorScreenParams<CoachStackParamList> | undefined;
-  AdminStack: NavigatorScreenParams<AdminStackParamList> | undefined;
+export type AppTabsParamList = {
+  Home: undefined;
+  Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
+  Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
+  Social: NavigatorScreenParams<SocialStackParamList> | undefined;
 };
 
 export type RootStackParamList = {
   AuthStack: NavigatorScreenParams<AuthStackParamList> | undefined;
   OnboardingStack: NavigatorScreenParams<OnboardingStackParamList> | undefined;
-  AppDrawer: NavigatorScreenParams<AppDrawerParamList> | undefined;
+  UserApp: undefined;
+  TrainerApp: undefined;
+  AdminApp: undefined;
   ExerciseCatalogModal: undefined;
 };
