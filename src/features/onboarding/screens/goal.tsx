@@ -18,7 +18,7 @@ interface GoalOption {
 }
 
 const GOALS: GoalOption[] = [
-  { value: 'gain_strength', label: 'Ganar fuerza', Icon: Dumbbell },
+  { value: 'general_fitness', label: 'Ganar fuerza', Icon: Dumbbell },
   { value: 'improve_endurance', label: 'Mejorar resistencia', Icon: HeartPulse },
   { value: 'gain_muscle', label: 'Ganar músculo', Icon: Gauge },
   { value: 'lose_weight', label: 'Bajar de peso', Icon: TrendingDown },

@@ -3,7 +3,6 @@ import { create } from 'zustand';
 export type OnboardingGoal =
   | 'lose_weight'
   | 'gain_muscle'
-  | 'gain_strength'
   | 'maintain'
   | 'improve_endurance'
   | 'general_fitness';

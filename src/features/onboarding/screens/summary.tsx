@@ -18,7 +18,7 @@ const GOAL_LABELS: Record<string, string> = {
   gain_muscle: 'Ganar musculo',
   maintain: 'Mantenerme en forma',
   improve_endurance: 'Mejorar resistencia',
-  general_fitness: 'Fitness general',
+  general_fitness: 'Ganar fuerza',
 };
 
 const GENDER_LABELS: Record<string, string> = {
