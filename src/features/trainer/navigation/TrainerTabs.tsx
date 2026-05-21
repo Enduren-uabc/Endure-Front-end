@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Dumbbell, Home, Play, Users, UsersRound } from 'lucide-react-native';
 import HomeScreen from '@/features/home/screens/home';
@@ -7,6 +7,7 @@ import TrainingStack from '@/navigation/TrainingStack';
 import WorkoutStack from '@/navigation/WorkoutStack';
 import SocialStack from '@/navigation/SocialStack';
 import TrainerClientsScreen from '../screens/trainer-clients';
+import { useReceivedLinkRequests } from '@/features/trainer-link/hooks/use-trainer-link';
 import type { TrainerTabsParamList } from '../types/trainer-navigation.types';
 
 const Tabs = createBottomTabNavigator<TrainerTabsParamList>();
@@ -22,6 +23,24 @@ const TAB_COLORS = {
   workoutBtnIconInactive: '#9E9EAD',
   workoutBtnBorder: '#E5E5EA',
 };
+
+function ClientsTabIcon({ color, size }: { color: string; size: number }) {
+  const { data } = useReceivedLinkRequests('pendiente');
+  const pendingCount = data?.items?.length ?? 0;
+
+  return (
+    <View>
+      <UsersRound size={size} color={color} />
+      {pendingCount > 0 && (
+        <View style={styles.tabBadge}>
+          <Text style={styles.tabBadgeText}>
+            {pendingCount > 9 ? '9+' : pendingCount}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function TrainerTabs() {
   return (
@@ -91,7 +110,7 @@ export default function TrainerTabs() {
         component={TrainerClientsScreen}
         options={{
           title: 'Clientes',
-          tabBarIcon: ({ color, size }) => <UsersRound size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <ClientsTabIcon color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -128,5 +147,22 @@ const styles = StyleSheet.create({
   workoutTabButtonInactive: {
     backgroundColor: TAB_COLORS.workoutBtnBgInactive,
     borderColor: TAB_COLORS.workoutBtnBorder,
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
