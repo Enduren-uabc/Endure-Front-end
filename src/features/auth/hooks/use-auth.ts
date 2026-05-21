@@ -59,7 +59,7 @@ export function useLogin() {
         await tokenStore.setRefreshToken(data.refreshToken);
       }
 
-      setSession(data.id, data.role, data.onboardingCompleted ?? null);
+      setSession(data.id, data.role, data.username, data.onboardingCompleted ?? null);
     },
   });
 }

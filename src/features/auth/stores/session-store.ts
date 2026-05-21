@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SessionState {
   userId: string | null;
+  username: string | null;
   role: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -12,7 +13,7 @@ interface SessionState {
 }
 
 interface SessionActions {
-  setSession: (userId: string, role: string, onboardingCompleted?: boolean | null) => void;
+  setSession: (userId: string, role: string, username?: string, onboardingCompleted?: boolean | null) => void;
   clearSession: () => void;
   setLoading: (isLoading: boolean) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
@@ -20,21 +21,18 @@ interface SessionActions {
 }
 
 const initialState: SessionState = {
-  userId: null,
-  role: null,
-  isAuthenticated: false,
-  isLoading: false,
-  hasHydrated: false,
-  onboardingCompleted: null,
+  userId: null, username: null, role: null, isAuthenticated: false,
+  isLoading: false, hasHydrated: false, onboardingCompleted: null,
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
   persist(
     (set) => ({
       ...initialState,
-      setSession: (userId, role, onboardingCompleted = null) =>
+      setSession: (userId, role, username, onboardingCompleted = null) =>
         set({
           userId,
+          username: username ?? null,
           role,
           isAuthenticated: true,
           onboardingCompleted,
@@ -48,10 +46,8 @@ export const useSessionStore = create<SessionState & SessionActions>()(
       name: 'endure-session',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        userId: state.userId,
-        role: state.role,
-        isAuthenticated: state.isAuthenticated,
-        onboardingCompleted: state.onboardingCompleted,
+        userId: state.userId, username: state.username, role: state.role,
+        isAuthenticated: state.isAuthenticated, onboardingCompleted: state.onboardingCompleted,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setLoading(false);
