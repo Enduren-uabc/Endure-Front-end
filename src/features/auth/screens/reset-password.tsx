@@ -11,19 +11,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { resetPasswordSchema, ResetPasswordFormData } from '@/features/auth/validations/auth';
+import { newPasswordSchema, NewPasswordFormData } from '@/features/auth/validations/auth';
 import { usePasswordReset } from '@/features/auth/hooks/use-auth';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SecondaryButton } from '@/components/ui/SecondaryButton';
-import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
+import { PasswordInput } from '@/shared/components/PasswordInput';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 export default function ResetPasswordScreen({ navigation, route }: Props) {
-  const token = route.params?.token;
+  const { token } = route.params;
   const resetMutation = usePasswordReset();
 
   const {
@@ -31,8 +30,9 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
     handleSubmit,
     formState: { errors },
     setError,
-  } = useForm<ResetPasswordFormData>({
-    resolver: zodResolver(resetPasswordSchema),
+    watch,
+  } = useForm<NewPasswordFormData>({
+    resolver: zodResolver(newPasswordSchema),
     defaultValues: {
       password: '',
       confirmPassword: '',
@@ -54,37 +54,16 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
     }
   }, [resetMutation.isSuccess, navigation]);
 
-  const onSubmit = (data: ResetPasswordFormData) => {
-    if (!token) {
-      setError('root', { message: 'Token inválido o expirado' });
-      return;
-    }
+  const onSubmit = (data: NewPasswordFormData) => {
     resetMutation.mutate({
       token,
       password: data.password,
     });
   };
 
-  if (!token) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <BaseCard>
-            <View style={styles.errorBox}>
-              <Text style={styles.errorTitle}>Enlace inválido</Text>
-              <Text style={styles.errorText}>
-                El enlace de recuperación es inválido o ha expirado.
-              </Text>
-              <SecondaryButton
-                label="Solicitar nuevo enlace"
-                onPress={() => navigation.navigate('ForgotPassword')}
-              />
-            </View>
-          </BaseCard>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const watchedPassword = watch('password');
+  const watchedConfirmPassword = watch('confirmPassword');
+  const formComplete = watchedPassword.length >= 8 && watchedConfirmPassword.length >= 1;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -97,65 +76,67 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.title}>Nueva contraseña</Text>
-          <Text style={styles.subtitle}>Crea una contraseña segura para tu cuenta</Text>
+          <Text style={styles.subtitle}>
+            Ingresa tu nueva contraseña
+          </Text>
 
-          {resetMutation.isSuccess ? (
-            <BaseCard>
-              <View style={styles.successBox}>
-                <Text style={styles.successTitle}>¡Contraseña actualizada!</Text>
-                <Text style={styles.successText}>
-                  Tu contraseña se ha restablecido correctamente. Redirigiendo al inicio de sesión...
-                </Text>
-              </View>
-            </BaseCard>
-          ) : (
-            <BaseCard>
-              <View style={styles.form}>
-                <Controller
-                  control={control}
-                  name="password"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      label="Nueva contraseña"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Mínimo 8 caracteres"
-                      secureTextEntry
-                      error={errors.password?.message}
-                    />
-                  )}
-                />
+          <BaseCard>
+            <View style={styles.form}>
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value } }) => (
+                  <PasswordInput
+                    label="Nueva contraseña"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Mínimo 8 caracteres"
+                    textContentType="newPassword"
+                    autoComplete="new-password"
+                    error={errors.password?.message}
+                  />
+                )}
+              />
 
-                <Controller
-                  control={control}
-                  name="confirmPassword"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      label="Confirmar nueva contraseña"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Repite la nueva contraseña"
-                      secureTextEntry
-                      error={errors.confirmPassword?.message}
-                    />
-                  )}
-                />
+              <Controller
+                control={control}
+                name="confirmPassword"
+                render={({ field: { onChange, value } }) => (
+                  <PasswordInput
+                    label="Confirmar nueva contraseña"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Repite la nueva contraseña"
+                    textContentType="newPassword"
+                    autoComplete="new-password"
+                    error={errors.confirmPassword?.message}
+                  />
+                )}
+              />
 
-                {errors.root && <Text style={styles.rootError}>{errors.root.message}</Text>}
+              {errors.root && <Text style={styles.rootError}>{errors.root.message}</Text>}
 
-                <PrimaryButton
-                  label="Restablecer contraseña"
-                  onPress={handleSubmit(onSubmit)}
-                  loading={resetMutation.isPending}
-                  disabled={resetMutation.isPending}
-                />
-              </View>
-            </BaseCard>
-          )}
+              <PrimaryButton
+                label="Restablecer contraseña"
+                onPress={handleSubmit(onSubmit)}
+                loading={resetMutation.isPending}
+                disabled={!formComplete || resetMutation.isPending}
+              />
+            </View>
+          </BaseCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+function maskEmail(email: string): string {
+  const [name, domain] = email.split('@');
+  if (!name || !domain) return email;
+  const masked = name.length > 2
+    ? name.slice(0, 2) + '***'
+    : name.slice(0, 1) + '***';
+  return `${masked}@${domain}`;
 }
 
 const styles = StyleSheet.create({
@@ -171,11 +152,6 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.xl,
     gap: theme.spacing.lg,
   },
-  centerContent: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'center',
-  },
   title: {
     color: theme.colors.textPrimary,
     fontSize: theme.typography.heading2.fontSize,
@@ -189,40 +165,6 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: theme.spacing.md,
-  },
-  successBox: {
-    gap: theme.spacing.md,
-    alignItems: 'center',
-    paddingVertical: theme.spacing.lg,
-  },
-  successTitle: {
-    color: theme.colors.success,
-    fontSize: theme.typography.heading3.fontSize,
-    lineHeight: theme.typography.heading3.lineHeight,
-    fontWeight: theme.typography.heading3.fontWeight,
-  },
-  successText: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
-    textAlign: 'center',
-  },
-  errorBox: {
-    gap: theme.spacing.md,
-    alignItems: 'center',
-    paddingVertical: theme.spacing.lg,
-  },
-  errorTitle: {
-    color: theme.colors.error,
-    fontSize: theme.typography.heading3.fontSize,
-    lineHeight: theme.typography.heading3.lineHeight,
-    fontWeight: theme.typography.heading3.fontWeight,
-  },
-  errorText: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
-    textAlign: 'center',
   },
   rootError: {
     color: theme.colors.error,

@@ -8,6 +8,8 @@ export const API_ENDPOINTS = {
     passwordRecovery: '/auth/password-recovery',
     passwordResetValidate: '/auth/password-reset/validate',
     passwordReset: '/auth/password-reset',
+    verifyEmail: '/auth/verify-email',
+    resendVerification: '/auth/resend-verification',
   },
   onboarding: {
     profile: '/onboarding/profile',

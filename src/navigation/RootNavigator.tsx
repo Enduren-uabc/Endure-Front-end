@@ -14,6 +14,7 @@ import { useSessionStore } from '@/features/auth/stores/session-store';
 import { useOnboardingStatus } from '@/features/onboarding/hooks/use-onboarding';
 import AuthStack from './AuthStack';
 import OnboardingStack from './OnboardingStack';
+import PendingVerificationScreen from '@/features/auth/screens/pending-verification';
 import UserDrawer from '@/features/user/navigation/UserDrawer';
 import TrainerDrawer from '@/features/trainer/navigation/TrainerDrawer';
 import AdminDrawer from '@/features/admin/navigation/AdminDrawer';
@@ -137,6 +138,7 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 export default function RootNavigator() {
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const emailVerified = useSessionStore((s) => s.emailVerified);
   const role = useSessionStore((s) => s.role) as AppRole | null;
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const onboardingCompleted = useSessionStore((s) => s.onboardingCompleted);
@@ -154,6 +156,7 @@ export default function RootNavigator() {
   const targetRoute = React.useMemo<keyof RootStackParamList | null>(() => {
     if (!hasHydrated) return null;
     if (!isAuthenticated) return 'AuthStack';
+    if (!emailVerified) return 'PendingVerification';
 
     const roleConfig = getRoleConfig(role);
     if (!roleConfig) {
@@ -167,7 +170,7 @@ export default function RootNavigator() {
     if (isResolvingOnboarding) return null;
     if (resolvedOnboardingCompleted !== true) return 'OnboardingStack';
     return roleConfig.rootAppRoute;
-  }, [hasHydrated, isAuthenticated, isResolvingOnboarding, resolvedOnboardingCompleted, role]);
+  }, [hasHydrated, isAuthenticated, emailVerified, isResolvingOnboarding, resolvedOnboardingCompleted, role]);
 
   const previousRouteRef = React.useRef<keyof RootStackParamList | null>(null);
 
@@ -230,6 +233,11 @@ export default function RootNavigator() {
         }}
       >
         <Stack.Screen name="AuthStack" component={AuthStack} />
+        <Stack.Screen
+          name="PendingVerification"
+          component={PendingVerificationScreen}
+          options={{ gestureEnabled: false }}
+        />
         <Stack.Screen name="OnboardingStack" component={OnboardingStack} />
         <Stack.Screen name="UserApp" component={UserDrawer} />
         <Stack.Screen name="TrainerApp" component={TrainerDrawer} />

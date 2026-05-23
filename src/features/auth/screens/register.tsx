@@ -14,6 +14,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormData } from '@/features/auth/validations/auth';
 import { useRegister } from '@/features/auth/hooks/use-auth';
+import { tokenStore } from '@/lib/secure-token-store';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
@@ -25,13 +27,13 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export default function RegisterScreen({ navigation }: Props) {
   const registerMutation = useRegister();
+  const setSession = useSessionStore(s => s.setSession);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
     setError,
-    getValues,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -52,10 +54,14 @@ export default function RegisterScreen({ navigation }: Props) {
 
   React.useEffect(() => {
     if (registerMutation.isSuccess) {
-      const { email, password } = getValues();
-      navigation.replace('Login', { email, password });
+      const data = registerMutation.data;
+      if (data.accessToken && data.refreshToken) {
+        tokenStore.setAccessToken(data.accessToken);
+        tokenStore.setRefreshToken(data.refreshToken);
+      }
+      setSession(data.id, data.role, data.username, data.email, data.onboardingCompleted ?? null, data.emailVerified);
     }
-  }, [registerMutation.isSuccess, navigation, getValues]);
+  }, [registerMutation.isSuccess, registerMutation.data, setSession]);
 
   const onSubmit = (data: RegisterFormData) => {
     registerMutation.mutate({

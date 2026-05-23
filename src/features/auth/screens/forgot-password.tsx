@@ -14,7 +14,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { forgotPasswordSchema, ForgotPasswordFormData } from '@/features/auth/validations/auth';
 import { usePasswordRecovery } from '@/features/auth/hooks/use-auth';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { theme } from '@/theme';
@@ -44,6 +43,15 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     }
   }, [recoveryMutation.isError, recoveryMutation.error, setError]);
 
+  React.useEffect(() => {
+    if (recoveryMutation.isSuccess) {
+      const email = recoveryMutation.variables?.email;
+      if (email) {
+        navigation.replace('ResetPasswordCode', { email });
+      }
+    }
+  }, [recoveryMutation.isSuccess, recoveryMutation.variables, navigation]);
+
   const onSubmit = (data: ForgotPasswordFormData) => {
     recoveryMutation.mutate(data);
   };
@@ -60,52 +68,37 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         >
           <Text style={styles.title}>Recuperar contraseña</Text>
           <Text style={styles.subtitle}>
-            Ingresa tu correo y te enviaremos instrucciones para restablecerla
+            Ingresa tu correo y te enviaremos un código de recuperación
           </Text>
 
-          {recoveryMutation.isSuccess ? (
-            <BaseCard>
-              <View style={styles.successBox}>
-                <Text style={styles.successTitle}>¡Solicitud enviada!</Text>
-                <Text style={styles.successText}>
-                  Revisa tu correo electrónico para continuar con el proceso de recuperación.
-                </Text>
-                <SecondaryButton
-                  label="Volver al inicio de sesión"
-                  onPress={() => navigation.navigate('Login')}
-                />
-              </View>
-            </BaseCard>
-          ) : (
-            <BaseCard>
-              <View style={styles.form}>
-                <Controller
-                  control={control}
-                  name="email"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      label="Correo electrónico"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="ejemplo@correo.com"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      error={errors.email?.message}
-                    />
-                  )}
-                />
+          <BaseCard>
+            <View style={styles.form}>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    label="Correo electrónico"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="ejemplo@correo.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={errors.email?.message}
+                  />
+                )}
+              />
 
-                {errors.root && <Text style={styles.rootError}>{errors.root.message}</Text>}
+              {errors.root && <Text style={styles.rootError}>{errors.root.message}</Text>}
 
-                <PrimaryButton
-                  label="Enviar instrucciones"
-                  onPress={handleSubmit(onSubmit)}
-                  loading={recoveryMutation.isPending}
-                  disabled={recoveryMutation.isPending}
-                />
-              </View>
-            </BaseCard>
-          )}
+              <PrimaryButton
+                label="Enviar código"
+                onPress={handleSubmit(onSubmit)}
+                loading={recoveryMutation.isPending}
+                disabled={recoveryMutation.isPending}
+              />
+            </View>
+          </BaseCard>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -138,23 +131,6 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: theme.spacing.md,
-  },
-  successBox: {
-    gap: theme.spacing.md,
-    alignItems: 'center',
-    paddingVertical: theme.spacing.lg,
-  },
-  successTitle: {
-    color: theme.colors.success,
-    fontSize: theme.typography.heading3.fontSize,
-    lineHeight: theme.typography.heading3.lineHeight,
-    fontWeight: theme.typography.heading3.fontWeight,
-  },
-  successText: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
-    textAlign: 'center',
   },
   rootError: {
     color: theme.colors.error,

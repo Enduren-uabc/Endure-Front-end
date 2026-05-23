@@ -6,7 +6,8 @@ export type AuthStackParamList = {
   Login: { email?: string; password?: string } | undefined;
   Register: undefined;
   ForgotPassword: undefined;
-  ResetPassword: { token?: string } | undefined;
+  ResetPasswordCode: { email: string };
+  ResetPassword: { email: string; token: string };
 };
 
 export type OnboardingStackParamList = {
@@ -73,4 +74,5 @@ export type RootStackParamList = {
   TrainerApp: undefined;
   AdminApp: undefined;
   ExerciseCatalogModal: undefined;
+  PendingVerification: { email: string };
 };

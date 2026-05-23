@@ -12,6 +12,7 @@ export interface AuthResponse {
   accessToken?: string;
   refreshToken?: string;
   onboardingCompleted?: boolean;
+  emailVerified: boolean;
 }
 
 export interface RegisterBody {
@@ -40,6 +41,7 @@ export interface MeResponse {
   email: string;
   username: string;
   onboardingCompleted?: boolean;
+  emailVerified: boolean;
 }
 
 export function useRegister() {
@@ -59,7 +61,7 @@ export function useLogin() {
         await tokenStore.setRefreshToken(data.refreshToken);
       }
 
-      setSession(data.id, data.role, data.username, data.onboardingCompleted ?? null);
+      setSession(data.id, data.role, data.username, data.email, data.onboardingCompleted ?? null, data.emailVerified);
     },
   });
 }
