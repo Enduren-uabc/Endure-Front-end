@@ -3,10 +3,11 @@ import type { ExerciseConfig } from '@/features/training/types/routine';
 
 export type AuthStackParamList = {
   Welcome: undefined;
-  Login: undefined;
+  Login: { email?: string; password?: string } | undefined;
   Register: undefined;
   ForgotPassword: undefined;
-  ResetPassword: { token?: string } | undefined;
+  ResetPasswordCode: { email: string };
+  ResetPassword: { email: string; token: string };
 };
 
 export type OnboardingStackParamList = {
@@ -14,13 +15,6 @@ export type OnboardingStackParamList = {
   BasicData: undefined;
   Level: undefined;
   Summary: undefined;
-};
-
-export type AppTabsParamList = {
-  Home: undefined;
-  Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
-  Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
-  Social: NavigatorScreenParams<SocialStackParamList> | undefined;
 };
 
 export type WorkoutStackParamList = {
@@ -58,17 +52,27 @@ export type AdminStackParamList = {
   VerificationDetail: { verificationId: string };
 };
 
-export type AppDrawerParamList = {
-  MainTabs: NavigatorScreenParams<AppTabsParamList> | undefined;
-  Settings: undefined;
-  Help: undefined;
-  CoachStack: NavigatorScreenParams<CoachStackParamList> | undefined;
-  AdminStack: NavigatorScreenParams<AdminStackParamList> | undefined;
+export type TrainerLinkStackParamList = {
+  SearchTrainer: undefined;
+  TrainerProfile: { trainerId: string };
+  SentRequests: undefined;
+  MyTrainer: undefined;
+  ReceivedRequests: undefined;
+};
+
+export type AppTabsParamList = {
+  Home: undefined;
+  Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
+  Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
+  Social: NavigatorScreenParams<SocialStackParamList> | undefined;
 };
 
 export type RootStackParamList = {
   AuthStack: NavigatorScreenParams<AuthStackParamList> | undefined;
   OnboardingStack: NavigatorScreenParams<OnboardingStackParamList> | undefined;
-  AppDrawer: NavigatorScreenParams<AppDrawerParamList> | undefined;
+  UserApp: undefined;
+  TrainerApp: undefined;
+  AdminApp: undefined;
   ExerciseCatalogModal: undefined;
+  PendingVerification: { email: string };
 };

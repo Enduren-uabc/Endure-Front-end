@@ -1,0 +1,22 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type {
+  WorkoutStackParamList,
+  TrainingStackParamList,
+  SocialStackParamList,
+  TrainerLinkStackParamList,
+} from '@/navigation/types';
+
+export type TrainerTabsParamList = {
+  Home: undefined;
+  Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
+  Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
+  Clients: undefined;
+  Social: NavigatorScreenParams<SocialStackParamList> | undefined;
+};
+
+export type TrainerDrawerParamList = {
+  MainTabs: NavigatorScreenParams<TrainerTabsParamList> | undefined;
+  TrainerLinkStack: NavigatorScreenParams<TrainerLinkStackParamList> | undefined;
+  Settings: undefined;
+  Help: undefined;
+};

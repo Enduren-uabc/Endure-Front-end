@@ -4,6 +4,7 @@ import WelcomeScreen from '@/features/auth/screens/welcome';
 import LoginScreen from '@/features/auth/screens/login';
 import RegisterScreen from '@/features/auth/screens/register';
 import ForgotPasswordScreen from '@/features/auth/screens/forgot-password';
+import ResetPasswordCodeScreen from '@/features/auth/screens/reset-password-code';
 import ResetPasswordScreen from '@/features/auth/screens/reset-password';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from './types';
@@ -23,6 +24,7 @@ export default function AuthStack() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPasswordCode" component={ResetPasswordCodeScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </Stack.Navigator>
   );

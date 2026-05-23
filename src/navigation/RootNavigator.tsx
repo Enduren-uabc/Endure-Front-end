@@ -14,10 +14,14 @@ import { useSessionStore } from '@/features/auth/stores/session-store';
 import { useOnboardingStatus } from '@/features/onboarding/hooks/use-onboarding';
 import AuthStack from './AuthStack';
 import OnboardingStack from './OnboardingStack';
-import AppDrawer from './AppDrawer';
+import PendingVerificationScreen from '@/features/auth/screens/pending-verification';
+import UserDrawer from '@/features/user/navigation/UserDrawer';
+import TrainerDrawer from '@/features/trainer/navigation/TrainerDrawer';
+import AdminDrawer from '@/features/admin/navigation/AdminDrawer';
 import ExerciseCatalogScreen from '@/features/training/screens/exercise-catalog';
 import { RootStackParamList } from './types';
 import { theme } from '@/theme';
+import { ROLE_ROUTING_CONFIG, getRoleConfig, AppRole } from './role-routing.config';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -45,7 +49,7 @@ const linking: LinkingOptions<RootStackParamList> = {
           Summary: 'onboarding/summary',
         },
       },
-      AppDrawer: {
+      UserApp: {
         screens: {
           MainTabs: {
             screens: {
@@ -78,6 +82,55 @@ const linking: LinkingOptions<RootStackParamList> = {
           Help: 'help',
         },
       },
+      TrainerApp: {
+        screens: {
+          MainTabs: {
+            screens: {
+              Home: 'home',
+              Workout: {
+                screens: {
+                  WorkoutStart: 'workout',
+                  WorkoutSession: 'workout/session/:sessionId',
+                  WorkoutFinishSummary: 'workout/summary/:sessionId',
+                  WorkoutHistory: 'workout/history',
+                },
+              },
+              Routines: {
+                screens: {
+                  RoutinesList: 'routines',
+                  RoutineDetail: 'routine-detail/:id',
+                  RoutineBuilder: 'routine-builder/:id',
+                },
+              },
+              Social: {
+                screens: {
+                  SocialFeed: 'social',
+                  PublicProfile: 'profiles/:userId',
+                  PostDetail: 'posts/:postId',
+                },
+              },
+            },
+          },
+          Settings: 'settings',
+          Help: 'help',
+        },
+      },
+      AdminApp: {
+        screens: {
+          MainTabs: {
+            screens: {
+              Verifications: {
+                screens: {
+                  PendingVerifications: 'admin/verifications',
+                  VerificationDetail: 'admin/verifications/:verificationId',
+                },
+              },
+            },
+          },
+          Settings: 'settings',
+          Help: 'help',
+        },
+      },
       ExerciseCatalogModal: 'exercise-catalog',
     },
   },
@@ -85,6 +138,8 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 export default function RootNavigator() {
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const emailVerified = useSessionStore((s) => s.emailVerified);
+  const role = useSessionStore((s) => s.role) as AppRole | null;
   const hasHydrated = useSessionStore((s) => s.hasHydrated);
   const onboardingCompleted = useSessionStore((s) => s.onboardingCompleted);
   const setOnboardingCompleted = useSessionStore((s) => s.setOnboardingCompleted);
@@ -101,9 +156,21 @@ export default function RootNavigator() {
   const targetRoute = React.useMemo<keyof RootStackParamList | null>(() => {
     if (!hasHydrated) return null;
     if (!isAuthenticated) return 'AuthStack';
+    if (!emailVerified) return 'PendingVerification';
+
+    const roleConfig = getRoleConfig(role);
+    if (!roleConfig) {
+      return 'AuthStack';
+    }
+
+    if (!roleConfig.requiresOnboarding) {
+      return roleConfig.rootAppRoute;
+    }
+
     if (isResolvingOnboarding) return null;
-    return resolvedOnboardingCompleted === true ? 'AppDrawer' : 'OnboardingStack';
-  }, [hasHydrated, isAuthenticated, isResolvingOnboarding, resolvedOnboardingCompleted]);
+    if (resolvedOnboardingCompleted !== true) return 'OnboardingStack';
+    return roleConfig.rootAppRoute;
+  }, [hasHydrated, isAuthenticated, emailVerified, isResolvingOnboarding, resolvedOnboardingCompleted, role]);
 
   const previousRouteRef = React.useRef<keyof RootStackParamList | null>(null);
 
@@ -166,8 +233,15 @@ export default function RootNavigator() {
         }}
       >
         <Stack.Screen name="AuthStack" component={AuthStack} />
+        <Stack.Screen
+          name="PendingVerification"
+          component={PendingVerificationScreen}
+          options={{ gestureEnabled: false }}
+        />
         <Stack.Screen name="OnboardingStack" component={OnboardingStack} />
-        <Stack.Screen name="AppDrawer" component={AppDrawer} />
+        <Stack.Screen name="UserApp" component={UserDrawer} />
+        <Stack.Screen name="TrainerApp" component={TrainerDrawer} />
+        <Stack.Screen name="AdminApp" component={AdminDrawer} />
         <Stack.Screen
           name="ExerciseCatalogModal"
           component={ExerciseCatalogScreen}

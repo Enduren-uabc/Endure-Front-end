@@ -8,6 +8,15 @@ import {
 } from 'react-native';
 import { theme } from '@/theme';
 
+const EMOJI_REGEX = /[\p{Emoji}\u200D\uFE0F]/gu;
+
+function stripEmojis(text: string): string {
+  return text.replace(EMOJI_REGEX, (char) => {
+    if (/^[\x00-\x7F]$/.test(char)) return char;
+    return '';
+  });
+}
+
 interface TextInputProps {
   label: string;
   value: string;
@@ -17,6 +26,10 @@ interface TextInputProps {
   error?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  autoCorrect?: boolean;
+  spellCheck?: boolean;
+  inputMode?: RNTextInputProps['inputMode'];
+  allowEmoji?: boolean;
   maxLength?: number;
   disabled?: boolean;
   textContentType?: RNTextInputProps['textContentType'];
@@ -33,6 +46,10 @@ export function TextInput({
   error,
   autoCapitalize = 'none',
   keyboardType = 'default',
+  autoCorrect,
+  spellCheck,
+  inputMode,
+  allowEmoji = true,
   maxLength,
   disabled = false,
   textContentType,
@@ -40,6 +57,13 @@ export function TextInput({
   rightElement,
 }: TextInputProps) {
   const [isFocused, setIsFocused] = React.useState(false);
+
+  const handleChangeText = React.useCallback(
+    (text: string) => {
+      onChangeText(allowEmoji ? text : stripEmojis(text));
+    },
+    [onChangeText, allowEmoji],
+  );
 
   return (
     <View style={styles.container}>
@@ -54,12 +78,15 @@ export function TextInput({
       >
         <RNTextInput
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleChangeText}
           placeholder={placeholder}
           placeholderTextColor={theme.colors.textMuted}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
+          autoCorrect={autoCorrect}
+          spellCheck={spellCheck}
+          inputMode={inputMode}
           maxLength={maxLength}
           editable={!disabled}
           textContentType={textContentType}
@@ -91,17 +118,22 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.border,
     borderWidth: 1,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.full,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 52,
+    minHeight: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
   input: {
     flex: 1,
     color: theme.colors.textPrimary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
   },
   inputFocused: {

@@ -8,6 +8,9 @@ export const API_ENDPOINTS = {
     passwordRecovery: '/auth/password-recovery',
     passwordResetValidate: '/auth/password-reset/validate',
     passwordReset: '/auth/password-reset',
+    verifyEmail: '/auth/verify-email',
+    resendVerification: '/auth/resend-verification',
+    socialLogin: '/auth/social-login',
   },
   onboarding: {
     profile: '/onboarding/profile',
@@ -67,6 +70,37 @@ export const API_ENDPOINTS = {
     following: (userId: string) => `/profiles/${userId}/following`,
     follow: (userId: string) => `/profiles/${userId}/follow`,
     me: '/profiles/me',
+  },
+  trainerLink: {
+    search: (params: { q: string; page?: number; limit?: number }) =>
+      `/trainers/search?q=${encodeURIComponent(params.q)}&page=${params.page ?? 1}&limit=${params.limit ?? 20}`,
+    publicProfile: (trainerId: string) => `/trainers/${trainerId}/public-profile`,
+    sendRequest: '/trainer-link-requests',
+    sentRequests: (params?: { status?: string; page?: number; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.status) query.set('status', params.status);
+      if (params?.page) query.set('page', String(params.page));
+      if (params?.limit) query.set('limit', String(params.limit));
+      return `/trainer-link-requests/sent?${query.toString()}`;
+    },
+    cancelRequest: (id: string) => `/trainer-link-requests/${id}/cancel`,
+    receivedRequests: (params?: { status?: string; page?: number; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.status) query.set('status', params.status);
+      if (params?.page) query.set('page', String(params.page));
+      if (params?.limit) query.set('limit', String(params.limit));
+      return `/trainer-link-requests/received?${query.toString()}`;
+    },
+    acceptRequest: (id: string) => `/trainer-link-requests/${id}/accept`,
+    rejectRequest: (id: string) => `/trainer-link-requests/${id}/reject`,
+    myTrainer: '/trainer-links/active',
+    linkedClients: (params?: { page?: number; limit?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set('page', String(params.page));
+      if (params?.limit) query.set('limit', String(params.limit));
+      return `/trainer/clients?${query.toString()}`;
+    },
+    deactivateLink: (id: string) => `/trainer-links/${id}/deactivate`,
   },
   trainerVerification: {
     flowConfig: '/trainer-verification/flow-config',

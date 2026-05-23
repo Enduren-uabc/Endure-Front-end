@@ -1,28 +1,65 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Dumbbell } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from '@/navigation/types';
+import { useGoogleAuth } from '@/features/auth/hooks/use-social-auth';
+
+const LogoImage = require('../../../../assets/Logo.png');
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen({ navigation }: Props) {
+  const { login: googleLogin, isPending: googlePending, error: googleError, clearError } = useGoogleAuth();
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoSection}>
-          <View style={styles.iconCircle}>
-            <Dumbbell size={48} color={theme.colors.primary} strokeWidth={2} />
-          </View>
+          <Image
+            source={LogoImage}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Logo de Endure"
+            accessible
+          />
           <Text style={styles.title}>Endure</Text>
           <Text style={styles.subtitle}>Tu compañero de entrenamiento</Text>
         </View>
 
         <View style={styles.ctaSection}>
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={googleLogin}
+            disabled={googlePending}
+            activeOpacity={0.8}
+          >
+            {googlePending ? (
+              <ActivityIndicator size="small" color={theme.colors.textPrimary} />
+            ) : (
+              <Text style={styles.googleButtonText}>Continuar con Google</Text>
+            )}
+          </TouchableOpacity>
+
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity style={styles.appleButton} activeOpacity={0.8}>
+              <Text style={styles.appleButtonText}>Continuar con Apple</Text>
+            </TouchableOpacity>
+          )}
+
+          {googleError && (
+            <Text style={styles.errorText}>{googleError}</Text>
+          )}
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <PrimaryButton label="Comenzar" onPress={() => navigation.navigate('Register')} />
           <SecondaryButton label="Ya tengo cuenta" onPress={() => navigation.navigate('Login')} />
         </View>
@@ -39,21 +76,17 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'space-between',
-    paddingVertical: theme.spacing.xl * 2,
+    paddingBottom: theme.spacing.xxl,
   },
   logoSection: {
-    alignItems: 'center',
-    marginTop: theme.spacing.xl * 2,
-  },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: theme.colors.surfaceElevated,
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
-    marginBottom: theme.spacing.lg,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 250,
+    height: 250,
+    marginBottom: theme.spacing.xl,
   },
   title: {
     color: theme.colors.primary,
@@ -70,5 +103,56 @@ const styles = StyleSheet.create({
   ctaSection: {
     gap: theme.spacing.md,
     width: '100%',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    paddingVertical: 14,
+    gap: theme.spacing.sm,
+    minHeight: 48,
+  },
+  googleButtonText: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '500',
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+    borderRadius: 8,
+    paddingVertical: 14,
+    gap: theme.spacing.sm,
+    minHeight: 48,
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '500',
+  },
+  errorText: {
+    color: theme.colors.error,
+    fontSize: theme.typography.body.fontSize,
+    textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+  dividerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
   },
 });

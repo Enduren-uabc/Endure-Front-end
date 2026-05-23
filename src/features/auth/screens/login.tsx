@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -14,16 +15,20 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "@/features/auth/validations/auth";
 import { useLogin } from "@/features/auth/hooks/use-auth";
+import { useGoogleAuth } from "@/features/auth/hooks/use-social-auth";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
+import { PasswordInput } from "@/shared/components/PasswordInput";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { theme } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, route }: Props) {
   const loginMutation = useLogin();
+  const { login: googleLogin, isPending: googlePending, error: googleError } = useGoogleAuth();
+  const { email: prefillEmail, password: prefillPassword } = route.params ?? {};
 
   const {
     control,
@@ -33,8 +38,8 @@ export default function LoginScreen({ navigation }: Props) {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: prefillEmail ?? "",
+      password: prefillPassword ?? "",
     },
   });
 
@@ -62,6 +67,29 @@ export default function LoginScreen({ navigation }: Props) {
           <Text style={styles.title}>Iniciar sesión</Text>
           <Text style={styles.subtitle}>Bienvenido de vuelta</Text>
 
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={googleLogin}
+            disabled={googlePending}
+            activeOpacity={0.8}
+          >
+            {googlePending ? (
+              <ActivityIndicator size="small" color={theme.colors.textPrimary} />
+            ) : (
+              <Text style={styles.googleButtonText}>Continuar con Google</Text>
+            )}
+          </TouchableOpacity>
+
+          {googleError && (
+            <Text style={styles.errorText}>{googleError}</Text>
+          )}
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <BaseCard>
             <View style={styles.form}>
               <Controller
@@ -84,12 +112,11 @@ export default function LoginScreen({ navigation }: Props) {
                 control={control}
                 name="password"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput
+                  <PasswordInput
                     label="Contraseña"
                     value={value}
                     onChangeText={onChange}
                     placeholder="Tu contraseña"
-                    secureTextEntry
                     error={errors.password?.message}
                   />
                 )}
@@ -164,6 +191,41 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    paddingVertical: 14,
+    minHeight: 48,
+  },
+  googleButtonText: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '500',
+  },
+  errorText: {
+    color: theme.colors.error,
+    fontSize: theme.typography.body.fontSize,
+    textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+  dividerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
   },
   rootError: {
     color: theme.colors.error,

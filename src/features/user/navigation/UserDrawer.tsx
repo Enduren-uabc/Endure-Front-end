@@ -1,18 +1,21 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { Dumbbell, Settings, HelpCircle, Award, ChevronRight, Shield } from 'lucide-react-native';
-import AppTabs from './AppTabs';
-import CoachStack from './CoachStack';
-import AdminStack from './AdminStack';
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+} from '@react-navigation/drawer';
+import { Dumbbell, Settings, HelpCircle, Award, ChevronRight, Link2 } from 'lucide-react-native';
+import UserTabs from './UserTabs';
+import CoachStack from '@/navigation/CoachStack';
+import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
 import SettingsScreen from '@/features/settings/screens/settings';
 import HelpScreen from '@/features/help/screens/help';
 import { theme } from '@/theme';
-import type { AppDrawerParamList } from './types';
+import type { UserDrawerParamList } from '../types/user-navigation.types';
 import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
-import { useSessionStore } from '@/features/auth/stores/session-store';
 
-const Drawer = createDrawerNavigator<AppDrawerParamList>();
+const Drawer = createDrawerNavigator<UserDrawerParamList>();
 
 function CustomDrawerContent(props: any) {
   const { data: statusData } = useMyVerificationStatus();
@@ -61,10 +64,7 @@ function CustomDrawerContent(props: any) {
   );
 }
 
-export default function AppDrawer() {
-  const role = useSessionStore((s) => s.role);
-  const isAdmin = role === 'admin';
-
+export default function UserDrawer() {
   return (
     <Drawer.Navigator
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -95,33 +95,31 @@ export default function AppDrawer() {
     >
       <Drawer.Screen
         name="MainTabs"
-        component={AppTabs}
+        component={UserTabs}
         options={{
           title: 'Inicio',
           headerShown: false,
           drawerIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
         }}
       />
-      {isAdmin ? (
-        <Drawer.Screen
-          name="AdminStack"
-          component={AdminStack}
-          options={{
-            title: 'Administración',
-            drawerIcon: ({ color, size }) => <Shield size={size} color={color} />,
-          }}
-        />
-      ) : (
-        <Drawer.Screen
-          name="CoachStack"
-          component={CoachStack}
-          options={{
-            title: 'Verificación de Entrenador',
-            drawerItemStyle: { display: 'none' },
-            drawerIcon: ({ color, size }) => <Award size={size} color={color} />,
-          }}
-        />
-      )}
+      <Drawer.Screen
+        name="CoachStack"
+        component={CoachStack}
+        options={{
+          title: 'Verificación de Entrenador',
+          drawerItemStyle: { display: 'none' },
+          drawerIcon: ({ color, size }) => <Award size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="TrainerLinkStack"
+        component={TrainerLinkStack}
+        options={{
+          title: 'Vinculación',
+          drawerItemStyle: { display: 'none' },
+          drawerIcon: ({ color, size }) => <Link2 size={size} color={color} />,
+        }}
+      />
       <Drawer.Screen
         name="Settings"
         component={SettingsScreen}

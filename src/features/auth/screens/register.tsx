@@ -14,6 +14,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormData } from '@/features/auth/validations/auth';
 import { useRegister } from '@/features/auth/hooks/use-auth';
+import { tokenStore } from '@/lib/secure-token-store';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { BaseCard } from '@/components/ui/BaseCard';
@@ -25,6 +27,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export default function RegisterScreen({ navigation }: Props) {
   const registerMutation = useRegister();
+  const setSession = useSessionStore(s => s.setSession);
 
   const {
     control,
@@ -51,9 +54,14 @@ export default function RegisterScreen({ navigation }: Props) {
 
   React.useEffect(() => {
     if (registerMutation.isSuccess) {
-      navigation.replace('Login');
+      const data = registerMutation.data;
+      if (data.accessToken && data.refreshToken) {
+        tokenStore.setAccessToken(data.accessToken);
+        tokenStore.setRefreshToken(data.refreshToken);
+      }
+      setSession(data.id, data.role, data.username, data.email, data.onboardingCompleted ?? null, data.emailVerified);
     }
-  }, [registerMutation.isSuccess, navigation]);
+  }, [registerMutation.isSuccess, registerMutation.data, setSession]);
 
   const onSubmit = (data: RegisterFormData) => {
     registerMutation.mutate({
@@ -89,6 +97,10 @@ export default function RegisterScreen({ navigation }: Props) {
                     placeholder="ejemplo@correo.com"
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    inputMode="email"
+                    allowEmoji={false}
                     textContentType="emailAddress"
                     autoComplete="email"
                     disabled={registerMutation.isPending}
@@ -107,6 +119,9 @@ export default function RegisterScreen({ navigation }: Props) {
                     onChangeText={onChange}
                     placeholder="usuario123"
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    allowEmoji={false}
                     disabled={registerMutation.isPending}
                     error={errors.username?.message}
                   />
@@ -203,22 +218,25 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xl,
+    paddingTop: theme.spacing.xxxl,
+    paddingBottom: theme.spacing.xl,
     gap: theme.spacing.lg,
   },
   title: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.primary,
     fontSize: theme.typography.heading2.fontSize,
     lineHeight: theme.typography.heading2.lineHeight,
     fontWeight: theme.typography.heading2.fontWeight,
+    textAlign: 'center',
   },
   subtitle: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
   },
   form: {
-    gap: theme.spacing.md,
+    gap: theme.spacing.lg,
   },
   checkboxRow: {
     flexDirection: 'row',
