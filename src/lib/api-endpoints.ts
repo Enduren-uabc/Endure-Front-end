@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     passwordReset: '/auth/password-reset',
     verifyEmail: '/auth/verify-email',
     resendVerification: '/auth/resend-verification',
+    socialLogin: '/auth/social-login',
   },
   onboarding: {
     profile: '/onboarding/profile',
