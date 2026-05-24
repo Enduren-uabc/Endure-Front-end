@@ -28,6 +28,10 @@ import {
   type DayOfWeek,
 } from "@/features/training/types/routine";
 import type { TrainingStackParamList } from "@/navigation/types";
+import {
+  routineNameSchema,
+  ROUTINE_NAME_MAX_LENGTH,
+} from "@/features/training/validations/routine";
 
 type Props = NativeStackScreenProps<TrainingStackParamList, "RoutinesList">;
 
@@ -66,9 +70,19 @@ export default function RoutinesListScreen({ navigation }: Props) {
     );
   };
 
+  const handleNameChange = (text: string) => {
+    const filtered = text.replace(
+      /[\p{Emoji_Presentation}\p{Extended_Pictographic}\p{Emoji}]/gu,
+      "",
+    );
+    setNewRoutineName(filtered);
+    if (createError) setCreateError(null);
+  };
+
   const handleCreateRoutine = () => {
-    if (!newRoutineName.trim()) {
-      setCreateError("Ingresa un nombre para la rutina");
+    const result = routineNameSchema.safeParse(newRoutineName);
+    if (!result.success) {
+      setCreateError(result.error.issues[0].message);
       return;
     }
     if (selectedDays.length === 0) {
@@ -77,7 +91,7 @@ export default function RoutinesListScreen({ navigation }: Props) {
     }
     setCreateError(null);
     createMutation.mutate(
-      { name: newRoutineName.trim(), dayOfWeeks: selectedDays },
+      { name: result.data, dayOfWeeks: selectedDays },
       {
         onSuccess: (routine) => {
           setShowCreateModal(false);
@@ -204,12 +218,20 @@ export default function RoutinesListScreen({ navigation }: Props) {
 
             <Text style={styles.modalLabel}>Nombre</Text>
             <RNTextInput
-              style={styles.modalInput}
+              style={[
+                styles.modalInput,
+                newRoutineName.length >= ROUTINE_NAME_MAX_LENGTH &&
+                  styles.modalInputLimit,
+              ]}
               value={newRoutineName}
-              onChangeText={setNewRoutineName}
+              onChangeText={handleNameChange}
+              maxLength={ROUTINE_NAME_MAX_LENGTH}
               placeholder="Ej: Rutina de fuerza"
               placeholderTextColor={theme.colors.textMuted}
             />
+            <Text style={styles.charCounter}>
+              {newRoutineName.length}/{ROUTINE_NAME_MAX_LENGTH}
+            </Text>
 
             <Text style={styles.modalLabel}>Días de entrenamiento</Text>
             <View style={styles.daysGrid}>
@@ -427,6 +449,16 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: theme.typography.body.fontSize,
     minHeight: 48,
+  },
+  modalInputLimit: {
+    borderColor: theme.colors.warning,
+  },
+  charCounter: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    textAlign: "right",
+    marginTop: -theme.spacing.sm,
   },
   daysGrid: {
     flexDirection: "row",
