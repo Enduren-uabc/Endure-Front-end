@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  TextInput as RNTextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -20,6 +19,7 @@ import {
 import { BaseCard } from "@/components/ui/BaseCard";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { NameInput } from "@/components/ui/NameInput";
 import { theme } from "@/theme";
 import type { Routine } from "@/features/training/types/routine";
 import {
@@ -28,6 +28,9 @@ import {
   type DayOfWeek,
 } from "@/features/training/types/routine";
 import type { TrainingStackParamList } from "@/navigation/types";
+import {
+  routineNameSchema,
+} from "@/features/training/validations/routine";
 
 type Props = NativeStackScreenProps<TrainingStackParamList, "RoutinesList">;
 
@@ -67,17 +70,18 @@ export default function RoutinesListScreen({ navigation }: Props) {
   };
 
   const handleCreateRoutine = () => {
-    if (!newRoutineName.trim()) {
-      setCreateError("Ingresa un nombre para la rutina");
+    const result = routineNameSchema.safeParse(newRoutineName);
+    if (!result.success) {
+      setCreateError(result.error.issues[0].message);
       return;
     }
     if (selectedDays.length === 0) {
-      setCreateError("Selecciona al menos un día");
+      setCreateError("Selecciona al menos un dÃ­a");
       return;
     }
     setCreateError(null);
     createMutation.mutate(
-      { name: newRoutineName.trim(), dayOfWeeks: selectedDays },
+      { name: result.data, dayOfWeeks: selectedDays },
       {
         onSuccess: (routine) => {
           setShowCreateModal(false);
@@ -126,7 +130,7 @@ export default function RoutinesListScreen({ navigation }: Props) {
           <BaseCard>
             <View style={styles.emptyState}>
               <Dumbbell size={48} color={theme.colors.textMuted} />
-              <Text style={styles.emptyTitle}>Aún no tienes rutinas</Text>
+              <Text style={styles.emptyTitle}>AÃºn no tienes rutinas</Text>
               <Text style={styles.emptySubtitle}>
                 Crea tu primera rutina para empezar a entrenar de forma
                 estructurada.
@@ -148,7 +152,7 @@ export default function RoutinesListScreen({ navigation }: Props) {
                 </View>
                 <Text style={styles.routineName}>{activeRoutine.name}</Text>
                 <Text style={styles.routineMeta}>
-                  {(activeRoutine.dayOfWeeks ?? []).length} días ·{" "}
+                  {(activeRoutine.dayOfWeeks ?? []).length} dÃ­as Â·{" "}
                   {countExercises(activeRoutine)} ejercicios
                 </Text>
               </BaseCard>
@@ -172,7 +176,7 @@ export default function RoutinesListScreen({ navigation }: Props) {
                     <View style={styles.routineInfo}>
                       <Text style={styles.routineName}>{routine.name}</Text>
                       <Text style={styles.routineMeta}>
-                        {(routine.dayOfWeeks ?? []).length} días ·{" "}
+                        {(routine.dayOfWeeks ?? []).length} dÃ­as Â·{" "}
                         {countExercises(routine)} ejercicios
                       </Text>
                     </View>
@@ -202,16 +206,14 @@ export default function RoutinesListScreen({ navigation }: Props) {
           <BaseCard style={styles.modalCard}>
             <Text style={styles.modalTitle}>Nueva rutina</Text>
 
-            <Text style={styles.modalLabel}>Nombre</Text>
-            <RNTextInput
-              style={styles.modalInput}
+            <NameInput
+              label="Nombre"
               value={newRoutineName}
               onChangeText={setNewRoutineName}
               placeholder="Ej: Rutina de fuerza"
-              placeholderTextColor={theme.colors.textMuted}
             />
 
-            <Text style={styles.modalLabel}>Días de entrenamiento</Text>
+            <Text style={styles.modalLabel}>DÃ­as de entrenamiento</Text>
             <View style={styles.daysGrid}>
               {DAY_OF_WEEK_ORDER.map((day) => (
                 <TouchableOpacity
@@ -459,3 +461,12 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
 });
+
+
+
+
+
+
+
+
+
