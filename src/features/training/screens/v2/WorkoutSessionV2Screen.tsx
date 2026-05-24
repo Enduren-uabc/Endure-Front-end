@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Check, Pause, Save, TimerReset, X } from 'lucide-react-native';
+import { AlertCircle, Check, Pause, TimerReset, X } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
@@ -14,59 +14,166 @@ import {
   TrainingV2SheetPreview,
   TrainingV2Tag,
 } from './TrainingV2Primitives';
-import { workoutSessionV2 } from './training-v2.mock';
+import {
+  useWorkoutSessionDetail,
+  useRegisterWorkoutSet,
+  useAdvanceWorkoutExercise,
+  useFinishWorkoutSession,
+  useDiscardWorkoutSession,
+} from '@/features/training/hooks/use-workout-session';
 import type { WorkoutStackParamList } from '@/navigation/types';
 
-const noop = () => undefined;
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'WorkoutSession'>;
 
 export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
-  const [reps, setReps] = React.useState(String(workoutSessionV2.currentSet.targetReps));
-  const [weight, setWeight] = React.useState(String(workoutSessionV2.currentSet.targetWeightKg));
+  const { data: session, isLoading, isError, refetch } = useWorkoutSessionDetail(route.params.sessionId);
+  const registerSet = useRegisterWorkoutSet();
+  const advanceExercise = useAdvanceWorkoutExercise();
+  const finishSessionMut = useFinishWorkoutSession();
+  const discardSession = useDiscardWorkoutSession();
+
+  const [reps, setReps] = React.useState('');
+  const [weight, setWeight] = React.useState('');
   const [setCompleted, setSetCompleted] = React.useState(false);
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
 
-  const exercise = workoutSessionV2.currentExercise;
-  const set = workoutSessionV2.currentSet;
+  const currentExerciseIdx = session?.currentExerciseIndex ?? 0;
+  const currentExercise = session?.exercises?.[currentExerciseIdx];
+  const currentSet = currentExercise?.workoutSets?.find((s) => !s.completed)
+    ?? currentExercise?.targetSets?.[0];
+  const currentSetNumber = currentSet?.setNumber ?? 1;
+  const totalSetsInExercise = currentExercise?.workoutSets?.length ?? currentExercise?.targetSets?.length ?? 0;
+  const completedSetsCount = session?.exercises?.reduce(
+    (sum, ex) => sum + (ex.workoutSets?.filter((s) => s.completed).length ?? 0), 0
+  ) ?? 0;
+  const totalSetsCount = session?.exercises?.reduce(
+    (sum, ex) => sum + (ex.workoutSets?.length ?? ex.targetSets?.length ?? 0), 0
+  ) ?? 0;
+
   const isValid = Number(reps) > 0 && Number(weight) >= 0;
-  const finishSession = () =>
-    navigation.replace('WorkoutFinishSummary', { sessionId: route.params.sessionId });
-  const completeOrFinishSet = () => {
+
+  const handleCompleteSet = React.useCallback(() => {
+    if (!session || !currentExercise) return;
+
     if (setCompleted) {
-      finishSession();
+      finishSessionMut.mutate({ sessionId: session.id }, {
+        onSuccess: () => {
+          navigation.replace('WorkoutFinishSummary', { sessionId: session.id });
+        },
+      });
       return;
     }
 
-    setSetCompleted(true);
-  };
+    registerSet.mutate(
+      {
+        sessionId: session.id,
+        exerciseIndex: currentExerciseIdx,
+        setNumber: currentSetNumber,
+        repsPerformed: Number(reps),
+        weightUsed: Number(weight),
+      },
+      {
+        onSuccess: () => {
+          setSetCompleted(true);
+        },
+      },
+    );
+  }, [session, currentExercise, currentExerciseIdx, currentSetNumber, reps, weight, setCompleted, registerSet, finishSessionMut, navigation]);
+
+  const handleAdvance = React.useCallback(() => {
+    if (!session) return;
+    advanceExercise.mutate(
+      { sessionId: session.id, allowIncomplete: true },
+      {
+        onSuccess: () => {
+          setSetCompleted(false);
+          setReps('');
+          setWeight('');
+        },
+      },
+    );
+  }, [session, advanceExercise]);
+
+  const handleDiscard = React.useCallback(() => {
+    if (!session) return;
+    discardSession.mutate({ sessionId: session.id }, {
+      onSuccess: () => {
+        navigation.navigate('WorkoutStart');
+      },
+    });
+  }, [session, discardSession, navigation]);
+
+  if (isLoading) {
+    return (
+      <TrainingV2Screen title="Entrenamiento" backgroundColor="#000000">
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text style={styles.centerText}>Cargando sesion...</Text>
+        </View>
+      </TrainingV2Screen>
+    );
+  }
+
+  if (isError || !session) {
+    return (
+      <TrainingV2Screen title="Entrenamiento" backgroundColor="#000000">
+        <View style={styles.center}>
+          <AlertCircle size={44} color={theme.colors.error} />
+          <Text style={styles.centerTitle}>No pudimos cargar la sesion</Text>
+          <Text style={styles.centerText}>Revisa tu conexion e intenta nuevamente.</Text>
+          <SecondaryButton label="Reintentar" onPress={() => refetch()} />
+        </View>
+      </TrainingV2Screen>
+    );
+  }
 
   return (
     <TrainingV2Screen
-      title={workoutSessionV2.routine.name}
+      title={session.routineName ?? 'Entrenamiento'}
       titleColor={theme.colors.textPrimary}
-      subtitle={`Tiempo activo ${workoutSessionV2.elapsedLabel}`}
       backgroundColor="#000000"
       footer={
         <View style={styles.footerActions}>
-          <SecondaryButton
-            label="Guardar"
-            onPress={() => navigation.navigate('WorkoutStart')}
-            style={styles.footerButton}
-          />
-          <PrimaryButton
-            label={setCompleted ? 'Finalizar sesion' : 'Completar serie'}
-            onPress={completeOrFinishSet}
-            disabled={!isValid}
-            icon={<Check size={18} color={theme.colors.background} />}
-            style={styles.footerButton}
-          />
+          {setCompleted ? (
+            <>
+              <SecondaryButton
+                label="Siguiente ejercicio"
+                onPress={handleAdvance}
+                style={styles.footerButton}
+              />
+              <PrimaryButton
+                label="Finalizar sesion"
+                onPress={handleCompleteSet}
+                icon={<Check size={18} color={theme.colors.background} />}
+                style={styles.footerButton}
+              />
+            </>
+          ) : (
+            <>
+              <SecondaryButton
+                label="Salir"
+                onPress={() => setShowExitConfirm(true)}
+                style={styles.footerButton}
+              />
+              <PrimaryButton
+                label="Completar serie"
+                onPress={handleCompleteSet}
+                disabled={!isValid || registerSet.isPending}
+                loading={registerSet.isPending}
+                icon={<Check size={18} color={theme.colors.background} />}
+                style={styles.footerButton}
+              />
+            </>
+          )}
         </View>
       }
     >
       <View style={styles.topActions}>
         <View style={styles.sessionPill}>
           <Pause size={16} color={theme.colors.primary} />
-          <Text style={styles.sessionPillText}>Modo entrenamiento</Text>
+          <Text style={styles.sessionPillText}>
+            {session.status === 'finished' ? 'Finalizada' : 'En progreso'}
+          </Text>
         </View>
         <TouchableOpacity
           activeOpacity={0.78}
@@ -79,40 +186,51 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      <BaseCard style={styles.exerciseCard}>
-        <Text style={styles.exerciseCounter}>Serie 2 de 3</Text>
-        <Text style={styles.exerciseTitle}>{exercise.name}</Text>
-        <Text style={styles.exerciseMeta}>{exercise.primaryMuscle} - {exercise.equipment}</Text>
-        <View style={styles.tagRow}>
-          <TrainingV2Tag label={`${set.targetReps} reps objetivo`} tone="primary" />
-          <TrainingV2Tag label={`${set.targetWeightKg} kg objetivo`} />
-        </View>
-      </BaseCard>
+      {currentExercise ? (
+        <BaseCard style={styles.exerciseCard}>
+          <Text style={styles.exerciseCounter}>
+            Serie {currentSetNumber} de {totalSetsInExercise}
+          </Text>
+          <Text style={styles.exerciseTitle}>{currentExercise.exerciseName}</Text>
+          <View style={styles.tagRow}>
+            <TrainingV2Tag label={`${'targetReps' in (currentSet ?? {}) ? (currentSet as any).targetReps : (currentSet as any).reps ?? 0} reps objetivo`} tone="primary" />
+            <TrainingV2Tag label={`${'targetWeight' in (currentSet ?? {}) ? (currentSet as any).targetWeight : (currentSet as any).weight ?? 0} kg objetivo`} />
+          </View>
+        </BaseCard>
+      ) : null}
 
-      <View style={styles.inputGrid}>
-        <TextInput
-          label="Reps reales"
-          value={reps}
-          onChangeText={setReps}
-          placeholder="8"
-          keyboardType="numeric"
-          inputMode="numeric"
-          error={Number(reps) <= 0 ? 'Ingresa reps validas.' : undefined}
-        />
-        <TextInput
-          label="Peso usado"
-          value={weight}
-          onChangeText={setWeight}
-          placeholder="62.5"
-          keyboardType="numeric"
-          inputMode="decimal"
-          error={Number(weight) < 0 ? 'El peso no puede ser negativo.' : undefined}
-        />
-      </View>
+      {!setCompleted ? (
+        <View style={styles.inputGrid}>
+          <TextInput
+            label="Reps reales"
+            value={reps}
+            onChangeText={setReps}
+            placeholder={String('targetReps' in (currentSet ?? {}) ? (currentSet as any).targetReps ?? 8 : (currentSet as any).reps ?? 8)}
+            keyboardType="numeric"
+            inputMode="numeric"
+            error={Number(reps) <= 0 && reps.length > 0 ? 'Ingresa reps validas.' : undefined}
+          />
+          <TextInput
+            label="Peso usado"
+            value={weight}
+            onChangeText={setWeight}
+            placeholder={String('targetWeight' in (currentSet ?? {}) ? (currentSet as any).targetWeight ?? 0 : (currentSet as any).weight ?? 0)}
+            keyboardType="numeric"
+            inputMode="decimal"
+            error={Number(weight) < 0 ? 'El peso no puede ser negativo.' : undefined}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.metaGrid}>
-        <TrainingV2FieldPreview label="Siguiente" value="Press de banca" helper="3 series" />
-        <TrainingV2FieldPreview label="Descanso" value="90s" helper="Automatico" />
+        <TrainingV2FieldPreview
+          label="Siguiente"
+          value={currentExerciseIdx + 1 < (session.exercises?.length ?? 0)
+            ? session.exercises[currentExerciseIdx + 1].exerciseName
+            : 'Ultimo ejercicio'}
+          helper={currentExerciseIdx + 1 < (session.exercises?.length ?? 0) ? 'Siguiente' : 'Finalizar'}
+        />
+        <TrainingV2FieldPreview label="Descanso" value="90s" helper="Entre series" />
       </View>
 
       <BaseCard style={styles.progressCard}>
@@ -120,17 +238,24 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
           <TimerReset size={20} color={theme.colors.primary} />
           <Text style={styles.progressTitle}>Avance de rutina</Text>
         </View>
-        <TrainingV2ProgressBar progress={0.42} label="5 de 12 series completadas" />
+        <TrainingV2ProgressBar
+          progress={totalSetsCount > 0 ? completedSetsCount / totalSetsCount : 0}
+          label={`${completedSetsCount} de ${totalSetsCount} series completadas`}
+        />
       </BaseCard>
 
       {setCompleted ? (
         <TrainingV2SheetPreview
-          title="Descanso entre series"
-          description="Respira, prepara el siguiente peso y vuelve cuando el contador termine."
+          title="Serie completada"
+          description={`Registraste ${reps} reps con ${weight} kg. Puedes avanzar al siguiente ejercicio o finalizar.`}
         >
           <View style={styles.restTimer}>
-            <Text style={styles.restTimerText}>01:30</Text>
-            <SecondaryButton label="Saltar descanso" onPress={noop} />
+            <PrimaryButton
+              label="Siguiente ejercicio"
+              onPress={handleAdvance}
+              loading={advanceExercise.isPending}
+            />
+            <SecondaryButton label="Finalizar sesion" onPress={handleCompleteSet} />
           </View>
         </TrainingV2SheetPreview>
       ) : null}
@@ -138,7 +263,7 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
       {showExitConfirm ? (
         <TrainingV2SheetPreview
           title="Abandonar entrenamiento"
-          description="Si sales ahora, la sesion queda incompleta hasta que decidas guardarla."
+          description="Si sales ahora, la sesion quedara descartada."
         >
           <View style={styles.exitActions}>
             <SecondaryButton
@@ -147,9 +272,9 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
               style={styles.footerButton}
             />
             <PrimaryButton
-              label="Guardar salida"
-              onPress={() => navigation.navigate('WorkoutStart')}
-              icon={<Save size={18} color={theme.colors.background} />}
+              label="Descartar sesion"
+              onPress={handleDiscard}
+              loading={discardSession.isPending}
               style={styles.footerButton}
             />
           </View>
@@ -160,6 +285,26 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+    padding: theme.spacing.xl,
+  },
+  centerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading2.fontSize,
+    lineHeight: theme.typography.heading2.lineHeight,
+    fontWeight: theme.typography.heading2.fontWeight,
+    textAlign: 'center',
+  },
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
+  },
   topActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',

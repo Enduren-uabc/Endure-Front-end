@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ChevronRight, History, Search } from 'lucide-react-native';
+import { ChevronRight, History } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { theme } from '@/theme';
 import {
@@ -17,39 +17,66 @@ import {
   TrainingV2ErrorState,
   TrainingV2SkeletonList,
 } from './TrainingV2States';
-import { workoutHistoryV2 } from './training-v2.mock';
-import type { TrainingV2State } from './training-v2.types';
+import { useWorkoutHistory } from '@/features/training/hooks/use-workout-session';
 import type { WorkoutStackParamList } from '@/navigation/types';
 
-const noop = () => undefined;
-const filters = ['Todos', 'Semana', 'Mes', 'PRs'];
+const filters = ['Todos', 'Semana', 'Mes'];
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'WorkoutHistory'>;
+
+function formatDate(dateStr: string): string {
+  try {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays < 7) return `Hace ${diffDays} dias`;
+    return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  } catch {
+    return dateStr;
+  }
+}
 
 export default function WorkoutHistoryV2Screen({ navigation }: Props) {
   const [query, setQuery] = React.useState('');
   const [selectedFilter, setSelectedFilter] = React.useState('Todos');
-  const visualState: TrainingV2State = 'success';
+  const { data: history, isLoading, isError, refetch } = useWorkoutHistory();
 
-  const filteredHistory = workoutHistoryV2.filter((item) =>
-    item.routineName.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const sessions = history ?? [];
+
+  const filteredSessions = sessions.filter((item) => {
+    const matchesQuery = item.routineName.toLowerCase().includes(query.trim().toLowerCase());
+    if (selectedFilter === 'Todos') return matchesQuery;
+    if (selectedFilter === 'Semana') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return matchesQuery && new Date(item.startedAt) >= weekAgo;
+    }
+    if (selectedFilter === 'Mes') {
+      const monthAgo = new Date();
+      monthAgo.setDate(monthAgo.getDate() - 30);
+      return matchesQuery && new Date(item.startedAt) >= monthAgo;
+    }
+    return matchesQuery;
+  });
 
   function renderContent() {
-    if (visualState === 'loading') {
+    if (isLoading) {
       return <TrainingV2SkeletonList rows={3} />;
     }
 
-    if (visualState === 'error') {
+    if (isError) {
       return (
         <TrainingV2ErrorState
           title="No pudimos cargar tu historial"
           description="Intenta nuevamente para consultar tus entrenamientos."
-          onAction={noop}
+          onAction={() => refetch()}
         />
       );
     }
 
-    if (filteredHistory.length === 0) {
+    if (filteredSessions.length === 0) {
       return (
         <TrainingV2EmptyState
           title="Aun no hay entrenamientos"
@@ -62,7 +89,7 @@ export default function WorkoutHistoryV2Screen({ navigation }: Props) {
 
     return (
       <View style={styles.historyList}>
-        {filteredHistory.map((item) => (
+        {filteredSessions.map((item) => (
           <TouchableOpacity
             key={item.id}
             activeOpacity={0.84}
@@ -77,17 +104,19 @@ export default function WorkoutHistoryV2Screen({ navigation }: Props) {
                 </View>
                 <View style={styles.historyTitleWrap}>
                   <Text style={styles.historyTitle}>{item.routineName}</Text>
-                  <Text style={styles.historyMeta}>{item.dateLabel} - {item.durationLabel}</Text>
+                  <Text style={styles.historyMeta}>
+                    {formatDate(item.startedAt)} - {item.durationMinutes} min
+                  </Text>
                 </View>
                 <ChevronRight size={20} color={theme.colors.textMuted} />
               </View>
               <View style={styles.historyTags}>
-                <TrainingV2Tag label={item.volumeLabel} tone="primary" />
-                <TrainingV2Tag label={`${item.completedSets}/${item.totalSets} series`} />
+                <TrainingV2Tag label={`${item.durationMinutes} min`} tone="primary" />
+                <TrainingV2Tag label={`${item.exerciseCount} ejercicios`} />
               </View>
               <TrainingV2ProgressBar
-                progress={item.completedSets / item.totalSets}
-                label={item.highlight}
+                progress={item.exerciseCount > 0 ? 0.7 : 0}
+                label={item.status === 'finished' ? 'Completado' : 'En progreso'}
               />
             </BaseCard>
           </TouchableOpacity>
@@ -109,12 +138,8 @@ export default function WorkoutHistoryV2Screen({ navigation }: Props) {
         placeholder="Buscar por rutina"
       />
       <TrainingV2ChipRow options={filters} selected={selectedFilter} onSelect={setSelectedFilter} />
-      <TrainingV2SectionHeader title="Entrenamientos" actionLabel="Exportar" onAction={noop} />
+      <TrainingV2SectionHeader title="Entrenamientos" />
       {renderContent()}
-      <BaseCard style={styles.searchHint}>
-        <Search size={20} color={theme.colors.textSecondary} />
-        <Text style={styles.searchHintText}>El detalle de sesion historica queda para el siguiente lote.</Text>
-      </BaseCard>
     </TrainingV2Screen>
   );
 }
@@ -158,16 +183,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.xs,
-  },
-  searchHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  searchHintText: {
-    flex: 1,
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
   },
 });

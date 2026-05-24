@@ -11,7 +11,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronRight, Image as ImageIcon, Search } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Image as ImageIcon, Search, Dumbbell } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
 import { theme } from '@/theme';
@@ -190,16 +190,19 @@ export function TrainingV2RoutineCard({
     <TouchableOpacity activeOpacity={0.84} onPress={onPress} style={compact ? styles.compactRoutineTouchable : undefined}>
       <BaseCard style={[styles.routineCard, compact ? styles.compactRoutineCard : null]}>
         <View style={[styles.routineImageWrap, compact ? styles.compactRoutineImageWrap : null]}>
-          <ImageBackground
-            source={{ uri: routine.imageUri }}
-            style={styles.routineImage}
-            imageStyle={styles.routineImage}
-          >
-            <View style={styles.imageOverlay} />
-            <View style={styles.imagePlaceholder}>
-              <ImageIcon size={22} color={theme.colors.border} />
+          {routine.imageUri ? (
+            <ImageBackground
+              source={{ uri: routine.imageUri }}
+              style={styles.routineImage}
+              imageStyle={styles.routineImage}
+            >
+              <View style={styles.imageOverlay} />
+            </ImageBackground>
+          ) : (
+            <View style={styles.noImageContainer}>
+              <Dumbbell size={32} color={theme.colors.border} />
             </View>
-          </ImageBackground>
+          )}
         </View>
         <View style={styles.routineBody}>
           <View style={styles.routineTitleRow}>
@@ -464,6 +467,13 @@ const styles = StyleSheet.create({
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  noImageContainer: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
   },
   imagePlaceholder: {
     ...StyleSheet.absoluteFillObject,

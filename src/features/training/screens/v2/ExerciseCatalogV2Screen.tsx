@@ -1,5 +1,5 @@
 import React from 'react';
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Dumbbell, Plus } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
@@ -11,26 +11,34 @@ import {
   TrainingV2SectionHeader,
   TrainingV2Tag,
 } from './TrainingV2Primitives';
-import { TrainingV2EmptyState, TrainingV2SkeletonList } from './TrainingV2States';
-import { exercisesV2, toExerciseConfigV2 } from './training-v2.mock';
-import type { ExerciseV2Group, TrainingV2State } from './training-v2.types';
+import { TrainingV2EmptyState, TrainingV2ErrorState, TrainingV2SkeletonList } from './TrainingV2States';
+import { useExerciseCatalog } from '@/features/training/hooks/use-exercise-catalog';
+import {
+  EXERCISE_CATEGORIES,
+  EXERCISE_CATEGORY_LABELS,
+  type ExerciseCategory,
+} from '@/features/training/types/exercise-catalog';
 import type { TrainingStackParamList } from '@/navigation/types';
 
-const noop = () => undefined;
-const groupOptions = ['Todos', 'Pierna', 'Pecho', 'Espalda', 'Hombro', 'Core', 'Cardio'];
 type Props = NativeStackScreenProps<TrainingStackParamList, 'ExerciseCatalog'>;
+
+const GROUP_OPTIONS = ['Todos', ...EXERCISE_CATEGORIES.map((c) => EXERCISE_CATEGORY_LABELS[c])];
+
+function categoryFromLabel(label: string): ExerciseCategory | undefined {
+  const entry = Object.entries(EXERCISE_CATEGORY_LABELS).find(([, v]) => v === label);
+  return entry?.[0] as ExerciseCategory;
+}
 
 export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
   const [query, setQuery] = React.useState('');
-  const [selectedGroup, setSelectedGroup] = React.useState('Todos');
-  const [visualState] = React.useState<TrainingV2State>('success');
-  const routineId = route.params?.routineId ?? 'routine-strength';
+  const [selectedLabel, setSelectedLabel] = React.useState('Todos');
+  const routineId = route.params?.routineId ?? '';
 
-  const filteredExercises = exercisesV2.filter((exercise) => {
-    const matchesGroup = selectedGroup === 'Todos' || exercise.group === selectedGroup;
-    const matchesQuery = exercise.name.toLowerCase().includes(query.trim().toLowerCase());
+  const selectedCategory = selectedLabel === 'Todos' ? undefined : categoryFromLabel(selectedLabel);
 
-    return matchesGroup && matchesQuery;
+  const { data: exercises, isLoading, isError, refetch } = useExerciseCatalog({
+    search: query || undefined,
+    category: selectedCategory,
   });
 
   return (
@@ -46,43 +54,58 @@ export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
         placeholder="Buscar ejercicio"
       />
       <TrainingV2ChipRow
-        options={groupOptions}
-        selected={selectedGroup}
-        onSelect={(value) => setSelectedGroup(value as ExerciseV2Group | 'Todos')}
+        options={GROUP_OPTIONS}
+        selected={selectedLabel}
+        onSelect={setSelectedLabel}
       />
 
-      <TrainingV2SectionHeader title="Resultados" actionLabel="Filtros" onAction={noop} />
+      <TrainingV2SectionHeader title="Resultados" />
 
-      {visualState === 'loading' ? <TrainingV2SkeletonList rows={3} /> : null}
+      {isLoading ? <TrainingV2SkeletonList rows={3} /> : null}
 
-      {visualState === 'success' && filteredExercises.length === 0 ? (
+      {isError ? (
+        <TrainingV2ErrorState
+          title="No pudimos cargar el catalogo"
+          description="Revisa tu conexion e intenta nuevamente."
+          onAction={() => refetch()}
+        />
+      ) : null}
+
+      {!isLoading && !isError && (exercises ?? []).length === 0 ? (
         <TrainingV2EmptyState
           title="No encontramos ejercicios"
           description="Prueba con otro nombre o cambia el grupo muscular."
           actionLabel="Limpiar busqueda"
           onAction={() => {
             setQuery('');
-            setSelectedGroup('Todos');
+            setSelectedLabel('Todos');
           }}
         />
       ) : null}
 
-      {visualState === 'success' && filteredExercises.length > 0 ? (
+      {!isLoading && !isError && (exercises ?? []).length > 0 ? (
         <View style={styles.exerciseList}>
-          {filteredExercises.map((exercise, index) => (
+          {(exercises ?? []).map((exercise) => (
             <TouchableOpacity
               key={exercise.id}
               activeOpacity={0.84}
               onPress={() =>
                 navigation.navigate('ExerciseDetail', {
                   routineId,
-                  exercise: toExerciseConfigV2(exercise, index),
+                  exercise: {
+                    id: exercise.id,
+                    name: exercise.name,
+                    order: 0,
+                    sets: 3,
+                  },
                 })
               }
             >
               <BaseCard style={styles.exerciseCard}>
                 <View style={styles.imageWrap}>
-                  <ImageBackground source={{ uri: exercise.imageUri }} style={styles.image} imageStyle={styles.image} />
+                  <View style={styles.noImageContainer}>
+                    <Dumbbell size={28} color={theme.colors.border} />
+                  </View>
                 </View>
                 <View style={styles.exerciseBody}>
                   <View style={styles.titleRow}>
@@ -92,11 +115,10 @@ export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
                     </View>
                   </View>
                   <Text style={styles.exerciseMeta}>
-                    {exercise.primaryMuscle} - {exercise.equipment}
+                    {EXERCISE_CATEGORY_LABELS[exercise.category]} - {exercise.equipment}
                   </Text>
                   <View style={styles.tagRow}>
-                    <TrainingV2Tag label={exercise.group} />
-                    <TrainingV2Tag label={exercise.level} />
+                    <TrainingV2Tag label={EXERCISE_CATEGORY_LABELS[exercise.category]} />
                   </View>
                 </View>
               </BaseCard>
@@ -104,11 +126,6 @@ export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
           ))}
         </View>
       ) : null}
-
-      <BaseCard style={styles.tipCard}>
-        <Dumbbell size={20} color={theme.colors.primary} />
-        <Text style={styles.tipText}>El selector se mantiene visual y no modifica rutinas reales en esta version aislada.</Text>
-      </BaseCard>
     </TrainingV2Screen>
   );
 }
@@ -126,11 +143,12 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 9,
     backgroundColor: theme.colors.surfaceElevated,
   },
-  image: {
+  noImageContainer: {
     width: '100%',
     height: '100%',
-    borderTopLeftRadius: theme.radius.lg,
-    borderTopRightRadius: theme.radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
   },
   exerciseBody: {
     padding: theme.spacing.lg,
@@ -165,16 +183,5 @@ const styles = StyleSheet.create({
   tagRow: {
     flexDirection: 'row',
     gap: theme.spacing.xs,
-  },
-  tipCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  tipText: {
-    flex: 1,
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
   },
 });

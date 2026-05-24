@@ -7,34 +7,29 @@ import { AlertCircle, CalendarDays, Dumbbell, Play, UserRound } from 'lucide-rea
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useMyTrainer } from '@/features/trainer-link/hooks/use-trainer-link';
+import { useRoutines } from '@/features/training/hooks/use-routines';
 import { theme } from '@/theme';
 import type { TrainerLinkStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<TrainerLinkStackParamList, 'AssignedRoutine'>;
 
-const ASSIGNED_ROUTINE = {
-  name: 'Fuerza base 3 dias',
-  assignedAt: '2026-05-20',
-  note: 'Prioriza tecnica limpia y descanso completo entre series principales.',
-  days: [
-    {
-      label: 'Lunes',
-      exercises: ['Sentadilla 4x6', 'Press banca 4x6', 'Remo con barra 3x8'],
-    },
-    {
-      label: 'Miércoles',
-      exercises: ['Peso muerto 3x5', 'Press militar 4x6', 'Dominadas asistidas 3x8'],
-    },
-    {
-      label: 'Viernes',
-      exercises: ['Zancadas 3x10', 'Fondos 3x8', 'Plancha 3x45s'],
-    },
-  ],
+const DAY_LABELS: Record<string, string> = {
+  monday: 'Lunes',
+  tuesday: 'Martes',
+  wednesday: 'Miércoles',
+  thursday: 'Jueves',
+  friday: 'Viernes',
+  saturday: 'Sábado',
+  sunday: 'Domingo',
 };
 
 export default function AssignedRoutineScreen({ navigation }: Props) {
-  const { data, isLoading, isError, refetch } = useMyTrainer();
+  const { data, isLoading: trainerLoading, isError: trainerError, refetch: refetchTrainer } = useMyTrainer();
+  const { data: routines, isLoading: routinesLoading, isError: routinesError, refetch: refetchRoutines } = useRoutines();
   const trainer = data?.trainer ?? null;
+
+  const activeRoutine = routines?.find((r) => r.isActive) ?? null;
+  const displayRoutine = activeRoutine;
 
   const startWorkout = React.useCallback(() => {
     navigation.getParent()?.dispatch(
@@ -47,6 +42,9 @@ export default function AssignedRoutineScreen({ navigation }: Props) {
       }),
     );
   }, [navigation]);
+
+  const isLoading = trainerLoading || routinesLoading;
+  const isError = trainerError || routinesError;
 
   if (isLoading) {
     return (
@@ -67,7 +65,10 @@ export default function AssignedRoutineScreen({ navigation }: Props) {
           title="No pudimos cargar la rutina"
           text="Revisa tu conexion e intenta nuevamente."
           actionLabel="Reintentar"
-          onAction={() => refetch()}
+          onAction={() => {
+            refetchTrainer();
+            refetchRoutines();
+          }}
         />
       </SafeAreaView>
     );
@@ -108,37 +109,57 @@ export default function AssignedRoutineScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <View style={styles.routineHero}>
-          <View style={styles.routineIcon}>
-            <Dumbbell size={30} color={theme.colors.background} />
-          </View>
-          <View style={styles.routineHeroCopy}>
-            <Text style={styles.routineName}>{ASSIGNED_ROUTINE.name}</Text>
-            <Text style={styles.routineMeta}>
-              {ASSIGNED_ROUTINE.days.length} dias · Asignada {formatDate(ASSIGNED_ROUTINE.assignedAt)}
-            </Text>
-          </View>
-        </View>
+        {displayRoutine ? (
+          <>
+            <View style={styles.routineHero}>
+              <View style={styles.routineIcon}>
+                <Dumbbell size={30} color={theme.colors.background} />
+              </View>
+              <View style={styles.routineHeroCopy}>
+                <Text style={styles.routineName}>{displayRoutine.name}</Text>
+                <Text style={styles.routineMeta}>
+                  {displayRoutine.dayOfWeeks.length} dias · Activa
+                </Text>
+              </View>
+            </View>
 
-        <View style={styles.noteCard}>
-          <CalendarDays size={18} color={theme.colors.primary} />
-          <Text style={styles.noteText}>{ASSIGNED_ROUTINE.note}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Plan semanal</Text>
-          {ASSIGNED_ROUTINE.days.map((day) => (
-            <View key={day.label} style={styles.dayCard}>
-              <Text style={styles.dayTitle}>{day.label}</Text>
-              {day.exercises.map((exercise) => (
-                <View key={exercise} style={styles.exerciseRow}>
-                  <View style={styles.exerciseDot} />
-                  <Text style={styles.exerciseText}>{exercise}</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Plan semanal</Text>
+              {displayRoutine.days.map((day) => (
+                <View key={day.dayOfWeek} style={styles.dayCard}>
+                  <Text style={styles.dayTitle}>
+                    {DAY_LABELS[day.dayOfWeek] ?? day.dayOfWeek}
+                  </Text>
+                  {day.exercises.map((exercise) => (
+                    <View key={exercise.id} style={styles.exerciseRow}>
+                      <View style={styles.exerciseDot} />
+                      <Text style={styles.exerciseText}>
+                        {exercise.name}
+                        {Array.isArray(exercise.sets)
+                          ? ` · ${exercise.sets.length} series`
+                          : typeof exercise.sets === 'number'
+                            ? ` · ${exercise.sets} series`
+                            : ''}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               ))}
             </View>
-          ))}
-        </View>
+          </>
+        ) : (
+          <View style={styles.routineHero}>
+            <View style={styles.routineIcon}>
+              <Dumbbell size={30} color={theme.colors.background} />
+            </View>
+            <View style={styles.routineHeroCopy}>
+              <Text style={styles.routineName}>Sin rutina activa</Text>
+              <Text style={styles.routineMeta}>
+                Crea o activa una rutina para empezar a entrenar con tu entrenador.
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.actions}>
           <PrimaryButton

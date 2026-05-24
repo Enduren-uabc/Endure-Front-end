@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { CalendarDays, Clock, History, Play, RotateCcw } from 'lucide-react-native';
+import { AlertCircle, CalendarDays, Clock, Play, RefreshCcw } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
@@ -15,7 +15,9 @@ import {
   TrainingV2Tag,
 } from './TrainingV2Primitives';
 import { TrainingV2EmptyState } from './TrainingV2States';
-import { currentRoutineV2, weeklyMetricsV2, workoutSessionV2 } from './training-v2.mock';
+import { useRoutines } from '@/features/training/hooks/use-routines';
+import { useWeeklyStats } from '@/features/home/hooks/use-home-data';
+import { useWorkoutSessionInProgress, useStartWorkoutSession } from '@/features/training/hooks/use-workout-session';
 import type { WorkoutStackParamList } from '@/navigation/types';
 
 const dayOptions = ['Hoy', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
@@ -23,55 +25,130 @@ type Props = NativeStackScreenProps<WorkoutStackParamList, 'WorkoutStart'>;
 
 export default function WorkoutStartV2Screen({ navigation }: Props) {
   const [selectedDay, setSelectedDay] = React.useState('Hoy');
-  const routine = currentRoutineV2;
-  const startSession = () =>
-    navigation.navigate('WorkoutSession', { sessionId: workoutSessionV2.id });
+  const { data: routines, isLoading: routinesLoading, isError: routinesError, refetch: refetchRoutines } = useRoutines();
+  const { data: weeklyStats, isLoading: statsLoading } = useWeeklyStats();
+  const { data: inProgressSession } = useWorkoutSessionInProgress();
+  const startSessionMutation = useStartWorkoutSession();
+
+  const activeRoutine = routines?.find((r) => r.isActive) ?? null;
+  const exerciseCount = activeRoutine
+    ? activeRoutine.days.reduce((sum, d) => sum + d.exercises.length, 0)
+    : 0;
+
+  const startSession = React.useCallback(() => {
+    if (inProgressSession) {
+      navigation.navigate('WorkoutSession', { sessionId: inProgressSession.id });
+      return;
+    }
+    if (activeRoutine) {
+      startSessionMutation.mutate(
+        { routineId: activeRoutine.id, dayOfWeek: activeRoutine.dayOfWeeks[0] },
+        {
+          onSuccess: (session) => {
+            navigation.navigate('WorkoutSession', { sessionId: session.id });
+          },
+        },
+      );
+    }
+  }, [activeRoutine, inProgressSession, startSessionMutation, navigation]);
+
+  const isLoading = routinesLoading || statsLoading;
+
+  const weeklyMetrics = [
+    {
+      id: 'workouts',
+      label: 'Entrenamientos',
+      value: weeklyStats ? `${weeklyStats.completedWorkouts}` : '--',
+      helper: weeklyStats ? 'Esta semana' : 'Sin datos',
+    },
+    {
+      id: 'volume',
+      label: 'Volumen',
+      value: weeklyStats ? `${(weeklyStats.totalVolumeKg / 1000).toFixed(1)}k` : '--',
+      helper: weeklyStats ? 'kg acumulados' : 'Sin datos',
+      trend: weeklyStats ? '+0%' : undefined,
+    },
+    {
+      id: 'time',
+      label: 'Tiempo activo',
+      value: weeklyStats
+        ? `${Math.floor(weeklyStats.activeMinutes / 60)}h ${weeklyStats.activeMinutes % 60}m`
+        : '--',
+      helper: weeklyStats ? 'Esta semana' : 'Sin datos',
+    },
+  ];
+
+  if (isLoading) {
+    return (
+      <TrainingV2Screen title="Entrenar" titleColor={theme.colors.textPrimary} subtitle="Preparando tu sesion...">
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text style={styles.centerText}>Cargando tus datos de entrenamiento...</Text>
+        </View>
+      </TrainingV2Screen>
+    );
+  }
+
+  if (routinesError) {
+    return (
+      <TrainingV2Screen title="Entrenar" titleColor={theme.colors.textPrimary} subtitle="No pudimos cargar los datos">
+        <View style={styles.center}>
+          <AlertCircle size={44} color={theme.colors.error} />
+          <Text style={styles.centerText}>Revisa tu conexion e intenta de nuevo.</Text>
+          <SecondaryButton label="Reintentar" onPress={() => refetchRoutines()} />
+        </View>
+      </TrainingV2Screen>
+    );
+  }
 
   return (
     <TrainingV2Screen
       title="Entrenar"
       titleColor={theme.colors.textPrimary}
-      subtitle="Elige la rutina del dia y prepara la sesion."
+      subtitle={inProgressSession ? 'Tienes una sesion en progreso' : 'Elige la rutina del dia y prepara la sesion.'}
       footer={
         <PrimaryButton
-          label="Empezar entrenamiento"
+          label={startSessionMutation.isPending ? 'Iniciando...' : inProgressSession ? 'Continuar sesion' : 'Empezar entrenamiento'}
           onPress={startSession}
+          loading={startSessionMutation.isPending}
+          disabled={!activeRoutine && !inProgressSession}
           icon={<Play size={18} color={theme.colors.background} />}
         />
       }
     >
       <TrainingV2ChipRow options={dayOptions} selected={selectedDay} onSelect={setSelectedDay} />
 
-      {routine ? (
+      {activeRoutine ? (
         <BaseCard style={styles.todayCard}>
           <View style={styles.todayHeader}>
             <View style={styles.todayIcon}>
               <CalendarDays size={22} color={theme.colors.primary} />
             </View>
             <View style={styles.todayTitleWrap}>
-              <Text style={styles.eyebrow}>Rutina sugerida</Text>
-              <Text style={styles.todayTitle}>{routine.name}</Text>
-              <Text style={styles.todayDescription}>{routine.description}</Text>
+              <Text style={styles.eyebrow}>Rutina activa</Text>
+              <Text style={styles.todayTitle}>{activeRoutine.name}</Text>
+              {activeRoutine.description ? (
+                <Text style={styles.todayDescription}>{activeRoutine.description}</Text>
+              ) : null}
             </View>
           </View>
 
           <View style={styles.tagRow}>
-            <TrainingV2Tag label={`${routine.durationMinutes} min`} tone="primary" />
-            <TrainingV2Tag label={`${routine.exerciseCount} ejercicios`} />
-            <TrainingV2Tag label={routine.level} />
+            <TrainingV2Tag label={`${exerciseCount} ejercicios`} tone="primary" />
+            <TrainingV2Tag label={`${activeRoutine.dayOfWeeks.length} dias`} />
           </View>
 
           <View style={styles.metaGrid}>
-            <TrainingV2FieldPreview label="Series planeadas" value="12" helper="En esta sesion" />
-            <TrainingV2FieldPreview label="Descanso" value={`${workoutSessionV2.restSeconds}s`} helper="Entre series" />
+            <TrainingV2FieldPreview label="Dias" value={`${activeRoutine.dayOfWeeks.length}`} helper="Por semana" />
+            <TrainingV2FieldPreview label="Ejercicios" value={`${exerciseCount}`} helper="Totales" />
           </View>
         </BaseCard>
       ) : (
         <TrainingV2EmptyState
-          title="Hoy no tienes rutina"
-          description="Puedes crear una rutina nueva o entrenar de todos modos."
-          actionLabel="Crear rutina"
-          onAction={startSession}
+          title="Hoy no tienes rutina activa"
+          description="Activa una rutina desde la lista para empezar a entrenar."
+          actionLabel="Ver rutinas"
+          onAction={() => navigation.navigate('WorkoutHistory')}
         />
       )}
 
@@ -81,33 +158,37 @@ export default function WorkoutStartV2Screen({ navigation }: Props) {
         onAction={() => navigation.navigate('WorkoutHistory')}
       />
       <View style={styles.metricsRow}>
-        {weeklyMetricsV2.map((metric) => (
+        {weeklyMetrics.map((metric) => (
           <TrainingV2MetricCard key={metric.id} metric={metric} />
         ))}
       </View>
 
-      <BaseCard style={styles.resumeCard}>
-        <View style={styles.resumeIcon}>
-          <RotateCcw size={20} color={theme.colors.primary} />
-        </View>
-        <View style={styles.resumeBody}>
-          <Text style={styles.resumeTitle}>Sesion anterior</Text>
-          <Text style={styles.resumeText}>Terminaste fuerza full body en 46 min con volumen estable.</Text>
-        </View>
-        <History size={20} color={theme.colors.textMuted} />
-      </BaseCard>
-
       <BaseCard style={styles.restCard}>
         <Clock size={20} color={theme.colors.textSecondary} />
-        <Text style={styles.restText}>Si hoy es descanso, conserva movilidad suave y vuelve al plan manana.</Text>
+        <Text style={styles.restText}>
+          {inProgressSession
+            ? 'Tienes una sesion sin terminar. Continuarla conservara tu progreso.'
+            : 'Si hoy es descanso, conserva movilidad suave y vuelve al plan manana.'}
+        </Text>
       </BaseCard>
-
-      <SecondaryButton label="Entrenar de todos modos" onPress={startSession} />
     </TrainingV2Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+    padding: theme.spacing.xl,
+  },
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
+  },
   todayCard: {
     gap: theme.spacing.lg,
   },

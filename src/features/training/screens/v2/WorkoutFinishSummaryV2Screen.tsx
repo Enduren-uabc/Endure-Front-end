@@ -1,32 +1,60 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Award, CheckCircle2, Flame, Trophy } from 'lucide-react-native';
+import { AlertCircle, Award, CheckCircle2, Flame, RefreshCcw } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import {
   TrainingV2FieldPreview,
-  TrainingV2MetricCard,
-  TrainingV2ProgressBar,
   TrainingV2Screen,
   TrainingV2SectionHeader,
   TrainingV2Tag,
 } from './TrainingV2Primitives';
-import { currentRoutineV2, weeklyMetricsV2, workoutHistoryV2 } from './training-v2.mock';
+import { useWorkoutSessionDetail } from '@/features/training/hooks/use-workout-session';
 import type { WorkoutStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'WorkoutFinishSummary'>;
 
-export default function WorkoutFinishSummaryV2Screen({ navigation }: Props) {
-  const summary = workoutHistoryV2[0];
+export default function WorkoutFinishSummaryV2Screen({ navigation, route }: Props) {
+  const { data: session, isLoading, isError, refetch } = useWorkoutSessionDetail(route.params.sessionId);
+
+  if (isLoading) {
+    return (
+      <TrainingV2Screen title="Resumen" titleColor={theme.colors.textPrimary} onBack={navigation.goBack}>
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text style={styles.centerText}>Cargando resumen de la sesion...</Text>
+        </View>
+      </TrainingV2Screen>
+    );
+  }
+
+  if (isError || !session) {
+    return (
+      <TrainingV2Screen title="Resumen" titleColor={theme.colors.textPrimary} onBack={navigation.goBack}>
+        <View style={styles.center}>
+          <AlertCircle size={44} color={theme.colors.error} />
+          <Text style={styles.centerTitle}>No pudimos cargar el resumen</Text>
+          <Text style={styles.centerText}>Revisa tu conexion e intenta nuevamente.</Text>
+          <SecondaryButton label="Reintentar" onPress={() => refetch()} />
+        </View>
+      </TrainingV2Screen>
+    );
+  }
+
+  const totalSets = session.exercises?.reduce((sum, ex) => sum + (ex.workoutSets?.length ?? ex.targetSets?.length ?? 0), 0) ?? 0;
+  const completedSets = session.exercises?.reduce(
+    (sum, ex) => sum + (ex.workoutSets?.filter((s) => s.completed).length ?? 0), 0
+  ) ?? 0;
 
   return (
     <TrainingV2Screen
       title="Resumen"
       titleColor={theme.colors.textPrimary}
       subtitle="Buen trabajo. Aqui esta el cierre de tu sesion."
+      onBack={navigation.goBack}
       footer={
         <View style={styles.footerActions}>
           <SecondaryButton
@@ -47,42 +75,26 @@ export default function WorkoutFinishSummaryV2Screen({ navigation }: Props) {
           <CheckCircle2 size={34} color={theme.colors.success} />
         </View>
         <Text style={styles.heroTitle}>Entrenamiento completado</Text>
-        <Text style={styles.heroText}>{currentRoutineV2.name} quedo registrada con progreso completo.</Text>
+        <Text style={styles.heroText}>{session.routineName ?? 'Rutina'} quedo registrada con progreso completo.</Text>
         <View style={styles.tagRow}>
-          <TrainingV2Tag label={summary.durationLabel} tone="primary" />
-          <TrainingV2Tag label={summary.volumeLabel} />
-          <TrainingV2Tag label={`${summary.completedSets}/${summary.totalSets} series`} />
+          <TrainingV2Tag label={`${session.durationMinutes ?? 0} min`} tone="primary" />
+          <TrainingV2Tag label={`${completedSets}/${totalSets} series`} />
         </View>
-      </BaseCard>
-
-      <View style={styles.metricsRow}>
-        {weeklyMetricsV2.map((metric) => (
-          <TrainingV2MetricCard key={metric.id} metric={metric} />
-        ))}
-      </View>
-
-      <BaseCard style={styles.prCard}>
-        <View style={styles.prHeader}>
-          <View style={styles.prIcon}>
-            <Trophy size={22} color="#F97316" />
-          </View>
-          <View style={styles.prBody}>
-            <Text style={styles.prTitle}>Nuevo PR</Text>
-            <Text style={styles.prText}>Sentadilla trasera subio a 62.5 kg con buena tecnica.</Text>
-          </View>
-        </View>
-        <TrainingV2ProgressBar progress={0.86} label="Meta semanal casi completa" />
       </BaseCard>
 
       <TrainingV2SectionHeader title="Detalle rapido" />
       <View style={styles.detailGrid}>
-        <TrainingV2FieldPreview label="Duracion" value={summary.durationLabel} helper="Tiempo activo" />
-        <TrainingV2FieldPreview label="Volumen" value={summary.volumeLabel} helper="Carga total" />
+        <TrainingV2FieldPreview label="Duracion" value={`${session.durationMinutes ?? 0} min`} helper="Tiempo activo" />
+        <TrainingV2FieldPreview label="Series completadas" value={`${completedSets}/${totalSets}`} helper="De la sesion" />
       </View>
 
       <BaseCard style={styles.achievementCard}>
         <Award size={20} color={theme.colors.primary} />
-        <Text style={styles.achievementText}>Mantienes una racha de 7 dias con al menos una accion de entrenamiento.</Text>
+        <Text style={styles.achievementText}>
+          {session.status === 'finished'
+            ? 'Sesion finalizada correctamente. Sigue asi.'
+            : 'La sesion quedo registrada en tu historial.'}
+        </Text>
         <Flame size={20} color="#F97316" />
       </BaseCard>
     </TrainingV2Screen>
@@ -182,5 +194,25 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+    padding: theme.spacing.xl,
+  },
+  centerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading2.fontSize,
+    lineHeight: theme.typography.heading2.lineHeight,
+    fontWeight: theme.typography.heading2.fontWeight,
+    textAlign: 'center',
+  },
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
   },
 });

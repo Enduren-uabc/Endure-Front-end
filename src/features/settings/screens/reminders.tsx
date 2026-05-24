@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { NavigationAction } from '@react-navigation/native';
@@ -19,6 +20,16 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { SettingsStackParamList } from '@/navigation/types';
+
+const STORAGE_KEY = '@endure/reminder-preferences';
+
+let NotificationsModule: typeof import('expo-notifications') | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  NotificationsModule = require('expo-notifications');
+} catch {
+  // expo-notifications no disponible
+}
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Reminders'>;
 
@@ -68,10 +79,11 @@ function arePreferencesEqual(a: ReminderPreferences, b: ReminderPreferences) {
 }
 
 export default function RemindersScreen({ navigation }: Props) {
+  const [initialLoading, setInitialLoading] = React.useState(true);
   const [savedPreferences, setSavedPreferences] =
     React.useState<ReminderPreferences>(INITIAL_PREFERENCES);
   const [preferences, setPreferences] = React.useState<ReminderPreferences>(INITIAL_PREFERENCES);
-  const [permissionStatus, setPermissionStatus] = React.useState<PermissionStatus>('blocked');
+  const [permissionStatus, setPermissionStatus] = React.useState<PermissionStatus>('checking');
   const [permissionMessage, setPermissionMessage] = React.useState<string | null>(null);
   const [timeSheetVisible, setTimeSheetVisible] = React.useState(false);
   const [unsavedSheetVisible, setUnsavedSheetVisible] = React.useState(false);
@@ -85,6 +97,41 @@ export default function RemindersScreen({ navigation }: Props) {
   const hasDayValidationError = preferences.trainingEnabled && preferences.activeDays.length === 0;
   const canSave = hasUnsavedChanges && !hasDayValidationError && !saving;
   const isPermissionBlocked = permissionStatus === 'blocked';
+
+  React.useEffect(() => {
+    async function load() {
+      try {
+        const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed: ReminderPreferences = JSON.parse(stored);
+          setSavedPreferences(parsed);
+          setPreferences(parsed);
+        }
+      } catch {
+        // usa defaults
+      } finally {
+        setInitialLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  React.useEffect(() => {
+    async function checkPermission() {
+      if (!NotificationsModule) {
+        setPermissionStatus('blocked');
+        setPermissionMessage('expo-notifications no esta disponible en este entorno.');
+        return;
+      }
+      try {
+        const { status } = await NotificationsModule.getPermissionsAsync();
+        setPermissionStatus(status === 'granted' ? 'unknown' : 'blocked');
+      } catch {
+        setPermissionStatus('blocked');
+      }
+    }
+    checkPermission();
+  }, []);
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (event) => {
@@ -119,7 +166,7 @@ export default function RemindersScreen({ navigation }: Props) {
     setSuccessMessage(null);
   }, []);
 
-  const savePreferences = React.useCallback((afterSave?: () => void) => {
+  const savePreferences = React.useCallback(async (afterSave?: () => void) => {
     if (hasDayValidationError) {
       setSaveError('Selecciona al menos un dia para activar los recordatorios.');
       return;
@@ -127,25 +174,44 @@ export default function RemindersScreen({ navigation }: Props) {
 
     setSaving(true);
     setSaveError(null);
-    setTimeout(() => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
       setSavedPreferences(preferences);
-      setSaving(false);
       setSuccessMessage('Recordatorios guardados.');
       afterSave?.();
-    }, 650);
+    } catch {
+      setSaveError('No se pudieron guardar las preferencias. Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
   }, [hasDayValidationError, preferences]);
 
-  const retryPermissionCheck = React.useCallback(() => {
+  const retryPermissionCheck = React.useCallback(async () => {
+    if (!NotificationsModule) {
+      setPermissionStatus('blocked');
+      setPermissionMessage('expo-notifications no esta disponible en este entorno.');
+      return;
+    }
     setPermissionStatus('checking');
     setPermissionMessage(null);
-    setTimeout(() => {
+    try {
+      const { status } = await NotificationsModule.requestPermissionsAsync({
+        ios: { allowAlert: true, allowBadge: true, allowSound: true },
+      });
+      if (status === 'granted') {
+        setPermissionStatus('unknown');
+      } else {
+        setPermissionStatus('blocked');
+        setPermissionMessage('No concediste permiso. Puedes activarlo desde Ajustes del sistema.');
+      }
+    } catch {
       setPermissionStatus('blocked');
-      setPermissionMessage('No pudimos habilitar permisos desde la app. Revisa Ajustes del sistema.');
-    }, 650);
+      setPermissionMessage('No pudimos verificar permisos. Revisa Ajustes del sistema.');
+    }
   }, []);
 
   const openSystemSettings = React.useCallback(() => {
-    setPermissionMessage('Abrir Ajustes queda pendiente de integrar con permisos nativos.');
+    setPermissionMessage('Abre Ajustes del sistema > Notificaciones > Endure y activa los permisos.');
   }, []);
 
   const discardAndLeave = React.useCallback(() => {
@@ -170,6 +236,17 @@ export default function RemindersScreen({ navigation }: Props) {
       }
     });
   }, [navigation, pendingAction, savePreferences]);
+
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text style={styles.centerText}>Cargando preferencias...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -616,6 +693,17 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+  },
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
   },
   scroll: {
     paddingHorizontal: theme.spacing.lg,

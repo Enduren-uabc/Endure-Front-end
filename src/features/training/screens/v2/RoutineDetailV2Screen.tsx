@@ -1,46 +1,82 @@
 import React from 'react';
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Clock3, Dumbbell, Pencil, Play, Rows3, Star } from 'lucide-react-native';
+import { AlertCircle, Clock3, Dumbbell, Pencil, Play, Rows3, Star } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import {
   TrainingV2FieldPreview,
-  TrainingV2ProgressBar,
   TrainingV2Screen,
   TrainingV2SectionHeader,
   TrainingV2Tag,
 } from './TrainingV2Primitives';
 import { TrainingV2EmptyState } from './TrainingV2States';
-import {
-  currentRoutineV2,
-  routinesV2,
-  toExerciseConfigV2,
-  workoutSessionV2,
-} from './training-v2.mock';
+import { useRoutineDetail } from '@/features/training/hooks/use-routines';
+import { DAY_OF_WEEK_LABELS } from '@/features/training/types/routine';
+import type { ExerciseConfig } from '@/features/training/types/routine';
 import type { AppTabsParamList, TrainingStackParamList } from '@/navigation/types';
 
-const noop = () => undefined;
 type Props = NativeStackScreenProps<TrainingStackParamList, 'RoutineDetail'>;
 type AppTabsNavigation = BottomTabNavigationProp<AppTabsParamList>;
 
+const DAY_LABELS: Record<string, string> = {
+  monday: 'Lun', tuesday: 'Mar', wednesday: 'Mie',
+  thursday: 'Jue', friday: 'Vie', saturday: 'Sab', sunday: 'Dom',
+};
+
+function setsCount(exercise: ExerciseConfig): number {
+  return Array.isArray(exercise.sets) ? exercise.sets.length : exercise.sets;
+}
+
+function totalSetsCount(exercises: ExerciseConfig[]): number {
+  return exercises.reduce((sum, ex) => sum + setsCount(ex), 0);
+}
+
 export default function RoutineDetailV2Screen({ navigation, route }: Props) {
-  const routine = routinesV2.find((item) => item.id === route.params.id) ?? currentRoutineV2;
-  const openWorkoutSession = () => {
+  const { data: routine, isLoading, isError, refetch } = useRoutineDetail(route.params.id);
+
+  const openWorkoutStart = () => {
     navigation.getParent<AppTabsNavigation>()?.navigate('Workout', {
-      screen: 'WorkoutSession',
-      params: { sessionId: workoutSessionV2.id },
+      screen: 'WorkoutStart',
     });
   };
+
+  if (isLoading) {
+    return (
+      <TrainingV2Screen title="Detalle de rutina" titleColor={theme.colors.textPrimary} onBack={navigation.goBack}>
+        <View style={styles.center}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text style={styles.centerText}>Cargando rutina...</Text>
+        </View>
+      </TrainingV2Screen>
+    );
+  }
+
+  if (isError || !routine) {
+    return (
+      <TrainingV2Screen title="Detalle de rutina" titleColor={theme.colors.textPrimary} onBack={navigation.goBack}>
+        <View style={styles.center}>
+          <AlertCircle size={44} color={theme.colors.error} />
+          <Text style={styles.centerTitle}>No pudimos cargar la rutina</Text>
+          <Text style={styles.centerText}>Revisa tu conexion e intenta nuevamente.</Text>
+          <SecondaryButton label="Reintentar" onPress={() => refetch()} />
+        </View>
+      </TrainingV2Screen>
+    );
+  }
+
+  const exercises = routine.days.flatMap((d) => d.exercises);
+  const exerciseCount = exercises.length;
+  const totalSets = totalSetsCount(exercises);
 
   return (
     <TrainingV2Screen
       title="Detalle de rutina"
       titleColor={theme.colors.textPrimary}
-      subtitle="Revisa el plan antes de iniciar."
+      subtitle={`${routine.dayOfWeeks.length} dias - ${routine.name}`}
       onBack={navigation.goBack}
       footer={
         <View style={styles.footerActions}>
@@ -51,7 +87,7 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
           />
           <PrimaryButton
             label="Empezar"
-            onPress={openWorkoutSession}
+            onPress={openWorkoutStart}
             icon={<Play size={18} color={theme.colors.background} />}
             style={styles.footerButton}
           />
@@ -59,20 +95,21 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
       }
     >
       <View style={styles.heroWrap}>
-        <ImageBackground source={{ uri: routine.imageUri }} style={styles.heroImage} imageStyle={styles.heroImage}>
-          <View style={styles.heroOverlay} />
+        <View style={styles.heroGradient}>
           <View style={styles.heroContent}>
-            <TrainingV2Tag label={routine.goal} tone="primary" />
+            <TrainingV2Tag label={routine.isActive ? 'Activa' : 'Inactiva'} tone={routine.isActive ? 'success' : 'default'} />
             <Text style={styles.heroTitle}>{routine.name}</Text>
-            <Text style={styles.heroDescription}>{routine.description}</Text>
+            {routine.description ? (
+              <Text style={styles.heroDescription}>{routine.description}</Text>
+            ) : null}
           </View>
-        </ImageBackground>
+        </View>
       </View>
 
       <View style={styles.metaGrid}>
-        <TrainingV2FieldPreview label="Duracion" value={`${routine.durationMinutes} min`} helper="Estimado" />
-        <TrainingV2FieldPreview label="Nivel" value={routine.level} helper="Intensidad" />
-        <TrainingV2FieldPreview label="Ejercicios" value={`${routine.exerciseCount}`} helper={routine.days.join(' / ')} />
+        <TrainingV2FieldPreview label="Dias" value={`${routine.dayOfWeeks.length}`} helper={routine.dayOfWeeks.map((d) => DAY_LABELS[d] ?? d.slice(0, 3)).join(' / ')} />
+        <TrainingV2FieldPreview label="Ejercicios" value={`${exerciseCount}`} helper="Totales" />
+        <TrainingV2FieldPreview label="Series" value={`${totalSets}`} helper="Configurables" />
       </View>
 
       <BaseCard style={styles.summaryCard}>
@@ -81,11 +118,14 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
             <Star size={20} color={theme.colors.primary} />
           </View>
           <View style={styles.summaryTextWrap}>
-            <Text style={styles.summaryTitle}>Progreso sugerido</Text>
-            <Text style={styles.summaryText}>Completa al menos 10 de 12 series para cerrar la sesion.</Text>
+            <Text style={styles.summaryTitle}>Rutina {routine.isActive ? 'activa' : 'inactiva'}</Text>
+            <Text style={styles.summaryText}>
+              {routine.isActive
+                ? 'Esta es tu rutina activa. Puedes empezar un entrenamiento cuando quieras.'
+                : 'Activa esta rutina desde la lista para poder entrenar con ella.'}
+            </Text>
           </View>
         </View>
-        <TrainingV2ProgressBar progress={0.72} label="Preparacion semanal" />
       </BaseCard>
 
       <TrainingV2SectionHeader
@@ -94,23 +134,23 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
         onAction={() => navigation.navigate('ExerciseCatalog', { routineId: routine.id })}
       />
 
-      {routine.exercises.length === 0 ? (
+      {exercises.length === 0 ? (
         <TrainingV2EmptyState
           title="Esta rutina no tiene ejercicios"
           description="Agrega al menos un ejercicio antes de iniciar el entrenamiento."
           actionLabel="Agregar ejercicio"
-          onAction={noop}
+          onAction={() => navigation.navigate('ExerciseCatalog', { routineId: routine.id })}
         />
       ) : (
         <View style={styles.exerciseList}>
-          {routine.exercises.map((exercise, index) => (
+          {exercises.map((exercise) => (
             <TouchableOpacity
               key={exercise.id}
               activeOpacity={0.84}
               onPress={() =>
                 navigation.navigate('ExerciseDetail', {
                   routineId: routine.id,
-                  exercise: toExerciseConfigV2(exercise, index),
+                  exercise,
                 })
               }
             >
@@ -119,14 +159,14 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
                   <Dumbbell size={20} color={theme.colors.primary} />
                 </View>
                 <View style={styles.exerciseBody}>
-                  <Text style={styles.exerciseName}>{index + 1}. {exercise.name}</Text>
+                  <Text style={styles.exerciseName}>{exercise.order + 1}. {exercise.name}</Text>
                   <Text style={styles.exerciseMeta}>
-                    {exercise.sets.length} series - {exercise.primaryMuscle} - {exercise.equipment}
+                    {setsCount(exercise)} series
                   </Text>
                 </View>
                 <View style={styles.exerciseStats}>
                   <Rows3 size={16} color={theme.colors.textMuted} />
-                  <Text style={styles.exerciseStatsText}>{exercise.sets[0]?.targetReps ?? 0}</Text>
+                  <Text style={styles.exerciseStatsText}>{setsCount(exercise)}</Text>
                 </View>
               </BaseCard>
             </TouchableOpacity>
@@ -136,7 +176,7 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
 
       <BaseCard style={styles.noteCard}>
         <Clock3 size={20} color={theme.colors.textSecondary} />
-        <Text style={styles.noteText}>Descansa 90 segundos entre series principales y 60 segundos en accesorios.</Text>
+        <Text style={styles.noteText}>Cada ejercicio tiene {totalSets} series en total. Descansa 90 segundos entre cada una.</Text>
         <Pencil size={18} color={theme.colors.textMuted} />
       </BaseCard>
     </TrainingV2Screen>
@@ -144,20 +184,37 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+    padding: theme.spacing.xl,
+  },
+  centerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading2.fontSize,
+    lineHeight: theme.typography.heading2.lineHeight,
+    fontWeight: theme.typography.heading2.fontWeight,
+    textAlign: 'center',
+  },
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
+  },
   heroWrap: {
     borderRadius: theme.radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  heroImage: {
+  heroGradient: {
     width: '100%',
-    minHeight: 250,
+    minHeight: 180,
     justifyContent: 'flex-end',
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.48)',
+    backgroundColor: theme.colors.primaryMuted,
   },
   heroContent: {
     padding: theme.spacing.lg,

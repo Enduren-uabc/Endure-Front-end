@@ -14,26 +14,47 @@ import {
   TrainingV2ErrorState,
   TrainingV2SkeletonList,
 } from './TrainingV2States';
-import { routineFiltersV2, routinesV2 } from './training-v2.mock';
-import type { RoutineV2Filter, TrainingV2State } from './training-v2.types';
+import { useRoutines } from '@/features/training/hooks/use-routines';
+import { DAY_OF_WEEK_LABELS } from '@/features/training/types/routine';
+import type { Routine } from '@/features/training/types/routine';
+import type { RoutineV2, RoutineV2Filter, TrainingV2State } from './training-v2.types';
 import type { TrainingStackParamList } from '@/navigation/types';
 import { theme } from '@/theme';
 
 const noop = () => undefined;
 type Props = NativeStackScreenProps<TrainingStackParamList, 'RoutinesList'>;
 
+function toRoutineV2(routine: Routine): RoutineV2 {
+  const exerciseCount = routine.days.reduce((sum, d) => sum + d.exercises.length, 0);
+  return {
+    id: routine.id,
+    name: routine.name,
+    type: 'Todas' as RoutineV2Filter,
+    level: 'Intermedio' as const,
+    durationMinutes: exerciseCount * 8,
+    exerciseCount,
+    description: routine.description ?? `${routine.dayOfWeeks.length} dias de entrenamiento`,
+    goal: routine.isActive ? 'Activa' : 'Rutina',
+    days: routine.dayOfWeeks.map((d) => DAY_OF_WEEK_LABELS[d] ?? d.slice(0, 3)),
+    imageUri: '',
+    isMine: true,
+    exercises: [],
+  };
+}
+
 export default function RoutinesListV2Screen({ navigation }: Props) {
+  const { data: routines, isLoading, isError, refetch } = useRoutines();
   const [selectedFilter, setSelectedFilter] = React.useState<RoutineV2Filter>('Todas');
   const [query, setQuery] = React.useState('');
-  const visualState: TrainingV2State = 'success';
   const createRoutine = () => navigation.navigate('RoutineBuilder', { id: 'new' });
 
-  const filteredRoutines = routinesV2.filter((routine) => {
-    const matchesFilter =
-      selectedFilter === 'Todas' ||
-      (selectedFilter === 'Mias' ? routine.isMine : routine.type === selectedFilter);
-    const matchesQuery = routine.name.toLowerCase().includes(query.trim().toLowerCase());
+  const visualState: TrainingV2State = isLoading ? 'loading' : isError ? 'error' : 'success';
+  const routineList = (routines ?? []).map(toRoutineV2);
 
+  const filteredRoutines = routineList.filter((routine) => {
+    const matchesFilter =
+      selectedFilter === 'Todas' || (selectedFilter === 'Mias' ? routine.isMine : false);
+    const matchesQuery = routine.name.toLowerCase().includes(query.trim().toLowerCase());
     return matchesFilter && matchesQuery;
   });
 
@@ -47,7 +68,7 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
         <TrainingV2ErrorState
           title="No pudimos cargar tus rutinas"
           description="Revisa tu conexion e intenta nuevamente."
-          onAction={noop}
+          onAction={refetch}
         />
       );
     }
@@ -88,11 +109,11 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
           placeholder="Buscar rutina"
         />
         <TrainingV2ChipRow
-          options={routineFiltersV2}
+          options={['Todas', 'Mias']}
           selected={selectedFilter}
           onSelect={(value) => setSelectedFilter(value as RoutineV2Filter)}
         />
-        <TrainingV2SectionHeader title="Tus rutinas" actionLabel="Ordenar" onAction={noop} />
+        <TrainingV2SectionHeader title="Tus rutinas" />
         {renderContent()}
       </TrainingV2Screen>
 

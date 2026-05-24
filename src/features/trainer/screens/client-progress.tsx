@@ -30,7 +30,9 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useLinkedClients } from '@/features/trainer-link/hooks/use-trainer-link';
 import { useRoutines } from '@/features/training/hooks/use-routines';
+import { useWorkoutHistory } from '@/features/training/hooks/use-workout-session';
 import type { Routine } from '@/features/training/types/routine';
+import type { WorkoutSessionSummary } from '@/features/training/types/workout-session';
 import { theme } from '@/theme';
 import type { TrainerClientsStackParamList } from '@/navigation/types';
 
@@ -65,37 +67,47 @@ function routineExerciseCount(routine: Routine): number {
   return routine.days.reduce((total, day) => total + day.exercises.length, 0);
 }
 
-function buildMetrics(seed: number, period: PeriodKey) {
-  const multiplier = period === '7d' ? 1 : period === '30d' ? 3 : 7;
+function computeMetrics(sessions: WorkoutSessionSummary[], period: PeriodKey) {
+  const now = new Date();
+  const cutoff = new Date(now);
+  const daysMap = { '7d': 7, '30d': 30, '90d': 90 };
+  cutoff.setDate(cutoff.getDate() - daysMap[period]);
+
+  const filtered = sessions.filter((s) => new Date(s.startedAt) >= cutoff);
+  const totalSessions = filtered.length;
+  const totalVolume = filtered.reduce((sum, s) => sum + (s.durationMinutes ?? 0) * 10, 0);
+  const expected = period === '7d' ? 3 : period === '30d' ? 12 : 36;
+  const adherence = expected > 0 ? Math.round((totalSessions / expected) * 100) : 0;
+
   return {
-    adherence: Math.min(98, 58 + ((seed * multiplier) % 34)),
-    sessions: 2 + ((seed + multiplier) % 9),
-    volume: 1800 + seed * 95 * multiplier,
+    adherence: Math.min(adherence, 100),
+    sessions: totalSessions,
+    volume: totalVolume,
   };
 }
 
-function buildRecentSessions(clientName: string, seed: number) {
-  const firstName = clientName.split(' ')[0] || 'Cliente';
-  return [
-    {
-      id: 'upper',
-      title: 'Fuerza tren superior',
-      date: 'Hace 2 dias',
-      detail: `${firstName} completo 5 ejercicios · RPE promedio 7`,
-    },
-    {
-      id: 'lower',
-      title: 'Pierna y core',
-      date: 'Hace 5 dias',
-      detail: `${Math.max(4, seed % 8)} series efectivas registradas`,
-    },
-    {
-      id: 'conditioning',
-      title: 'Acondicionamiento',
-      date: 'Hace 1 semana',
-      detail: 'Trabajo moderado con descanso controlado',
-    },
-  ];
+function buildRecentSessions(sessions: WorkoutSessionSummary[]) {
+  return sessions.slice(0, 5).map((s) => ({
+    id: s.id,
+    title: s.routineName,
+    date: formatRelativeDate(s.finishedAt ?? s.startedAt),
+    detail: `${s.exerciseCount} ejercicios · ${s.durationMinutes} min`,
+  }));
+}
+
+function formatRelativeDate(dateStr: string): string {
+  try {
+    const now = new Date();
+    const date = new Date(dateStr);
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays < 7) return `Hace ${diffDays} dias`;
+    return `Hace ${Math.floor(diffDays / 7)} semana${Math.floor(diffDays / 7) > 1 ? 's' : ''}`;
+  } catch {
+    return dateStr;
+  }
 }
 
 export default function ClientProgressScreen({ navigation, route }: Props) {
@@ -105,15 +117,19 @@ export default function ClientProgressScreen({ navigation, route }: Props) {
   const [assignSheetVisible, setAssignSheetVisible] = React.useState(false);
   const [replaceSheetVisible, setReplaceSheetVisible] = React.useState(false);
   const linkedClients = useLinkedClients();
+  const workoutHistory = useWorkoutHistory();
 
   const isStillLinked =
     linkedClients.data?.items.some((client) => client.linkId === linkId) ?? true;
 
-  const seed = clientName.length + linkId.length;
-  const metrics = buildMetrics(seed, period);
-  const recentSessions = buildRecentSessions(clientName, seed);
+  const sessions = workoutHistory.data ?? [];
+  const metrics = computeMetrics(sessions, period);
+  const recentSessions = buildRecentSessions(sessions);
 
-  if (linkedClients.isLoading) {
+  const isLoading = linkedClients.isLoading || workoutHistory.isLoading;
+  const isError = linkedClients.isError || workoutHistory.isError;
+
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.center}>
@@ -124,7 +140,7 @@ export default function ClientProgressScreen({ navigation, route }: Props) {
     );
   }
 
-  if (linkedClients.isError) {
+  if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <StateBlock
@@ -132,7 +148,10 @@ export default function ClientProgressScreen({ navigation, route }: Props) {
           title="No pudimos cargar el progreso"
           text="Revisa tu conexion e intenta de nuevo."
           actionLabel="Reintentar"
-          onAction={() => linkedClients.refetch()}
+          onAction={() => {
+            linkedClients.refetch();
+            workoutHistory.refetch();
+          }}
         />
       </SafeAreaView>
     );
@@ -245,15 +264,16 @@ export default function ClientProgressScreen({ navigation, route }: Props) {
               ))}
             </View>
           ) : (
-            <StateCard text="Aun no hay progreso registrado para este periodo." />
+            <StateCard text="Aun no hay sesiones registradas para este periodo." />
           )}
         </View>
 
         <View style={styles.noticeCard}>
           <CalendarDays size={18} color={theme.colors.textSecondary} />
           <Text style={styles.noticeText}>
-            Vista preliminar: el progreso se calcula en frontend con datos disponibles del cliente
-            vinculado hasta que exista contrato dedicado de progreso.
+            Las metricas y entrenamientos mostrados corresponden a tu historial como entrenador.
+            El progreso especifico del cliente estara disponible cuando el contrato de progreso
+            este implementado en el backend.
           </Text>
         </View>
       </ScrollView>

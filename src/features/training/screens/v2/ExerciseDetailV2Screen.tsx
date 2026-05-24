@@ -1,7 +1,7 @@
 import React from 'react';
-import { ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { CheckCircle2, Plus, Target } from 'lucide-react-native';
+import { CheckCircle, Dumbbell, Plus, Target } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
@@ -13,28 +13,25 @@ import {
   TrainingV2SectionHeader,
   TrainingV2Tag,
 } from './TrainingV2Primitives';
-import { exercisesV2 } from './training-v2.mock';
 import type { TrainingStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<TrainingStackParamList, 'ExerciseDetail'>;
 
 export default function ExerciseDetailV2Screen({ navigation, route }: Props) {
-  const exercise =
-    exercisesV2.find((item) => item.id === route.params.exercise.id) ??
-    exercisesV2.find((item) => item.name === route.params.exercise.name) ??
-    exercisesV2[0];
+  const exercise = route.params.exercise;
+  const totalSets = typeof exercise.sets === 'number' ? exercise.sets : exercise.sets.length;
 
   return (
     <TrainingV2Screen
       title="Detalle de ejercicio"
       titleColor={theme.colors.textPrimary}
-      subtitle="Consulta tecnica, musculo principal y series sugeridas."
+      subtitle={exercise.name}
       onBack={navigation.goBack}
       footer={
         <View style={styles.footerActions}>
           <SecondaryButton label="Cancelar" onPress={navigation.goBack} style={styles.footerButton} />
           <PrimaryButton
-            label="Agregar"
+            label="Agregar a rutina"
             onPress={() => navigation.navigate('RoutineBuilder', { id: route.params.routineId })}
             icon={<Plus size={18} color={theme.colors.background} />}
             style={styles.footerButton}
@@ -43,55 +40,40 @@ export default function ExerciseDetailV2Screen({ navigation, route }: Props) {
       }
     >
       <View style={styles.heroWrap}>
-        <ImageBackground source={{ uri: exercise.imageUri }} style={styles.heroImage} imageStyle={styles.heroImage}>
-          <View style={styles.heroOverlay} />
-          <View style={styles.heroContent}>
-            <TrainingV2Tag label={exercise.group} tone="primary" />
-            <Text style={styles.heroTitle}>{exercise.name}</Text>
-            <Text style={styles.heroMeta}>{exercise.primaryMuscle} - {exercise.equipment}</Text>
-          </View>
-        </ImageBackground>
+        <View style={styles.heroPlaceholder}>
+          <Dumbbell size={40} color={theme.colors.border} />
+        </View>
+        <View style={styles.heroContent}>
+          <Text style={styles.heroTitle}>{exercise.name}</Text>
+          <Text style={styles.heroMeta}>{totalSets} series configuradas</Text>
+        </View>
       </View>
 
       <View style={styles.metaGrid}>
-        <TrainingV2FieldPreview label="Nivel" value={exercise.level} helper="Sugerido" />
-        <TrainingV2FieldPreview label="Series" value={`${exercise.sets.length}`} helper="Configurables" />
+        <TrainingV2FieldPreview label="Series" value={`${totalSets}`} helper="Configurables" />
+        <TrainingV2FieldPreview label="Reps por serie" value={`${exercise.repsPerSet ?? '--'}`} helper="Objetivo" />
       </View>
 
-      <TrainingV2SectionHeader title="Instrucciones" />
-      <View style={styles.instructions}>
-        {exercise.instructions.map((instruction, index) => (
-          <BaseCard key={instruction} style={styles.instructionCard}>
-            <View style={styles.stepIndex}>
-              <Text style={styles.stepIndexText}>{index + 1}</Text>
-            </View>
-            <Text style={styles.instructionText}>{instruction}</Text>
-          </BaseCard>
-        ))}
-      </View>
-
+      <TrainingV2SectionHeader title="Series objetivo" />
       <BaseCard style={styles.targetCard}>
         <View style={styles.targetHeader}>
           <Target size={20} color={theme.colors.primary} />
-          <Text style={styles.targetTitle}>Series objetivo</Text>
+          <Text style={styles.targetTitle}>Configuracion actual</Text>
         </View>
         <View style={styles.setList}>
-          {exercise.sets.map((set) => (
-            <View key={set.id} style={styles.setRow}>
+          {Array.from({ length: totalSets }, (_, i) => (
+            <View key={i} style={styles.setRow}>
               <View style={styles.setLabelWrap}>
-                <CheckCircle2
-                  size={18}
-                  color={set.completed ? theme.colors.success : theme.colors.textMuted}
-                />
-                <Text style={styles.setLabel}>{set.label}</Text>
+                <CheckCircle size={18} color={theme.colors.textMuted} />
+                <Text style={styles.setLabel}>Serie {i + 1}</Text>
               </View>
               <Text style={styles.setValue}>
-                {set.targetReps} reps - {set.targetWeightKg} kg
+                {exercise.repsPerSet ?? '?'} reps - {exercise.weight ?? '?'} kg
               </Text>
             </View>
           ))}
         </View>
-        <TrainingV2ProgressBar progress={1 / 3} label="Progreso de configuracion" />
+        <TrainingV2ProgressBar progress={0} label="Completa la configuracion desde el constructor" />
       </BaseCard>
     </TrainingV2Screen>
   );
@@ -103,15 +85,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: theme.colors.border,
+    backgroundColor: theme.colors.primaryMuted,
   },
-  heroImage: {
+  heroPlaceholder: {
     width: '100%',
-    minHeight: 250,
-    justifyContent: 'flex-end',
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.46)',
+    minHeight: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
   },
   heroContent: {
     padding: theme.spacing.lg,
