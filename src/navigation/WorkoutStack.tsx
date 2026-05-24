@@ -4,6 +4,10 @@ import WorkoutStartV2Screen from '@/features/training/screens/v2/WorkoutStartV2S
 import WorkoutSessionV2Screen from '@/features/training/screens/v2/WorkoutSessionV2Screen';
 import WorkoutFinishSummaryV2Screen from '@/features/training/screens/v2/WorkoutFinishSummaryV2Screen';
 import WorkoutHistoryV2Screen from '@/features/training/screens/v2/WorkoutHistoryV2Screen';
+import WorkoutSessionDetailV2Screen from '@/features/training/screens/v2/WorkoutSessionDetailV2Screen';
+import ExerciseProgressV2Screen from '@/features/training/screens/v2/ExerciseProgressV2Screen';
+import AchievementsV2Screen from '@/features/training/screens/v2/AchievementsV2Screen';
+import MeasurementsV2Screen from '@/features/training/screens/v2/MeasurementsV2Screen';
 import type { WorkoutStackParamList } from './types';
 import { theme } from '@/theme';
 
@@ -24,6 +28,10 @@ export default function WorkoutStack() {
         component={WorkoutFinishSummaryV2Screen}
       />
       <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryV2Screen} />
+      <Stack.Screen name="WorkoutSessionDetail" component={WorkoutSessionDetailV2Screen} />
+      <Stack.Screen name="ExerciseProgress" component={ExerciseProgressV2Screen} />
+      <Stack.Screen name="Achievements" component={AchievementsV2Screen} />
+      <Stack.Screen name="Measurements" component={MeasurementsV2Screen} />
     </Stack.Navigator>
   );
 }

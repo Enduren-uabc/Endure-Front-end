@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ChevronRight, History, Search } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
@@ -20,15 +21,29 @@ import {
 import { workoutHistoryV2 } from './training-v2.mock';
 import type { TrainingV2State } from './training-v2.types';
 import type { WorkoutStackParamList } from '@/navigation/types';
+import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 
 const noop = () => undefined;
 const filters = ['Todos', 'Semana', 'Mes', 'PRs'];
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'WorkoutHistory'>;
 
-export default function WorkoutHistoryV2Screen({ navigation }: Props) {
+export default function WorkoutHistoryV2Screen({ navigation, route }: Props) {
   const [query, setQuery] = React.useState('');
   const [selectedFilter, setSelectedFilter] = React.useState('Todos');
   const visualState: TrainingV2State = 'success';
+  const returnTo = route.params?.returnTo;
+  const returnParams = returnTo ? { returnTo } : {};
+
+  const handleBack = React.useCallback(() => {
+    const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
+
+    if (returnTo === 'Profile' && drawerNavigation) {
+      drawerNavigation.navigate('MainTabs', { screen: 'Profile' });
+      return;
+    }
+
+    navigation.goBack();
+  }, [navigation, returnTo]);
 
   const filteredHistory = workoutHistoryV2.filter((item) =>
     item.routineName.toLowerCase().includes(query.trim().toLowerCase()),
@@ -67,7 +82,7 @@ export default function WorkoutHistoryV2Screen({ navigation }: Props) {
             key={item.id}
             activeOpacity={0.84}
             onPress={() =>
-              navigation.navigate('WorkoutFinishSummary', { sessionId: item.id })
+              navigation.navigate('WorkoutSessionDetail', { sessionId: item.id, ...returnParams })
             }
           >
             <BaseCard style={styles.historyCard}>
@@ -101,7 +116,7 @@ export default function WorkoutHistoryV2Screen({ navigation }: Props) {
       title="Historial"
       titleColor={theme.colors.textPrimary}
       subtitle="Consulta sesiones recientes, volumen y logros."
-      onBack={navigation.goBack}
+      onBack={handleBack}
     >
       <TrainingV2SearchField
         value={query}
@@ -113,8 +128,21 @@ export default function WorkoutHistoryV2Screen({ navigation }: Props) {
       {renderContent()}
       <BaseCard style={styles.searchHint}>
         <Search size={20} color={theme.colors.textSecondary} />
-        <Text style={styles.searchHintText}>El detalle de sesion historica queda para el siguiente lote.</Text>
+        <Text style={styles.searchHintText}>
+          Toca una sesion para abrir el detalle o revisa progreso por ejercicio desde aqui.
+        </Text>
       </BaseCard>
+      <TouchableOpacity
+        activeOpacity={0.84}
+        onPress={() => navigation.navigate('ExerciseProgress', { exerciseId: 'ex-squat', ...returnParams })}
+      >
+        <BaseCard style={styles.progressCard}>
+          <Text style={styles.progressTitle}>Progreso por ejercicio</Text>
+          <Text style={styles.progressText}>
+            Compara volumen, mejor set y tendencia de tus ejercicios principales.
+          </Text>
+        </BaseCard>
+      </TouchableOpacity>
     </TrainingV2Screen>
   );
 }
@@ -166,6 +194,21 @@ const styles = StyleSheet.create({
   },
   searchHintText: {
     flex: 1,
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  progressCard: {
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  progressTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  progressText: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,

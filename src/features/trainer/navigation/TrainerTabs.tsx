@@ -1,12 +1,11 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View, Text } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Dumbbell, Home, Play, Users, UsersRound } from 'lucide-react-native';
-import HomeTrainingV2Screen from '@/features/home/screens/v2/HomeTrainingV2Screen';
-import TrainingStack from '@/navigation/TrainingStack';
-import WorkoutStack from '@/navigation/WorkoutStack';
-import SocialStack from '@/navigation/SocialStack';
+import { Dumbbell, Home, UserRound, UsersRound } from 'lucide-react-native';
 import TrainerClientsStack from './TrainerClientsStack';
+import TrainerDashboardScreen from '../screens/trainer-dashboard';
+import TrainerRoutinesScreen from '../screens/trainer-routines';
+import TrainerProfileScreen from '@/features/profile/screens/TrainerProfileScreen';
 import { useReceivedLinkRequests } from '@/features/trainer-link/hooks/use-trainer-link';
 import { theme } from '@/theme';
 import type { TrainerTabsParamList } from '../types/trainer-navigation.types';
@@ -18,10 +17,6 @@ const TAB_COLORS = {
   inactive: theme.colors.textMuted,
   barBg: theme.colors.background,
   barBorder: theme.colors.border,
-  workoutBtnBg: theme.colors.surfaceElevated,
-  workoutBtnBgActive: theme.colors.primaryMuted,
-  workoutBtnBorder: theme.colors.border,
-  workoutBtnBorderActive: theme.colors.primary,
 };
 
 function ClientsTabIcon({ color, size }: { color: string; size: number }) {
@@ -65,44 +60,10 @@ export default function TrainerTabs() {
     >
       <Tabs.Screen
         name="Home"
-        component={HomeTrainingV2Screen}
+        component={TrainerDashboardScreen}
         options={{
           title: 'Inicio',
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="Workout"
-        component={WorkoutStack}
-        options={{
-          title: 'Entrenar',
-          tabBarIcon: ({ color, size }) => <Play size={size} color={color} />,
-          tabBarButton: ({ children, onPress, accessibilityState }) => (
-            <TouchableOpacity
-              onPress={onPress}
-              activeOpacity={0.86}
-              style={styles.workoutTabOuter}
-            >
-              <View
-                style={[
-                  styles.workoutTabButton,
-                  accessibilityState?.selected
-                    ? styles.workoutTabButtonActive
-                    : styles.workoutTabButtonInactive,
-                ]}
-              >
-                {children}
-              </View>
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="Routines"
-        component={TrainingStack}
-        options={{
-          title: 'Rutinas',
-          tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -114,11 +75,19 @@ export default function TrainerTabs() {
         }}
       />
       <Tabs.Screen
-        name="Social"
-        component={SocialStack}
+        name="Routines"
+        component={TrainerRoutinesScreen}
         options={{
-          title: 'Comunidad',
-          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+          title: 'Rutinas',
+          tabBarIcon: ({ color, size }) => <Dumbbell size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="Profile"
+        component={TrainerProfileScreen}
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => <UserRound size={size} color={color} />,
         }}
       />
     </Tabs.Navigator>
@@ -126,28 +95,6 @@ export default function TrainerTabs() {
 }
 
 const styles = StyleSheet.create({
-  workoutTabOuter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -18,
-  },
-  workoutTabButton: {
-    width: 76,
-    minHeight: 60,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  workoutTabButtonActive: {
-    backgroundColor: TAB_COLORS.workoutBtnBgActive,
-    borderColor: TAB_COLORS.workoutBtnBorderActive,
-  },
-  workoutTabButtonInactive: {
-    backgroundColor: TAB_COLORS.workoutBtnBg,
-    borderColor: TAB_COLORS.workoutBtnBorder,
-  },
   tabBadge: {
     position: 'absolute',
     top: -4,

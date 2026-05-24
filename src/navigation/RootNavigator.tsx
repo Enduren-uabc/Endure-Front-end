@@ -56,14 +56,6 @@ const linking: LinkingOptions<RootStackParamList> = {
           MainTabs: {
             screens: {
               Home: 'home',
-              Workout: {
-                screens: {
-                  WorkoutStart: 'workout',
-                  WorkoutSession: 'workout/session/:sessionId',
-                  WorkoutFinishSummary: 'workout/summary/:sessionId',
-                  WorkoutHistory: 'workout/history',
-                },
-              },
               Routines: {
                 screens: {
                   RoutinesList: 'routines',
@@ -73,13 +65,19 @@ const linking: LinkingOptions<RootStackParamList> = {
                   ExerciseDetail: 'routine/:routineId/exercise-detail',
                 },
               },
-              Social: {
-                screens: {
-                  SocialFeed: 'social',
-                  PublicProfile: 'profiles/:userId',
-                  PostDetail: 'posts/:postId',
-                },
-              },
+              Profile: 'profile',
+            },
+          },
+          WorkoutStack: {
+            screens: {
+              WorkoutStart: 'workout',
+              WorkoutSession: 'workout/session/:sessionId',
+              WorkoutFinishSummary: 'workout/summary/:sessionId',
+              WorkoutHistory: 'workout/history',
+              WorkoutSessionDetail: 'workout/history/:sessionId',
+              ExerciseProgress: 'workout/progress',
+              Achievements: 'workout/achievements',
+              Measurements: 'workout/measurements',
             },
           },
           Settings: {
@@ -97,36 +95,37 @@ const linking: LinkingOptions<RootStackParamList> = {
           MainTabs: {
             screens: {
               Home: 'home',
-              Workout: {
-                screens: {
-                  WorkoutStart: 'workout',
-                  WorkoutSession: 'workout/session/:sessionId',
-                  WorkoutFinishSummary: 'workout/summary/:sessionId',
-                  WorkoutHistory: 'workout/history',
-                },
-              },
-              Routines: {
-                screens: {
-                  RoutinesList: 'routines',
-                  RoutineDetail: 'routine-detail/:id',
-                  RoutineBuilder: 'routine-builder/:id',
-                  ExerciseCatalog: 'routine-builder/:routineId/exercises',
-                  ExerciseDetail: 'routine/:routineId/exercise-detail',
-                },
-              },
               Clients: {
                 screens: {
                   ClientsList: 'trainer/clients',
+                  ClientDetail: 'trainer/clients/:clientId',
+                  AssignRoutine: 'trainer/clients/:clientId/assign-routine',
                   ClientProgress: 'trainer/clients/:clientId/progress',
                 },
               },
-              Social: {
-                screens: {
-                  SocialFeed: 'social',
-                  PublicProfile: 'profiles/:userId',
-                  PostDetail: 'posts/:postId',
-                },
-              },
+              Routines: 'trainer/routines',
+              Profile: 'trainer/profile',
+            },
+          },
+          WorkoutStack: {
+            screens: {
+              WorkoutStart: 'workout',
+              WorkoutSession: 'workout/session/:sessionId',
+              WorkoutFinishSummary: 'workout/summary/:sessionId',
+              WorkoutHistory: 'workout/history',
+              WorkoutSessionDetail: 'workout/history/:sessionId',
+              ExerciseProgress: 'workout/progress',
+              Achievements: 'workout/achievements',
+              Measurements: 'workout/measurements',
+            },
+          },
+          TrainingStack: {
+            screens: {
+              RoutinesList: 'trainer/routines/list',
+              RoutineDetail: 'trainer/routine-detail/:id',
+              RoutineBuilder: 'trainer/routine-builder/:id',
+              ExerciseCatalog: 'trainer/routine-builder/:routineId/exercises',
+              ExerciseDetail: 'trainer/routine/:routineId/exercise-detail',
             },
           },
           Settings: {

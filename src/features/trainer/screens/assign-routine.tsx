@@ -1,5 +1,14 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AlertCircle,
@@ -7,12 +16,15 @@ import {
   CheckCircle2,
   ChevronRight,
   Dumbbell,
+  Lock,
   Search,
+  X,
 } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { useLinkedClients } from '@/features/trainer-link/hooks/use-trainer-link';
 import { useRoutines } from '@/features/training/hooks/use-routines';
 import {
   TrainingV2Screen,
@@ -33,13 +45,14 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
   const params = route.params;
   const client = React.useMemo(() => buildTrainerClientViewModel(params), [params]);
   const routinesQuery = useRoutines();
+  const linkedClients = useLinkedClients();
   const assignRoutine = useTrainerClientAssignmentsStore((state) => state.assignRoutine);
   const currentAssignment = useTrainerClientAssignmentsStore(
     (state) => state.assignmentsByLinkId[params.linkId],
   );
   const [query, setQuery] = React.useState('');
   const [selectedRoutineId, setSelectedRoutineId] = React.useState<string | null>(
-    currentAssignment?.routineId ?? null,
+    currentAssignment?.routineId ?? params.preselectedRoutineId ?? null,
   );
   const [selectedDays, setSelectedDays] = React.useState<string[]>(
     currentAssignment?.days ?? ['Lun', 'Mie', 'Vie'],
@@ -47,6 +60,8 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
   const [note, setNote] = React.useState(currentAssignment?.note ?? '');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(null);
+  const [mutationError, setMutationError] = React.useState<string | null>(null);
+  const [confirmVisible, setConfirmVisible] = React.useState(false);
 
   const routineOptions = React.useMemo(
     () => (routinesQuery.data ?? []).map(buildRoutineOption),
@@ -58,11 +73,33 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
       option.routine.name.toLowerCase().includes(normalizedQuery),
     );
   }, [query, routineOptions]);
+  const preselectedFallback: TrainerRoutineOption | null =
+    selectedRoutineId === params.preselectedRoutineId && params.preselectedRoutineName
+      ? {
+          routine: {
+            id: params.preselectedRoutineId,
+            name: params.preselectedRoutineName,
+            description: 'Rutina seleccionada desde la biblioteca visual del entrenador.',
+            dayOfWeeks: [],
+            days: [],
+          },
+          exerciseCount: 0,
+          dayLabels: [],
+        }
+      : null;
   const selectedOption =
-    routineOptions.find((option) => option.routine.id === selectedRoutineId) ?? null;
+    routineOptions.find((option) => option.routine.id === selectedRoutineId) ??
+    preselectedFallback;
+  const isStillLinked =
+    linkedClients.data?.items.some((item) => item.linkId === params.linkId) ?? true;
+  const hasUnsavedChanges =
+    selectedRoutineId !== (currentAssignment?.routineId ?? params.preselectedRoutineId ?? null) ||
+    selectedDays.join('|') !== (currentAssignment?.days ?? ['Lun', 'Mie', 'Vie']).join('|') ||
+    note.trim() !== (currentAssignment?.note ?? '');
 
   const toggleDay = (day: string) => {
     setValidationError(null);
+    setMutationError(null);
     setSelectedDays((current) =>
       current.includes(day)
         ? current.filter((item) => item !== day)
@@ -73,12 +110,13 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
   const selectRoutine = (option: TrainerRoutineOption) => {
     setSelectedRoutineId(option.routine.id);
     setValidationError(null);
+    setMutationError(null);
     if (!currentAssignment || currentAssignment.routineId !== option.routine.id) {
       setSelectedDays(option.dayLabels.length > 0 ? option.dayLabels : ['Lun', 'Mie', 'Vie']);
     }
   };
 
-  const submitAssignment = () => {
+  const persistAssignment = () => {
     if (!selectedOption) {
       setValidationError('Selecciona una rutina para asignar.');
       return;
@@ -91,18 +129,68 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
 
     setIsSubmitting(true);
     setTimeout(() => {
-      assignRoutine({
-        linkId: params.linkId,
-        routineId: selectedOption.routine.id,
-        routineName: selectedOption.routine.name,
-        assignedAt: new Date().toISOString(),
-        days: selectedDays,
-        note: note.trim() || undefined,
-      });
+      try {
+        assignRoutine({
+          linkId: params.linkId,
+          routineId: selectedOption.routine.id,
+          routineName: selectedOption.routine.name,
+          assignedAt: new Date().toISOString(),
+          days: selectedDays,
+          note: note.trim() || undefined,
+        });
+      } catch {
+        setMutationError('No pudimos guardar la asignacion local. Intenta de nuevo.');
+        setIsSubmitting(false);
+        return;
+      }
       setIsSubmitting(false);
+      setConfirmVisible(false);
       navigation.goBack();
     }, 450);
   };
+
+  const submitAssignment = () => {
+    if (currentAssignment && hasUnsavedChanges) {
+      setConfirmVisible(true);
+      return;
+    }
+
+    persistAssignment();
+  };
+
+  if (linkedClients.isLoading) {
+    return (
+      <CenteredState
+        icon={<ActivityIndicator color={theme.colors.primary} size="large" />}
+        title="Validando vinculo"
+        description="Estamos confirmando que este cliente siga vinculado."
+      />
+    );
+  }
+
+  if (linkedClients.isError) {
+    return (
+      <CenteredState
+        icon={<AlertCircle size={38} color={theme.colors.error} />}
+        title="No pudimos validar el cliente"
+        description="Revisa tu conexion antes de modificar la rutina asignada."
+        actionLabel="Reintentar"
+        onAction={() => linkedClients.refetch()}
+      />
+    );
+  }
+
+  if (!isStillLinked) {
+    return (
+      <CenteredState
+        icon={<Lock size={38} color={theme.colors.warning} />}
+        title="Cliente desvinculado"
+        description="No puedes modificar rutinas de un cliente que ya no esta vinculado."
+        actionLabel="Volver"
+        onAction={() => navigation.goBack()}
+      />
+    );
+  }
 
   function renderContent() {
     if (routinesQuery.isLoading) {
@@ -181,24 +269,26 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
   }
 
   return (
-    <TrainingV2Screen
-      title="Asignar rutina"
-      subtitle={`Cliente: ${client.clientName}`}
-      titleColor={theme.colors.textPrimary}
-      onBack={() => navigation.goBack()}
-      footer={
-        <View style={styles.footerActions}>
-          {validationError ? <Text style={styles.validationText}>{validationError}</Text> : null}
-          <PrimaryButton
-            label={isSubmitting ? 'Asignando' : currentAssignment ? 'Reemplazar rutina' : 'Asignar rutina'}
-            onPress={submitAssignment}
-            loading={isSubmitting}
-            disabled={isSubmitting || !selectedOption || selectedDays.length === 0}
-          />
-          <SecondaryButton label="Cancelar" onPress={() => navigation.goBack()} disabled={isSubmitting} />
-        </View>
-      }
-    >
+    <>
+      <TrainingV2Screen
+        title="Asignar rutina"
+        subtitle={`Cliente: ${client.clientName}`}
+        titleColor={theme.colors.textPrimary}
+        onBack={() => navigation.goBack()}
+        footer={
+          <View style={styles.footerActions}>
+            {validationError ? <Text style={styles.validationText}>{validationError}</Text> : null}
+            {mutationError ? <Text style={styles.validationText}>{mutationError}</Text> : null}
+            <PrimaryButton
+              label={isSubmitting ? 'Guardando' : currentAssignment ? 'Reemplazar rutina' : 'Asignar rutina'}
+              onPress={submitAssignment}
+              loading={isSubmitting}
+              disabled={isSubmitting || !selectedOption || selectedDays.length === 0}
+            />
+            <SecondaryButton label="Cancelar" onPress={() => navigation.goBack()} disabled={isSubmitting} />
+          </View>
+        }
+      >
       <BaseCard style={styles.clientCard}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{client.initials}</Text>
@@ -207,6 +297,27 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
           <Text style={styles.clientName}>{client.clientName}</Text>
           <Text style={styles.clientMeta}>{client.goal} - {client.experience}</Text>
         </View>
+      </BaseCard>
+
+      <BaseCard style={styles.currentCard}>
+        <View style={styles.currentHeader}>
+          <Dumbbell size={20} color={theme.colors.primary} />
+          <View style={styles.currentCopy}>
+            <Text style={styles.currentTitle}>
+              {currentAssignment ? 'Rutina actual' : 'Seleccion inicial'}
+            </Text>
+            <Text style={styles.currentText}>
+              {currentAssignment
+                ? `${currentAssignment.routineName} - ${currentAssignment.days.join(', ')}`
+                : selectedOption
+                  ? selectedOption.routine.name
+                  : 'Elige una rutina para asignar.'}
+            </Text>
+          </View>
+        </View>
+        {hasUnsavedChanges ? (
+          <Text style={styles.unsavedText}>Tienes cambios sin guardar en esta asignacion.</Text>
+        ) : null}
       </BaseCard>
 
       <View style={styles.searchBox}>
@@ -265,6 +376,69 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
           contratos API.
         </Text>
       </BaseCard>
+      </TrainingV2Screen>
+
+      <Modal visible={confirmVisible} animationType="slide" transparent>
+        <View style={styles.sheetOverlay}>
+          <View style={styles.confirmSheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.confirmHeader}>
+              <Text style={styles.confirmTitle}>Confirmar reemplazo</Text>
+              <Pressable
+                onPress={() => setConfirmVisible(false)}
+                disabled={isSubmitting}
+                style={styles.closeButton}
+              >
+                <X size={22} color={theme.colors.textSecondary} />
+              </Pressable>
+            </View>
+            <Text style={styles.confirmText}>
+              Vas a reemplazar {currentAssignment?.routineName ?? 'la rutina actual'} por{' '}
+              {selectedOption?.routine.name ?? 'la nueva rutina'} para {client.clientName}.
+            </Text>
+            <Text style={styles.confirmHint}>
+              Esta accion solo actualiza estado local del frontend y queda lista para conectar a
+              backend cuando exista contrato aprobado.
+            </Text>
+            <PrimaryButton
+              label={isSubmitting ? 'Guardando' : 'Confirmar reemplazo'}
+              onPress={persistAssignment}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            />
+            <SecondaryButton
+              label="Seguir editando"
+              onPress={() => setConfirmVisible(false)}
+              disabled={isSubmitting}
+            />
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+function CenteredState({
+  icon,
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <TrainingV2Screen title="Asignar rutina" titleColor={theme.colors.textPrimary}>
+      <BaseCard style={styles.centerCard}>
+        <View style={styles.centerIcon}>{icon}</View>
+        <Text style={styles.centerTitle}>{title}</Text>
+        <Text style={styles.centerText}>{description}</Text>
+        {actionLabel && onAction ? <PrimaryButton label={actionLabel} onPress={onAction} /> : null}
+      </BaseCard>
     </TrainingV2Screen>
   );
 }
@@ -303,6 +477,38 @@ const styles = StyleSheet.create({
   },
   clientMeta: {
     color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  currentCard: {
+    gap: theme.spacing.sm,
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  currentHeader: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    alignItems: 'flex-start',
+  },
+  currentCopy: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  currentTitle: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  currentText: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  unsavedText: {
+    color: theme.colors.warning,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
@@ -450,5 +656,82 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: theme.colors.overlay,
+  },
+  confirmSheet: {
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  sheetHandle: {
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border,
+    alignSelf: 'center',
+  },
+  confirmHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  confirmTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading3.fontSize,
+    lineHeight: theme.typography.heading3.lineHeight,
+    fontWeight: theme.typography.heading3.fontWeight,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmText: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+  },
+  confirmHint: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  centerCard: {
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.xxl,
+  },
+  centerIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  centerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading3.fontSize,
+    lineHeight: theme.typography.heading3.lineHeight,
+    fontWeight: theme.typography.heading3.fontWeight,
+    textAlign: 'center',
+  },
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
   },
 });

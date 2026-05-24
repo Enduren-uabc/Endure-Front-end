@@ -1,6 +1,6 @@
 import React from 'react';
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NavigationProp, NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Clock3, Dumbbell, Pencil, Play, Rows3, Star } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
@@ -21,16 +21,22 @@ import {
   toExerciseConfigV2,
   workoutSessionV2,
 } from './training-v2.mock';
-import type { AppTabsParamList, TrainingStackParamList } from '@/navigation/types';
+import type { TrainingStackParamList, WorkoutStackParamList } from '@/navigation/types';
 
 const noop = () => undefined;
 type Props = NativeStackScreenProps<TrainingStackParamList, 'RoutineDetail'>;
-type AppTabsNavigation = BottomTabNavigationProp<AppTabsParamList>;
+type WorkoutDrawerNavigation = NavigationProp<{
+  WorkoutStack: NavigatorScreenParams<WorkoutStackParamList> | undefined;
+}>;
 
 export default function RoutineDetailV2Screen({ navigation, route }: Props) {
   const routine = routinesV2.find((item) => item.id === route.params.id) ?? currentRoutineV2;
   const openWorkoutSession = () => {
-    navigation.getParent<AppTabsNavigation>()?.navigate('Workout', {
+    const drawerNavigation =
+      navigation.getParent()?.getParent<WorkoutDrawerNavigation>() ??
+      navigation.getParent<WorkoutDrawerNavigation>();
+
+    drawerNavigation?.navigate('WorkoutStack', {
       screen: 'WorkoutSession',
       params: { sessionId: workoutSessionV2.id },
     });

@@ -1,14 +1,13 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation, type NavigationProp, type NavigatorScreenParams } from '@react-navigation/native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { CalendarDays, Flame, Link2, Play, Sparkles } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
-import type { TrainingStackParamList, WorkoutStackParamList } from '@/navigation/types';
-import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
+import type { UserTabsParamList, UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 import {
   TrainingV2MetricCard,
   TrainingV2RoutineCard,
@@ -18,18 +17,18 @@ import {
 } from '@/features/training/screens/v2/TrainingV2Primitives';
 import { routinesV2, weeklyMetricsV2 } from '@/features/training/screens/v2/training-v2.mock';
 
-type HomeTrainingTabsParamList = {
-  Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
-  Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
-};
-
 export default function HomeTrainingV2Screen() {
-  const navigation = useNavigation<NavigationProp<HomeTrainingTabsParamList>>();
+  const navigation = useNavigation<NavigationProp<UserTabsParamList>>();
   const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
   const role = useSessionStore((state) => state.role);
   const todayRoutine = routinesV2[0];
-  const startWorkout = () => navigation.navigate('Workout', { screen: 'WorkoutStart' });
-  const openHistory = () => navigation.navigate('Workout', { screen: 'WorkoutHistory' });
+  const startWorkout = () => drawerNavigation?.navigate('WorkoutStack', { screen: 'WorkoutStart' });
+  const openHistory = () => drawerNavigation?.navigate('WorkoutStack', { screen: 'WorkoutHistory' });
+  const openExerciseProgress = () =>
+    drawerNavigation?.navigate('WorkoutStack', {
+      screen: 'ExerciseProgress',
+      params: { exerciseId: 'ex-squat' },
+    });
   const createRoutine = () =>
     navigation.navigate('Routines', {
       screen: 'RoutineBuilder',
@@ -81,7 +80,11 @@ export default function HomeTrainingV2Screen() {
       <TrainingV2SectionHeader title="Esta semana" actionLabel="Ver historial" onAction={openHistory} />
       <View style={styles.metricsRow}>
         {weeklyMetricsV2.map((metric) => (
-          <TrainingV2MetricCard key={metric.id} metric={metric} />
+          <TrainingV2MetricCard
+            key={metric.id}
+            metric={metric}
+            onPress={metric.id === 'volume' ? openExerciseProgress : openHistory}
+          />
         ))}
       </View>
 

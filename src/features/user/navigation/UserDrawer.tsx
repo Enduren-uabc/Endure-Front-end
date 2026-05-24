@@ -9,6 +9,7 @@ import {
 import { Dumbbell, Settings, HelpCircle, Award, ChevronRight, Link2 } from 'lucide-react-native';
 import UserTabs from './UserTabs';
 import CoachStack from '@/navigation/CoachStack';
+import WorkoutStack from '@/navigation/WorkoutStack';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
 import SettingsStack from '@/features/settings/navigation/SettingsStack';
 import HelpScreen from '@/features/help/screens/help';
@@ -118,6 +119,14 @@ export default function UserDrawer() {
         options={{
           title: 'Mi entrenador',
           drawerIcon: ({ color, size }) => <Link2 size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="WorkoutStack"
+        component={WorkoutStack}
+        options={{
+          title: 'Entrenamiento',
+          drawerItemStyle: { display: 'none' },
         }}
       />
       <Drawer.Screen

@@ -1,18 +1,33 @@
 import React from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bell, ChevronRight, FileText, HelpCircle, LogOut, Shield } from 'lucide-react-native';
+import { ArrowLeft, Bell, ChevronRight, FileText, HelpCircle, LogOut, Shield } from 'lucide-react-native';
 import { theme } from '@/theme';
 import { useLogout } from '@/features/auth/hooks/use-auth';
 import type { SettingsStackParamList } from '@/navigation/types';
+import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 
 type SettingsNavigation = NativeStackNavigationProp<SettingsStackParamList, 'SettingsHome'>;
+type SettingsRoute = RouteProp<SettingsStackParamList, 'SettingsHome'>;
 
 export default function SettingsScreen() {
   const navigation = useNavigation<SettingsNavigation>();
+  const route = useRoute<SettingsRoute>();
   const logoutMutation = useLogout();
+  const returnTo = route.params?.returnTo;
+
+  const handleBack = React.useCallback(() => {
+    const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
+
+    if (returnTo === 'Profile' && drawerNavigation) {
+      drawerNavigation.navigate('MainTabs', { screen: 'Profile' });
+      return;
+    }
+
+    navigation.goBack();
+  }, [navigation, returnTo]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -33,10 +48,23 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
+          {returnTo === 'Profile' ? (
+            <TouchableOpacity
+              activeOpacity={0.78}
+              onPress={handleBack}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Volver al perfil"
+            >
+              <ArrowLeft size={22} color={theme.colors.textPrimary} />
+            </TouchableOpacity>
+          ) : null}
+          <View style={styles.headerCopy}>
           <Text style={styles.title}>Configuración</Text>
           <Text style={styles.subtitle}>
             Ajusta notificaciones, privacidad y estado de tu cuenta.
           </Text>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -157,6 +185,22 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xl,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.md,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCopy: {
+    flex: 1,
     gap: theme.spacing.sm,
   },
   title: {

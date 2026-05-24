@@ -8,6 +8,8 @@ import {
 } from '@react-navigation/drawer';
 import { Dumbbell, Settings, HelpCircle, Inbox } from 'lucide-react-native';
 import TrainerTabs from './TrainerTabs';
+import TrainingStack from '@/navigation/TrainingStack';
+import WorkoutStack from '@/navigation/WorkoutStack';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
 import SettingsStack from '@/features/settings/navigation/SettingsStack';
 import HelpScreen from '@/features/help/screens/help';
@@ -68,6 +70,22 @@ export default function TrainerDrawer() {
         options={{
           title: 'Solicitudes',
           drawerIcon: ({ color, size }) => <Inbox size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="WorkoutStack"
+        component={WorkoutStack}
+        options={{
+          title: 'Entrenamiento',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="TrainingStack"
+        component={TrainingStack}
+        options={{
+          title: 'Rutinas',
+          drawerItemStyle: { display: 'none' },
         }}
       />
       <Drawer.Screen
