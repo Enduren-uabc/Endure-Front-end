@@ -52,7 +52,7 @@ export default function TrainerLinkStack() {
       <Stack.Screen
         name="AssignedRoutine"
         component={AssignedRoutineScreen}
-        options={{ title: 'Rutina asignada' }}
+        options={{ title: 'Rutina asignada', headerShown: false }}
       />
       <Stack.Screen
         name="ReceivedRequests"
