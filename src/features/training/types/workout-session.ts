@@ -54,6 +54,11 @@ export interface WorkoutSessionSummary {
   status: WorkoutSessionStatus;
 }
 
+export interface WorkoutSessionHistoryResponse {
+  sessions: WorkoutSessionSummary[];
+  hasIncompleteData: boolean;
+}
+
 export interface WorkoutSessionStats {
   totalExercises: number;
   completedSets: number;

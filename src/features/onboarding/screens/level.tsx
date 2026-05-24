@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Sprout, Flame, Trophy } from 'lucide-react-native';
+import { Sprout, Flame, Trophy, Info } from 'lucide-react-native';
 import type { OnboardingStackParamList } from '@/navigation/types';
 import {
   onboardingLevelSchema,
@@ -13,6 +13,7 @@ import {
 import { useOnboardingStore } from '@/features/onboarding/stores/onboarding-store';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { Chip } from '@/components/ui/Chip';
 import { theme } from '@/theme';
 
 interface LevelOption {
@@ -43,7 +44,27 @@ const LEVELS: LevelOption[] = [
   },
 ];
 
-const TOTAL_STEPS = 3;
+interface StrategyInfo {
+  key: string;
+  name: string;
+  description: string;
+}
+
+const ALL_STRATEGIES: StrategyInfo[] = [
+  { key: 'straight', name: 'Straight (Estática)', description: 'Peso y reps constantes en todos los sets' },
+  { key: 'ascending', name: 'Ascending / UPP', description: 'Sube peso, bajan reps en cada set' },
+  { key: 'drop_sets', name: 'Drop Sets', description: 'Baja peso rápido sin descanso, mismas reps' },
+  { key: 'wave_loading', name: 'Wave Loading', description: 'Alterna pesos en olas sobre peso base' },
+  { key: 'descending', name: 'Descending / Down', description: 'Empieza peso máximo, baja peso, suben reps' },
+];
+
+const RECOMMENDED_KEYS = ['ascending', 'drop_sets', 'wave_loading'];
+
+const BEGINNER_STRATEGY: StrategyInfo = {
+  key: 'straight',
+  name: 'Straight (Estática)',
+  description: 'Peso y reps constantes en todos los sets. Perfecto para empezar.',
+};
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Level'>;
 
@@ -54,6 +75,7 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
     control,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm<OnboardingLevelFormData>({
     resolver: zodResolver(onboardingLevelSchema),
     defaultValues: {
@@ -61,32 +83,54 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
     },
   });
 
+  const selectedLevel = watch('experienceLevel');
+  const [selectedStrategy, setSelectedStrategy] = React.useState<string | null>(
+    draft.trainingStrategyKey ?? null,
+  );
+
+  const recommended = ALL_STRATEGIES.filter((s) => RECOMMENDED_KEYS.includes(s.key));
+  const other = ALL_STRATEGIES.filter((s) => !RECOMMENDED_KEYS.includes(s.key));
+
   const onSubmit = (data: OnboardingLevelFormData) => {
     draft.setExperienceLevel(data.experienceLevel);
+    if (data.experienceLevel === 'beginner') {
+      draft.setTrainingStrategyKey('straight');
+    } else if (selectedStrategy) {
+      draft.setTrainingStrategyKey(selectedStrategy);
+    }
     navigation.navigate('Summary');
+  };
+
+  const handleLevelChange = (level: string, onChange: (v: string) => void) => {
+    onChange(level);
+    if (level === 'beginner') {
+      setSelectedStrategy('straight');
+    } else {
+      setSelectedStrategy(draft.trainingStrategyKey ?? null);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-
-        {/* Progress dots */}
-        <View style={styles.dotsRow}>
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === 2 ? styles.dotActive : styles.dotInactive]}
-            />
-          ))}
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.header}>
+          <View style={styles.stepRow}>
+            <View style={styles.stepPill}>
+              <Text style={styles.stepText}>Paso 3 de 4</Text>
+            </View>
+            <View style={styles.progressRow}>
+              <View style={[styles.progressDot, styles.progressActive]} />
+              <View style={[styles.progressDot, styles.progressActive]} />
+              <View style={[styles.progressDot, styles.progressActive]} />
+              <View style={styles.progressDot} />
+            </View>
+          </View>
+          <Text style={styles.title}>¿Cuál es tu nivel?</Text>
+          <Text style={styles.subtitle}>
+            Ajustaremos la dificultad de las rutinas sugeridas.
+          </Text>
         </View>
 
-        {/* Title & subtitle */}
-        <Text style={styles.title}>¿Cuál es tu nivel?</Text>
-        <Text style={styles.subtitle}>
-          Ajustaremos la dificultad de las rutinas sugeridas.
-        </Text>
-
-        {/* Level cards */}
         <Controller
           control={control}
           name="experienceLevel"
@@ -95,29 +139,91 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
               {LEVELS.map((level) => {
                 const isSelected = value === level.value;
                 return (
-                  <TouchableOpacity
-                    key={level.value}
-                    style={[styles.card, isSelected && styles.cardSelected]}
-                    onPress={() => onChange(level.value)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={level.label}
-                    accessibilityState={{ selected: isSelected }}
-                  >
-                    <View style={styles.cardIcon}>
-                      <level.Icon
-                        size={24}
-                        color={isSelected ? theme.colors.primary : theme.colors.textSecondary}
-                        strokeWidth={1.5}
-                      />
-                    </View>
-                    <View style={styles.cardText}>
-                      <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
-                        {level.label}
-                      </Text>
-                      <Text style={styles.cardDescription}>{level.description}</Text>
-                    </View>
-                  </TouchableOpacity>
+                  <React.Fragment key={level.value}>
+                    <TouchableOpacity
+                      style={[styles.card, isSelected && styles.cardSelected]}
+                      onPress={() => handleLevelChange(level.value, onChange)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={level.label}
+                      accessibilityState={{ selected: isSelected }}
+                    >
+                      <View style={styles.cardIcon}>
+                        <level.Icon
+                          size={24}
+                          color={isSelected ? theme.colors.primary : theme.colors.textSecondary}
+                          strokeWidth={1.5}
+                        />
+                      </View>
+                      <View style={styles.cardText}>
+                        <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]}>
+                          {level.label}
+                        </Text>
+                        <Text style={styles.cardDescription}>{level.description}</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {isSelected && level.value === 'beginner' && (
+                      <View style={styles.strategySection}>
+                        <View style={styles.strategyInfoCard}>
+                          <Info size={18} color={theme.colors.primary} />
+                          <View style={styles.strategyInfoText}>
+                            <Text style={styles.strategyAssignedLabel}>Estrategia asignada</Text>
+                            <Text style={styles.strategyAssignedName}>{BEGINNER_STRATEGY.name}</Text>
+                            <Text style={styles.strategyAssignedDesc}>{BEGINNER_STRATEGY.description}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+
+                    {isSelected && level.value === 'intermediate' && (
+                      <View style={styles.strategySection}>
+                        <Text style={styles.strategySectionLabel}>Elige tu estrategia de entrenamiento</Text>
+
+                        <Text style={styles.strategySubLabel}>⭐ RECOMENDADAS</Text>
+                        <View style={styles.strategyChipsRow}>
+                          {recommended.map((s) => (
+                            <Chip
+                              key={s.key}
+                              label={s.name}
+                              selected={selectedStrategy === s.key}
+                              onPress={() => setSelectedStrategy(s.key)}
+                            />
+                          ))}
+                        </View>
+
+                        <View style={styles.strategyDivider} />
+
+                        <Text style={styles.strategySubLabel}>TODAS</Text>
+                        <View style={styles.strategyChipsRow}>
+                          {other.map((s) => (
+                            <Chip
+                              key={s.key}
+                              label={s.name}
+                              selected={selectedStrategy === s.key}
+                              onPress={() => setSelectedStrategy(s.key)}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {isSelected && level.value === 'advanced' && (
+                      <View style={styles.strategySection}>
+                        <Text style={styles.strategySectionLabel}>Elige tu estrategia de entrenamiento</Text>
+                        <View style={styles.strategyChipsRow}>
+                          {ALL_STRATEGIES.map((s) => (
+                            <Chip
+                              key={s.key}
+                              label={s.name}
+                              selected={selectedStrategy === s.key}
+                              onPress={() => setSelectedStrategy(s.key)}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </React.Fragment>
                 );
               })}
               {errors.experienceLevel ? (
@@ -127,13 +233,11 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
           )}
         />
 
-        {/* Buttons */}
         <View style={styles.footer}>
           <PrimaryButton label="Continuar" onPress={handleSubmit(onSubmit)} />
           <SecondaryButton label="Volver" onPress={() => navigation.navigate('BasicData')} />
         </View>
-
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -143,56 +247,66 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  container: {
-    flex: 1,
+  scrollContent: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
-    alignItems: 'center',
+    paddingVertical: theme.spacing.xl,
   },
-
-  /* Progress dots */
-  dotsRow: {
-    flexDirection: 'row',
+  header: {
     gap: theme.spacing.sm,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xxl,
+    marginBottom: theme.spacing.lg,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.sm,
   },
-  dotActive: {
+  stepPill: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
+    borderWidth: 1,
+    borderRadius: theme.radius.full,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  stepText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  progressDot: {
+    width: 18,
+    height: 4,
+    borderRadius: theme.radius.full,
+  },
+  progressActive: {
     backgroundColor: theme.colors.primary,
   },
-  dotInactive: {
+  progressInactive: {
     backgroundColor: theme.colors.border,
   },
-
-  /* Title & subtitle */
   title: {
     color: theme.colors.textPrimary,
-    fontSize: theme.typography.heading2.fontSize,
-    lineHeight: theme.typography.heading2.lineHeight,
-    fontWeight: theme.typography.heading2.fontWeight,
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
+    fontSize: theme.typography.heading1.fontSize,
+    lineHeight: theme.typography.heading1.lineHeight,
+    fontWeight: theme.typography.heading1.fontWeight,
   },
   subtitle: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xxl,
-    paddingHorizontal: theme.spacing.md,
   },
 
   /* Cards */
   cardsContainer: {
-    flex: 1,
-    width: '100%',
     gap: theme.spacing.md,
-    justifyContent: 'center',
   },
   card: {
     flexDirection: 'row',
@@ -209,8 +323,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: theme.colors.primaryMuted,
   },
-
-  /* Card icon */
   cardIcon: {
     width: 48,
     height: 48,
@@ -219,8 +331,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  /* Card text */
   cardText: {
     flex: 1,
     gap: theme.spacing.xs,
@@ -240,6 +350,66 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.small.lineHeight,
   },
 
+  /* Strategy section (expanded below card) */
+  strategySection: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
+    marginTop: -theme.spacing.sm,
+  },
+  strategyInfoCard: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    alignItems: 'flex-start',
+  },
+  strategyInfoText: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  strategyAssignedLabel: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  strategyAssignedName: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: '600',
+  },
+  strategyAssignedDesc: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  strategySectionLabel: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '600',
+  },
+  strategySubLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  strategyChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  strategyDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+
   /* Error */
   errorText: {
     color: theme.colors.error,
@@ -250,8 +420,7 @@ const styles = StyleSheet.create({
 
   /* Footer */
   footer: {
-    width: '100%',
     gap: theme.spacing.md,
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.xl,
   },
 });

@@ -33,6 +33,14 @@ const LEVEL_LABELS: Record<string, string> = {
   advanced: 'Avanzado',
 };
 
+const STRATEGY_LABELS: Record<string, string> = {
+  straight: 'Straight (Estática)',
+  ascending: 'Ascending / UPP',
+  drop_sets: 'Drop Sets',
+  wave_loading: 'Wave Loading',
+  descending: 'Descending / Down',
+};
+
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Summary'>;
 
 export default function OnboardingSummaryScreen({ navigation }: Props) {
@@ -61,6 +69,7 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
       mainGoal: draft.mainGoal as OnboardingProfileBody['mainGoal'],
       daysAvailablePerWeek: draft.daysAvailablePerWeek ?? 3,
       weightUnit: draft.weightUnit ?? 'kg',
+      defaultTrainingStrategyKey: draft.trainingStrategyKey,
     };
 
     mutation.mutate(body, {
@@ -97,6 +106,11 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
               value={LEVEL_LABELS[draft.experienceLevel || ''] || '-'}
             />
             <SummaryRow label="Objetivo" value={GOAL_LABELS[draft.mainGoal || ''] || '-'} />
+            <SummaryRow label="Días disponibles" value={draft.daysAvailablePerWeek ? `${draft.daysAvailablePerWeek} días` : '3 días (por defecto)'} />
+            <SummaryRow label="Unidad de peso" value={draft.weightUnit ?? 'kg'} />
+            {draft.trainingStrategyKey ? (
+              <SummaryRow label="Estrategia" value={STRATEGY_LABELS[draft.trainingStrategyKey] || draft.trainingStrategyKey} />
+            ) : null}
           </View>
         </BaseCard>
 

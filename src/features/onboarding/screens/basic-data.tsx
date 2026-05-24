@@ -15,7 +15,7 @@ import DateTimePicker, {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Calendar } from 'lucide-react-native';
+import { Calendar, Weight } from 'lucide-react-native';
 import type { OnboardingStackParamList } from '@/navigation/types';
 import {
   onboardingBasicDataSchema,
@@ -68,8 +68,16 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
     },
   });
 
+  const [selectedWeightUnit, setSelectedWeightUnit] = React.useState<'kg' | 'lbs'>(
+    draft.weightUnit ?? 'kg',
+  );
+
   const onSubmit = (data: OnboardingBasicDataFormData) => {
-    draft.setBasicData(data);
+    const weightKg = selectedWeightUnit === 'lbs'
+      ? (parseFloat(data.weight) * 0.453592).toFixed(1)
+      : data.weight;
+    draft.setBasicData({ ...data, weight: weightKg });
+    draft.setWeightUnit(selectedWeightUnit);
     navigation.navigate('Level');
   };
 
@@ -226,10 +234,10 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
                     name="weight"
                     render={({ field: { onChange, value } }) => (
                       <TextInput
-                        label="Peso (kg)"
+                        label={`Peso (${selectedWeightUnit})`}
                         value={value}
                         onChangeText={onChange}
-                        placeholder="Ej. 75.5"
+                        placeholder={selectedWeightUnit === 'kg' ? 'Ej. 75.5' : 'Ej. 165'}
                         keyboardType="numeric"
                         error={errors.weight?.message}
                       />
@@ -251,6 +259,28 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
                       />
                     )}
                   />
+                </View>
+              </View>
+
+              <View>
+                <Text style={styles.label}>Unidad de peso</Text>
+                <View style={styles.unitRow}>
+                  <TouchableOpacity
+                    style={[styles.unitChip, selectedWeightUnit === 'kg' && styles.unitChipActive]}
+                    onPress={() => setSelectedWeightUnit('kg')}
+                    activeOpacity={0.7}
+                  >
+                    <Weight size={16} color={selectedWeightUnit === 'kg' ? theme.colors.background : theme.colors.textSecondary} />
+                    <Text style={[styles.unitChipText, selectedWeightUnit === 'kg' && styles.unitChipTextActive]}>kg</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.unitChip, selectedWeightUnit === 'lbs' && styles.unitChipActive]}
+                    onPress={() => setSelectedWeightUnit('lbs')}
+                    activeOpacity={0.7}
+                  >
+                    <Weight size={16} color={selectedWeightUnit === 'lbs' ? theme.colors.background : theme.colors.textSecondary} />
+                    <Text style={[styles.unitChipText, selectedWeightUnit === 'lbs' && styles.unitChipTextActive]}>lbs</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -355,6 +385,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
+  },
+  unitRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  unitChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  unitChipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  unitChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '600',
+  },
+  unitChipTextActive: {
+    color: theme.colors.background,
   },
   row: {
     flexDirection: 'row',

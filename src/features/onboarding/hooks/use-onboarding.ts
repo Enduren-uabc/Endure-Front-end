@@ -13,6 +13,7 @@ export interface OnboardingProfileBody {
   mainGoal: 'lose_weight' | 'gain_muscle' | 'maintain' | 'improve_endurance' | 'general_fitness';
   daysAvailablePerWeek?: number;
   weightUnit?: 'kg' | 'lbs';
+  defaultTrainingStrategyKey?: string;
 }
 
 export interface OnboardingProfileResponse {
@@ -27,6 +28,7 @@ export interface OnboardingProfileResponse {
   mainGoal: string;
   daysAvailablePerWeek: number;
   weightUnit: string;
+  defaultTrainingStrategyKey: string | null;
   onboardingCompleted: boolean;
   createdAt: Date;
   updatedAt: Date;

@@ -6,6 +6,7 @@ import type {
   WorkoutSession,
   WorkoutSessionDetail,
   WorkoutSessionSummary,
+  WorkoutSessionHistoryResponse,
 } from '@/features/training/types/workout-session';
 
 const workoutSessionKeys = {
@@ -49,10 +50,10 @@ export function useWorkoutSessionDetail(sessionId?: string) {
 }
 
 export function useWorkoutHistory() {
-  return useQuery<WorkoutSessionSummary[]>({
+  return useQuery<WorkoutSessionHistoryResponse>({
     queryKey: workoutSessionKeys.history,
     queryFn: () =>
-      apiClient.get<WorkoutSessionSummary[]>(
+      apiClient.get<WorkoutSessionHistoryResponse>(
         API_ENDPOINTS.workoutSessions.history,
       ),
   });

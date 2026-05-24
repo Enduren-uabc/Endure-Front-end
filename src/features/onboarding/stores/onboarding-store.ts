@@ -23,6 +23,7 @@ interface OnboardingDraft {
   experienceLevel?: OnboardingExperienceLevel;
   daysAvailablePerWeek?: number;
   weightUnit?: OnboardingWeightUnit;
+  trainingStrategyKey?: string;
 }
 
 interface OnboardingState extends OnboardingDraft {
@@ -37,6 +38,7 @@ interface OnboardingState extends OnboardingDraft {
   setExperienceLevel: (level: OnboardingExperienceLevel) => void;
   setDaysAvailablePerWeek: (days: number) => void;
   setWeightUnit: (unit: OnboardingWeightUnit) => void;
+  setTrainingStrategyKey: (key: string) => void;
   reset: () => void;
 }
 
@@ -60,5 +62,6 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setExperienceLevel: (experienceLevel) => set({ experienceLevel }),
   setDaysAvailablePerWeek: (daysAvailablePerWeek) => set({ daysAvailablePerWeek }),
   setWeightUnit: (weightUnit) => set({ weightUnit }),
+  setTrainingStrategyKey: (trainingStrategyKey) => set({ trainingStrategyKey }),
   reset: () => set({ ...initialState }),
 }));

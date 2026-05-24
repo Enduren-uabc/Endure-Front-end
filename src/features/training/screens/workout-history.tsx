@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ArrowLeft, ChevronRight, History } from 'lucide-react-native';
+import { AlertTriangle, ArrowLeft, ChevronRight, History } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useWorkoutHistory } from '@/features/training/hooks/use-workout-session';
@@ -66,7 +66,9 @@ function WorkoutHistoryItem({
 
 export default function WorkoutHistoryScreen({ navigation }: Props) {
   const historyQuery = useWorkoutHistory();
-  const sessions = historyQuery.data ?? [];
+  const response = historyQuery.data;
+  const sessions = response?.sessions ?? [];
+  const hasIncompleteData = response?.hasIncompleteData ?? false;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -112,6 +114,15 @@ export default function WorkoutHistoryScreen({ navigation }: Props) {
               Cuando termines un entrenamiento aparecerá aquí.
             </Text>
           </BaseCard>
+        )}
+
+        {hasIncompleteData && (
+          <View style={styles.incompleteBanner}>
+            <AlertTriangle size={16} color={theme.colors.warning} />
+            <Text style={styles.incompleteBannerText}>
+              Algunos registros del historial contienen información incompleta y no se muestran.
+            </Text>
+          </View>
         )}
 
         {!historyQuery.isLoading &&
@@ -181,6 +192,22 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
     textAlign: 'center',
+  },
+  incompleteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.warning + '15',
+    borderWidth: 1,
+    borderColor: theme.colors.warning + '40',
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+  },
+  incompleteBannerText: {
+    color: theme.colors.warning,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    flex: 1,
   },
   historyCard: {
     padding: theme.spacing.md,
