@@ -8,6 +8,12 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
   ResetPasswordCode: { email: string };
   ResetPassword: { email: string; token: string };
+  SessionExpired: undefined;
+  OAuthError: {
+    provider: 'google' | 'apple';
+    reason: 'cancelled' | 'failed';
+    message?: string;
+  };
   Privacy: { from?: string } | undefined;
 };
 
@@ -22,7 +28,11 @@ export type WorkoutStackParamList = {
   WorkoutStart: undefined;
   WorkoutSession: { sessionId: string };
   WorkoutFinishSummary: { sessionId: string };
-  WorkoutHistory: undefined;
+  WorkoutHistory: { returnTo?: 'Profile' } | undefined;
+  WorkoutSessionDetail: { sessionId: string; returnTo?: 'Profile' };
+  ExerciseProgress: { exerciseId?: string; returnTo?: 'Profile' } | undefined;
+  Achievements: { returnTo?: 'Profile' } | undefined;
+  Measurements: { returnTo?: 'Profile' } | undefined;
 };
 
 export type SocialStackParamList = {
@@ -35,6 +45,7 @@ export type TrainingStackParamList = {
   RoutinesList: undefined;
   RoutineDetail: { id: string };
   RoutineBuilder: { id: string };
+  ExerciseCatalog: { routineId?: string } | undefined;
   ExerciseDetail: { routineId: string; exercise: ExerciseConfig };
 };
 
@@ -46,6 +57,12 @@ export type CoachStackParamList = {
   PowerspikeHome: undefined;
   PowerspikeForm: undefined;
   PowerspikeStatus: undefined;
+};
+
+export type SettingsStackParamList = {
+  SettingsHome: { returnTo?: 'Profile' } | undefined;
+  Reminders: undefined;
+  PrivacyNotice: undefined;
 };
 
 export type AdminStackParamList = {
@@ -75,7 +92,34 @@ export type TrainerLinkStackParamList = {
   SentRequests: undefined;
   MyTrainer: undefined;
   ReceivedRequests: undefined;
+  AssignedRoutine: undefined;
   MyAssignedRoutines: undefined;
+};
+
+
+export type TrainerClientsStackParamList = {
+  ClientsList: undefined;
+  ClientDetail: {
+    clientId: string;
+    clientName: string;
+    linkId: string;
+    activatedAt: string;
+  };
+  AssignRoutine: {
+    clientId: string;
+    clientName: string;
+    linkId: string;
+    activatedAt: string;
+    preselectedRoutineId?: string;
+    preselectedRoutineName?: string;
+  };
+  ClientProgress: {
+    clientId: string;
+    clientName: string;
+    linkId: string;
+    activatedAt: string;
+  };
+};
 };
 
 export type AppTabsParamList = {

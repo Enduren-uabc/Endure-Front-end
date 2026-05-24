@@ -40,6 +40,8 @@ const linking: LinkingOptions<RootStackParamList> = {
           Register: 'register',
           ForgotPassword: 'forgot-password',
           ResetPassword: 'reset-password',
+          SessionExpired: 'session-expired',
+          OAuthError: 'oauth-error',
         },
       },
       OnboardingStack: {
@@ -55,31 +57,37 @@ const linking: LinkingOptions<RootStackParamList> = {
           MainTabs: {
             screens: {
               Home: 'home',
-              Workout: {
-                screens: {
-                  WorkoutStart: 'workout',
-                  WorkoutSession: 'workout/session/:sessionId',
-                  WorkoutFinishSummary: 'workout/summary/:sessionId',
-                  WorkoutHistory: 'workout/history',
-                },
-              },
               Routines: {
                 screens: {
                   RoutinesList: 'routines',
                   RoutineDetail: 'routine-detail/:id',
                   RoutineBuilder: 'routine-builder/:id',
+                  ExerciseCatalog: 'routine-builder/:routineId/exercises',
+                  ExerciseDetail: 'routine/:routineId/exercise-detail',
                 },
               },
-              Social: {
-                screens: {
-                  SocialFeed: 'social',
-                  PublicProfile: 'profiles/:userId',
-                  PostDetail: 'posts/:postId',
-                },
-              },
+              Profile: 'profile',
             },
           },
-          Settings: 'settings',
+          WorkoutStack: {
+            screens: {
+              WorkoutStart: 'workout',
+              WorkoutSession: 'workout/session/:sessionId',
+              WorkoutFinishSummary: 'workout/summary/:sessionId',
+              WorkoutHistory: 'workout/history',
+              WorkoutSessionDetail: 'workout/history/:sessionId',
+              ExerciseProgress: 'workout/progress',
+              Achievements: 'workout/achievements',
+              Measurements: 'workout/measurements',
+            },
+          },
+          Settings: {
+            screens: {
+              SettingsHome: 'settings',
+              Reminders: 'settings/reminders',
+              PrivacyNotice: 'settings/privacy',
+            },
+          },
           Help: 'help',
         },
       },
@@ -88,31 +96,46 @@ const linking: LinkingOptions<RootStackParamList> = {
           MainTabs: {
             screens: {
               Home: 'home',
-              Workout: {
+              Clients: {
                 screens: {
-                  WorkoutStart: 'workout',
-                  WorkoutSession: 'workout/session/:sessionId',
-                  WorkoutFinishSummary: 'workout/summary/:sessionId',
-                  WorkoutHistory: 'workout/history',
+                  ClientsList: 'trainer/clients',
+                  ClientDetail: 'trainer/clients/:clientId',
+                  AssignRoutine: 'trainer/clients/:clientId/assign-routine',
+                  ClientProgress: 'trainer/clients/:clientId/progress',
                 },
               },
-              Routines: {
-                screens: {
-                  RoutinesList: 'routines',
-                  RoutineDetail: 'routine-detail/:id',
-                  RoutineBuilder: 'routine-builder/:id',
-                },
-              },
-              Social: {
-                screens: {
-                  SocialFeed: 'social',
-                  PublicProfile: 'profiles/:userId',
-                  PostDetail: 'posts/:postId',
-                },
-              },
+              Routines: 'trainer/routines',
+              Profile: 'trainer/profile',
             },
           },
-          Settings: 'settings',
+          WorkoutStack: {
+            screens: {
+              WorkoutStart: 'workout',
+              WorkoutSession: 'workout/session/:sessionId',
+              WorkoutFinishSummary: 'workout/summary/:sessionId',
+              WorkoutHistory: 'workout/history',
+              WorkoutSessionDetail: 'workout/history/:sessionId',
+              ExerciseProgress: 'workout/progress',
+              Achievements: 'workout/achievements',
+              Measurements: 'workout/measurements',
+            },
+          },
+          TrainingStack: {
+            screens: {
+              RoutinesList: 'trainer/routines/list',
+              RoutineDetail: 'trainer/routine-detail/:id',
+              RoutineBuilder: 'trainer/routine-builder/:id',
+              ExerciseCatalog: 'trainer/routine-builder/:routineId/exercises',
+              ExerciseDetail: 'trainer/routine/:routineId/exercise-detail',
+            },
+          },
+          Settings: {
+            screens: {
+              SettingsHome: 'settings',
+              Reminders: 'settings/reminders',
+              PrivacyNotice: 'settings/privacy',
+            },
+          },
           Help: 'help',
         },
       },

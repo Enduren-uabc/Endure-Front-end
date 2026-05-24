@@ -14,14 +14,20 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Search, User, AlertCircle } from 'lucide-react-native';
 import { theme } from '@/theme';
+import { Chip } from '@/components/ui/Chip';
 import { useSearchTrainers, useMyTrainer, useSendLinkRequest } from '../hooks/use-trainer-link';
 import TrainerSearchCard from '../components/trainer-search-card';
 import type { TrainerLinkStackParamList } from '@/navigation/types';
+import type { TrainerSearchResult } from '../types/trainer-link';
+import type { TrainerSearchSendState } from '../components/trainer-search-card';
+
+const SPECIALTY_FILTERS = ['Todas', 'Fuerza', 'Hipertrofia', 'Cardio', 'Movilidad'];
 
 export default function SearchTrainerScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<TrainerLinkStackParamList>>();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [specialtyFilter, setSpecialtyFilter] = useState('Todas');
 
   const debounceTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -37,14 +43,37 @@ export default function SearchTrainerScreen() {
   const { data: myTrainer } = useMyTrainer();
   const sendRequest = useSendLinkRequest();
 
-  const hasActiveTrainer = myTrainer?.hasTrainer && myTrainer?.trainer !== null;
-  const canSendRequest = !hasActiveTrainer;
+  const linkedTrainerId = myTrainer?.trainer?.trainerId ?? null;
+  const hasActiveTrainer = Boolean(linkedTrainerId);
+  const getSendState = useCallback((trainerId: string): TrainerSearchSendState => {
+    if (linkedTrainerId === trainerId) return 'linked';
+    if (hasActiveTrainer) return 'blocked';
+    return 'available';
+  }, [hasActiveTrainer, linkedTrainerId]);
+
+  const filteredItems = React.useMemo(() => {
+    const items = results?.items ?? [];
+    if (specialtyFilter === 'Todas') return items;
+    return items.filter((trainer) =>
+      trainer.specialties.some((specialty) =>
+        specialty.toLowerCase().includes(specialtyFilter.toLowerCase()),
+      ),
+    );
+  }, [results?.items, specialtyFilter]);
 
   const handleSendRequest = useCallback((trainerId: string) => {
-    if (!canSendRequest) {
+    const sendState = getSendState(trainerId);
+
+    if (sendState === 'linked') {
+      Alert.alert('Entrenador vinculado', 'Ya estás vinculado con este entrenador.');
+      return;
+    }
+
+    if (sendState === 'blocked') {
       Alert.alert('Ya tienes un entrenador', 'Ya tienes un entrenador vinculado. Desvincúlate primero para enviar una nueva solicitud.');
       return;
     }
+
     Alert.alert(
       'Enviar solicitud',
       '¿Enviar solicitud de vinculación a este entrenador?',
@@ -59,8 +88,8 @@ export default function SearchTrainerScreen() {
                 onSuccess: () => {
                   Alert.alert('Solicitud enviada', 'Tu solicitud de vinculación ha sido enviada.');
                 },
-                onError: (err: any) => {
-                  Alert.alert('Error', err?.message ?? 'No pudimos enviar la solicitud.');
+                onError: (err: Error) => {
+                  Alert.alert('Error', err.message || 'No pudimos enviar la solicitud.');
                 },
               },
             );
@@ -68,16 +97,16 @@ export default function SearchTrainerScreen() {
         },
       ],
     );
-  }, [canSendRequest, sendRequest]);
+  }, [getSendState, sendRequest]);
 
-  const renderItem = useCallback(({ item }: any) => (
+  const renderItem = useCallback(({ item }: { item: TrainerSearchResult }) => (
     <TrainerSearchCard
       trainer={item}
       onSendRequest={handleSendRequest}
       onViewProfile={(trainerId) => navigation.navigate('TrainerProfile', { trainerId })}
-      disabled={!canSendRequest}
+      sendState={getSendState(item.userId)}
     />
-  ), [canSendRequest, handleSendRequest, navigation]);
+  ), [getSendState, handleSendRequest, navigation]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -98,6 +127,17 @@ export default function SearchTrainerScreen() {
         <Text style={styles.hint}>
           Ingresa el código único del entrenador (ej. END-ABC123) o su nombre
         </Text>
+
+        <View style={styles.filters}>
+          {SPECIALTY_FILTERS.map((filter) => (
+            <Chip
+              key={filter}
+              label={filter}
+              selected={specialtyFilter === filter}
+              onPress={() => setSpecialtyFilter(filter)}
+            />
+          ))}
+        </View>
 
         {hasActiveTrainer && (
           <View style={styles.activeBanner}>
@@ -125,17 +165,17 @@ export default function SearchTrainerScreen() {
           </View>
         )}
 
-        {results && results.items.length === 0 && debouncedQuery.length >= 2 && (
+        {results && filteredItems.length === 0 && debouncedQuery.length >= 2 && (
           <View style={styles.center}>
             <User size={40} color={theme.colors.textMuted} />
             <Text style={styles.emptyText}>No se encontraron entrenadores con esa búsqueda</Text>
           </View>
         )}
 
-        {results && results.items.length > 0 && (
+        {filteredItems.length > 0 && (
           <FlatList
-            data={results.items}
-            keyExtractor={(item: any) => item.userId}
+            data={filteredItems}
+            keyExtractor={(item) => item.userId}
             renderItem={renderItem}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
@@ -184,6 +224,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#A0A0B0',
     marginTop: 6,
+    marginBottom: 12,
+  },
+  filters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 16,
   },
   activeBanner: {

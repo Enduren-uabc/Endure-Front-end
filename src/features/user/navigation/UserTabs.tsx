@@ -1,25 +1,19 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Dumbbell, Home, Play, Users } from 'lucide-react-native';
-import HomeScreen from '@/features/home/screens/home';
+import { Dumbbell, Home, UserRound } from 'lucide-react-native';
+import HomeTrainingV2Screen from '@/features/home/screens/v2/HomeTrainingV2Screen';
 import TrainingStack from '@/navigation/TrainingStack';
-import WorkoutStack from '@/navigation/WorkoutStack';
-import SocialStack from '@/navigation/SocialStack';
+import ClientProfileScreen from '@/features/profile/screens/ClientProfileScreen';
+import { theme } from '@/theme';
 import type { UserTabsParamList } from '../types/user-navigation.types';
 
 const Tabs = createBottomTabNavigator<UserTabsParamList>();
 
 const TAB_COLORS = {
-  active: '#101D3D',
-  inactive: '#9E9EAD',
-  barBg: '#FFFFFF',
-  barBorder: '#E5E5EA',
-  workoutBtnBg: '#101D3D',
-  workoutBtnIcon: '#FFFFFF',
-  workoutBtnBgInactive: '#F2F2F7',
-  workoutBtnIconInactive: '#9E9EAD',
-  workoutBtnBorder: '#E5E5EA',
+  active: theme.colors.primary,
+  inactive: theme.colors.textMuted,
+  barBg: theme.colors.background,
+  barBorder: theme.colors.border,
 };
 
 export default function UserTabs() {
@@ -45,36 +39,10 @@ export default function UserTabs() {
     >
       <Tabs.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeTrainingV2Screen}
         options={{
           title: 'Inicio',
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="Workout"
-        component={WorkoutStack}
-        options={{
-          title: 'Entrenar',
-          tabBarIcon: ({ color, size }) => <Play size={size} color={color} />,
-          tabBarButton: ({ children, onPress, accessibilityState }) => (
-            <TouchableOpacity
-              onPress={onPress}
-              activeOpacity={0.86}
-              style={styles.workoutTabOuter}
-            >
-              <View
-                style={[
-                  styles.workoutTabButton,
-                  accessibilityState?.selected
-                    ? styles.workoutTabButtonActive
-                    : styles.workoutTabButtonInactive,
-                ]}
-              >
-                {children}
-              </View>
-            </TouchableOpacity>
-          ),
         }}
       />
       <Tabs.Screen
@@ -86,38 +54,13 @@ export default function UserTabs() {
         }}
       />
       <Tabs.Screen
-        name="Social"
-        component={SocialStack}
+        name="Profile"
+        component={ClientProfileScreen}
         options={{
-          title: 'Comunidad',
-          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => <UserRound size={size} color={color} />,
         }}
       />
     </Tabs.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  workoutTabOuter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -18,
-  },
-  workoutTabButton: {
-    width: 76,
-    minHeight: 60,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  workoutTabButtonActive: {
-    backgroundColor: TAB_COLORS.workoutBtnBg,
-    borderColor: TAB_COLORS.workoutBtnBg,
-  },
-  workoutTabButtonInactive: {
-    backgroundColor: TAB_COLORS.workoutBtnBgInactive,
-    borderColor: TAB_COLORS.workoutBtnBorder,
-  },
-});

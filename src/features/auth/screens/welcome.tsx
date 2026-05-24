@@ -16,6 +16,17 @@ export default function WelcomeScreen({ navigation }: Props) {
   const { login: googleLogin, isPending: googlePending, error: googleError, clearError } = useGoogleAuth();
   const { login: appleLogin, isPending: applePending, error: appleError } = useAppleAuth();
 
+  React.useEffect(() => {
+    if (!googleError) return;
+
+    navigation.navigate('OAuthError', {
+      provider: 'google',
+      reason: googleError.includes('Cancelaste') ? 'cancelled' : 'failed',
+      message: googleError,
+    });
+    clearError();
+  }, [clearError, googleError, navigation]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>

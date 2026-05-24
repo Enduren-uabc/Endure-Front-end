@@ -20,9 +20,7 @@
     "axios": "^1.16.0",
     "date-fns": "^4.1.0",
     "expo": "~54.0.33",
-    "expo-apple-authentication": "~8.0.8",
     "expo-auth-session": "~7.0.11",
-    "expo-crypto": "~15.0.9",
     "expo-document-picker": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-linking": "~8.0.12",
@@ -48,5 +46,6 @@
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "packageManager": "pnpm@11.1.1+sha512.d1fdf5f73c617b64fa1a56a81c3c8dfe0e966e33a6010aa256b517ae77be21d93e05affc0de1a83b0e4f29d569f68b446ae8f068cd7247c0bb3df0fb4d7bdf9a"
 }

@@ -80,7 +80,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as AxiosError);
         await tokenStore.clear();
-        useSessionStore.getState().clearSession();
+        useSessionStore.getState().clearSession('expired');
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -89,7 +89,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401) {
       await tokenStore.clear();
-      useSessionStore.getState().clearSession();
+      useSessionStore.getState().clearSession('expired');
     }
 
     return Promise.reject(error);

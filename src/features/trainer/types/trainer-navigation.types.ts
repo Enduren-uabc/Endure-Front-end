@@ -5,6 +5,7 @@ import type {
   SocialStackParamList,
   TrainerLinkStackParamList,
   ClientsStackParamList,
+  SettingsStackParamList,
 } from '@/navigation/types';
 
 export type TrainerTabsParamList = {
@@ -18,7 +19,7 @@ export type TrainerTabsParamList = {
 export type TrainerDrawerParamList = {
   MainTabs: NavigatorScreenParams<TrainerTabsParamList> | undefined;
   TrainerLinkStack: NavigatorScreenParams<TrainerLinkStackParamList> | undefined;
-  Settings: undefined;
+  Settings: NavigatorScreenParams<SettingsStackParamList> | undefined;
   Help: undefined;
   PrivacyNotice: undefined;
 };

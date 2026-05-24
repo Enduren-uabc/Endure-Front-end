@@ -12,20 +12,23 @@ interface SessionState {
   hasHydrated: boolean;
   onboardingCompleted: boolean | null;
   emailVerified: boolean;
+  sessionExpiredNotice: boolean;
 }
 
 interface SessionActions {
-  setSession: (userId: string, role: string, username?: string, email?: string, onboardingCompleted?: boolean | null, emailVerified?: boolean) => void;
-  clearSession: () => void;
+  setSession: (userId: string, role: string, username?: string, email?: string | null, onboardingCompleted?: boolean | null, emailVerified?: boolean) => void;
+  clearSession: (reason?: 'manual' | 'expired') => void;
   setLoading: (isLoading: boolean) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
   setOnboardingCompleted: (completed: boolean | null) => void;
   setEmailVerified: (verified: boolean) => void;
+  dismissSessionExpiredNotice: () => void;
 }
 
 const initialState: SessionState = {
   userId: null, username: null, email: null, role: null, isAuthenticated: false,
   isLoading: false, hasHydrated: false, onboardingCompleted: null, emailVerified: false,
+  sessionExpiredNotice: false,
 };
 
 export const useSessionStore = create<SessionState & SessionActions>()(
@@ -41,12 +44,15 @@ export const useSessionStore = create<SessionState & SessionActions>()(
           isAuthenticated: true,
           onboardingCompleted,
           emailVerified,
+          sessionExpiredNotice: false,
         }),
-      clearSession: () => set({ ...initialState, hasHydrated: true }),
+      clearSession: (reason = 'manual') =>
+        set({ ...initialState, hasHydrated: true, sessionExpiredNotice: reason === 'expired' }),
       setLoading: (isLoading) => set({ isLoading }),
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       setOnboardingCompleted: (onboardingCompleted) => set({ onboardingCompleted }),
       setEmailVerified: (verified) => set({ emailVerified: verified }),
+      dismissSessionExpiredNotice: () => set({ sessionExpiredNotice: false }),
     }),
     {
       name: 'endure-session',

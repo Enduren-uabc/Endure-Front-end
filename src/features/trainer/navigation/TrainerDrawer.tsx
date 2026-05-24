@@ -1,10 +1,17 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { Dumbbell, Settings, HelpCircle, UsersRound, Inbox } from 'lucide-react-native';
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+  type DrawerContentComponentProps,
+} from '@react-navigation/drawer';
+import { Dumbbell, Settings, HelpCircle, Inbox } from 'lucide-react-native';
 import TrainerTabs from './TrainerTabs';
+import TrainingStack from '@/navigation/TrainingStack';
+import WorkoutStack from '@/navigation/WorkoutStack';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
-import SettingsScreen from '@/features/settings/screens/settings';
+import SettingsStack from '@/features/settings/navigation/SettingsStack';
 import PrivacyScreen from '@/features/privacy/screens/PrivacyScreen';
 import HelpScreen from '@/features/help/screens/help';
 import { theme } from '@/theme';
@@ -12,7 +19,7 @@ import type { TrainerDrawerParamList } from '../types/trainer-navigation.types';
 
 const Drawer = createDrawerNavigator<TrainerDrawerParamList>();
 
-function CustomDrawerContent(props: any) {
+function CustomDrawerContent(props: DrawerContentComponentProps) {
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent}>
       <DrawerItemList {...props} />
@@ -63,13 +70,28 @@ export default function TrainerDrawer() {
         component={TrainerLinkStack}
         options={{
           title: 'Solicitudes',
-          drawerItemStyle: { display: 'none' },
           drawerIcon: ({ color, size }) => <Inbox size={size} color={color} />,
         }}
       />
       <Drawer.Screen
+        name="WorkoutStack"
+        component={WorkoutStack}
+        options={{
+          title: 'Entrenamiento',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="TrainingStack"
+        component={TrainingStack}
+        options={{
+          title: 'Rutinas',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           title: 'Configuración',
           drawerIcon: ({ color, size }) => <Settings size={size} color={color} />,

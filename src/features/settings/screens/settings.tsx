@@ -1,14 +1,33 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { FileText } from 'lucide-react-native';
+import { useNavigation, useRoute, type NavigationProp, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ArrowLeft, Bell, ChevronRight, FileText, HelpCircle, LogOut, Shield } from 'lucide-react-native';
 import { theme } from '@/theme';
 import { useLogout } from '@/features/auth/hooks/use-auth';
+import type { SettingsStackParamList } from '@/navigation/types';
+import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
+
+type SettingsNavigation = NativeStackNavigationProp<SettingsStackParamList, 'SettingsHome'>;
+type SettingsRoute = RouteProp<SettingsStackParamList, 'SettingsHome'>;
 
 export default function SettingsScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<SettingsNavigation>();
+  const route = useRoute<SettingsRoute>();
   const logoutMutation = useLogout();
+  const returnTo = route.params?.returnTo;
+
+  const handleBack = React.useCallback(() => {
+    const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
+
+    if (returnTo === 'Profile' && drawerNavigation) {
+      drawerNavigation.navigate('MainTabs', { screen: 'Profile' });
+      return;
+    }
+
+    navigation.goBack();
+  }, [navigation, returnTo]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -28,7 +47,59 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Configuración</Text>
+        <View style={styles.header}>
+          {returnTo === 'Profile' ? (
+            <TouchableOpacity
+              activeOpacity={0.78}
+              onPress={handleBack}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Volver al perfil"
+            >
+              <ArrowLeft size={22} color={theme.colors.textPrimary} />
+            </TouchableOpacity>
+          ) : null}
+          <View style={styles.headerCopy}>
+          <Text style={styles.title}>Configuración</Text>
+          <Text style={styles.subtitle}>
+            Ajusta notificaciones, privacidad y estado de tu cuenta.
+          </Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Preferencias</Text>
+          <View style={styles.card}>
+            <SettingsRow
+              icon={<Bell size={20} color={theme.colors.primary} />}
+              title="Recordatorios"
+              subtitle="Hora, días y avisos de entrenamiento"
+              onPress={() => navigation.navigate('Reminders')}
+            />
+            <SettingsRow
+              icon={<FileText size={20} color={theme.colors.primary} />}
+              title="Aviso de privacidad"
+              subtitle="Copia local, versión y disponibilidad"
+              onPress={() => navigation.navigate('PrivacyNotice')}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Cuenta</Text>
+          <View style={styles.card}>
+            <StaticRow
+              icon={<Shield size={20} color={theme.colors.success} />}
+              title="Sesión segura"
+              subtitle="Los tokens se limpian al cerrar sesión"
+            />
+            <StaticRow
+              icon={<HelpCircle size={20} color={theme.colors.textSecondary} />}
+              title="Soporte"
+              subtitle="Disponible desde el menú lateral"
+            />
+          </View>
+        </View>
 
         <View style={styles.optionsSection}>
           <TouchableOpacity
@@ -58,7 +129,10 @@ export default function SettingsScreen() {
             {logoutMutation.isPending ? (
               <ActivityIndicator color={theme.colors.error} />
             ) : (
-              <Text style={styles.logoutText}>Cerrar sesión</Text>
+              <>
+                <LogOut size={18} color={theme.colors.error} />
+                <Text style={styles.logoutText}>Cerrar sesión</Text>
+              </>
             )}
           </TouchableOpacity>
           {logoutMutation.isError && (
@@ -72,6 +146,49 @@ export default function SettingsScreen() {
   );
 }
 
+function SettingsRow({
+  icon,
+  title,
+  subtitle,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.82}>
+      <View style={styles.rowIcon}>{icon}</View>
+      <View style={styles.rowCopy}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowSubtitle}>{subtitle}</Text>
+      </View>
+      <ChevronRight size={18} color={theme.colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
+function StaticRow({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowIcon}>{icon}</View>
+      <View style={styles.rowCopy}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -81,12 +198,87 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.xl,
+    gap: theme.spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.md,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCopy: {
+    flex: 1,
+    gap: theme.spacing.sm,
   },
   title: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.primary,
     fontSize: theme.typography.heading1.fontSize,
     lineHeight: theme.typography.heading1.lineHeight,
     fontWeight: theme.typography.heading1.fontWeight,
+  },
+  subtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+  },
+  section: {
+    gap: theme.spacing.sm,
+  },
+  sectionTitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    overflow: 'hidden',
+  },
+  row: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderBottomColor: theme.colors.border,
+    borderBottomWidth: 1,
+  },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowCopy: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  rowTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  rowSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
   optionsSection: {
     marginTop: theme.spacing.lg,
@@ -134,6 +326,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     flexDirection: 'row',
+    gap: theme.spacing.sm,
     minHeight: 52,
     borderRadius: theme.radius.md,
     borderWidth: 1,
