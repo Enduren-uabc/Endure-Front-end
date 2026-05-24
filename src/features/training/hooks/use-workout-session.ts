@@ -150,6 +150,62 @@ export function useAdvanceWorkoutExercise() {
   });
 }
 
+export function useAddWorkoutSet() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    WorkoutSession,
+    Error,
+    { sessionId: string; exerciseIndex: number; reps: number; weight: number }
+  >({
+    mutationFn: ({ sessionId, exerciseIndex, reps, weight }) =>
+      apiClient.post<WorkoutSession>(
+        API_ENDPOINTS.workoutSessions.addSet(sessionId, exerciseIndex),
+        { reps, weight },
+      ),
+    onSuccess: (session) => {
+      cacheSession(queryClient, session);
+    },
+  });
+}
+
+export function useRemoveWorkoutSet() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    WorkoutSession,
+    Error,
+    { sessionId: string; exerciseIndex: number; setNumber: number }
+  >({
+    mutationFn: ({ sessionId, exerciseIndex, setNumber }) =>
+      apiClient.del<WorkoutSession>(
+        API_ENDPOINTS.workoutSessions.removeSet(
+          sessionId,
+          exerciseIndex,
+          setNumber,
+        ),
+      ),
+    onSuccess: (session) => {
+      cacheSession(queryClient, session);
+    },
+  });
+}
+
+export function useDiscardWorkoutSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation<WorkoutSession, Error, { sessionId: string }>({
+    mutationFn: ({ sessionId }) =>
+      apiClient.patch<WorkoutSession>(
+        API_ENDPOINTS.workoutSessions.discard(sessionId),
+      ),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: workoutSessionKeys.inProgress });
+      queryClient.invalidateQueries({ queryKey: workoutSessionKeys.history });
+    },
+  });
+}
+
 export function useFinishWorkoutSession() {
   const queryClient = useQueryClient();
 

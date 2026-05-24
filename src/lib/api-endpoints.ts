@@ -55,6 +55,11 @@ export const API_ENDPOINTS = {
       `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}`,
     completeSet: (id: string, exerciseIndex: number, setNumber: number) =>
       `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}/complete`,
+    addSet: (id: string, exerciseIndex: number) =>
+      `/workout-sessions/${id}/exercises/${exerciseIndex}/sets`,
+    removeSet: (id: string, exerciseIndex: number, setNumber: number) =>
+      `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}`,
+    discard: (id: string) => `/workout-sessions/${id}/discard`,
   },
   publications: {
     feed: '/publications',
