@@ -40,6 +40,8 @@ const linking: LinkingOptions<RootStackParamList> = {
           Register: 'register',
           ForgotPassword: 'forgot-password',
           ResetPassword: 'reset-password',
+          SessionExpired: 'session-expired',
+          OAuthError: 'oauth-error',
         },
       },
       OnboardingStack: {
@@ -68,6 +70,8 @@ const linking: LinkingOptions<RootStackParamList> = {
                   RoutinesList: 'routines',
                   RoutineDetail: 'routine-detail/:id',
                   RoutineBuilder: 'routine-builder/:id',
+                  ExerciseCatalog: 'routine-builder/:routineId/exercises',
+                  ExerciseDetail: 'routine/:routineId/exercise-detail',
                 },
               },
               Social: {
@@ -79,7 +83,13 @@ const linking: LinkingOptions<RootStackParamList> = {
               },
             },
           },
-          Settings: 'settings',
+          Settings: {
+            screens: {
+              SettingsHome: 'settings',
+              Reminders: 'settings/reminders',
+              PrivacyNotice: 'settings/privacy',
+            },
+          },
           Help: 'help',
         },
       },
@@ -101,6 +111,14 @@ const linking: LinkingOptions<RootStackParamList> = {
                   RoutinesList: 'routines',
                   RoutineDetail: 'routine-detail/:id',
                   RoutineBuilder: 'routine-builder/:id',
+                  ExerciseCatalog: 'routine-builder/:routineId/exercises',
+                  ExerciseDetail: 'routine/:routineId/exercise-detail',
+                },
+              },
+              Clients: {
+                screens: {
+                  ClientsList: 'trainer/clients',
+                  ClientProgress: 'trainer/clients/:clientId/progress',
                 },
               },
               Social: {
@@ -112,7 +130,13 @@ const linking: LinkingOptions<RootStackParamList> = {
               },
             },
           },
-          Settings: 'settings',
+          Settings: {
+            screens: {
+              SettingsHome: 'settings',
+              Reminders: 'settings/reminders',
+              PrivacyNotice: 'settings/privacy',
+            },
+          },
           Help: 'help',
         },
       },

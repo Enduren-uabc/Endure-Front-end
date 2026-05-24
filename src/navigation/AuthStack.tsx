@@ -6,15 +6,20 @@ import RegisterScreen from '@/features/auth/screens/register';
 import ForgotPasswordScreen from '@/features/auth/screens/forgot-password';
 import ResetPasswordCodeScreen from '@/features/auth/screens/reset-password-code';
 import ResetPasswordScreen from '@/features/auth/screens/reset-password';
+import SessionExpiredScreen from '@/features/auth/screens/session-expired';
+import OAuthErrorScreen from '@/features/auth/screens/oauth-error';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 export default function AuthStack() {
+  const sessionExpiredNotice = useSessionStore((s) => s.sessionExpiredNotice);
+
   return (
     <Stack.Navigator
-      initialRouteName="Welcome"
+      initialRouteName={sessionExpiredNotice ? 'SessionExpired' : 'Welcome'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.colors.background },
@@ -26,6 +31,8 @@ export default function AuthStack() {
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPasswordCode" component={ResetPasswordCodeScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="SessionExpired" component={SessionExpiredScreen} />
+      <Stack.Screen name="OAuthError" component={OAuthErrorScreen} />
     </Stack.Navigator>
   );
 }

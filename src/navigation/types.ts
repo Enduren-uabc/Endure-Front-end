@@ -8,6 +8,12 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
   ResetPasswordCode: { email: string };
   ResetPassword: { email: string; token: string };
+  SessionExpired: undefined;
+  OAuthError: {
+    provider: 'google' | 'apple';
+    reason: 'cancelled' | 'failed';
+    message?: string;
+  };
 };
 
 export type OnboardingStackParamList = {
@@ -34,6 +40,7 @@ export type TrainingStackParamList = {
   RoutinesList: undefined;
   RoutineDetail: { id: string };
   RoutineBuilder: { id: string };
+  ExerciseCatalog: { routineId?: string } | undefined;
   ExerciseDetail: { routineId: string; exercise: ExerciseConfig };
 };
 
@@ -45,6 +52,12 @@ export type CoachStackParamList = {
   PowerspikeHome: undefined;
   PowerspikeForm: undefined;
   PowerspikeStatus: undefined;
+};
+
+export type SettingsStackParamList = {
+  SettingsHome: undefined;
+  Reminders: undefined;
+  PrivacyNotice: undefined;
 };
 
 export type AdminStackParamList = {
@@ -65,6 +78,17 @@ export type TrainerLinkStackParamList = {
   SentRequests: undefined;
   MyTrainer: undefined;
   ReceivedRequests: undefined;
+  AssignedRoutine: undefined;
+};
+
+export type TrainerClientsStackParamList = {
+  ClientsList: undefined;
+  ClientProgress: {
+    clientId: string;
+    clientName: string;
+    linkId: string;
+    activatedAt: string;
+  };
 };
 
 export type AppTabsParamList = {

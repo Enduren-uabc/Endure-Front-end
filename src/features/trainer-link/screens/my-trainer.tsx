@@ -1,23 +1,28 @@
 import React, { useCallback } from 'react';
 import {
-  View,
-  Text,
   ActivityIndicator,
-  TouchableOpacity,
-  StyleSheet,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { User, Search, AlertCircle } from 'lucide-react-native';
+import { AlertCircle, ChevronRight, Dumbbell, Search, User } from 'lucide-react-native';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import { useMyTrainer, useDeactivateLink } from '../hooks/use-trainer-link';
 import ActiveTrainerCard from '../components/active-trainer-card';
 import type { TrainerLinkStackParamList } from '@/navigation/types';
 
+type TrainerLinkNavigation = NativeStackNavigationProp<TrainerLinkStackParamList, 'MyTrainer'>;
+
 export default function MyTrainerScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<TrainerLinkStackParamList>>();
+  const navigation = useNavigation<TrainerLinkNavigation>();
   const { data, isLoading, isError, refetch } = useMyTrainer();
   const deactivateLink = useDeactivateLink();
 
@@ -38,8 +43,8 @@ export default function MyTrainerScreen() {
                 onSuccess: () => {
                   Alert.alert('Desvinculado', 'Te has desvinculado de tu entrenador.');
                 },
-                onError: (err: any) => {
-                  Alert.alert('Error', err?.message ?? 'No pudimos procesar la desvinculación.');
+                onError: (err: Error) => {
+                  Alert.alert('Error', err.message || 'No pudimos procesar la desvinculación.');
                 },
               },
             );
@@ -54,6 +59,7 @@ export default function MyTrainerScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.centerText}>Cargando tu entrenador...</Text>
         </View>
       </SafeAreaView>
     );
@@ -64,10 +70,9 @@ export default function MyTrainerScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.center}>
           <AlertCircle size={48} color={theme.colors.error} />
-          <Text style={styles.errorText}>No pudimos cargar la información</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-            <Text style={styles.retryText}>Intentar de nuevo</Text>
-          </TouchableOpacity>
+          <Text style={styles.centerTitle}>No pudimos cargar la información</Text>
+          <Text style={styles.centerText}>Revisa tu conexión e intenta nuevamente.</Text>
+          <PrimaryButton label="Intentar de nuevo" onPress={() => refetch()} />
         </View>
       </SafeAreaView>
     );
@@ -77,33 +82,65 @@ export default function MyTrainerScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.center}>
-          <User size={48} color={theme.colors.textMuted} />
-          <Text style={styles.noTrainerTitle}>No tienes un entrenador vinculado</Text>
-          <Text style={styles.noTrainerSubtitle}>
+          <View style={styles.emptyIcon}>
+            <User size={48} color={theme.colors.textMuted} />
+          </View>
+          <Text style={styles.centerTitle}>No tienes un entrenador vinculado</Text>
+          <Text style={styles.centerText}>
             Busca un entrenador por su código único y envía una solicitud de vinculación.
           </Text>
-          <TouchableOpacity
-            style={styles.searchButton}
+          <PrimaryButton
+            label="Buscar entrenador"
             onPress={() => navigation.navigate('SearchTrainer')}
-          >
-            <Search size={18} color="#0A0A0F" />
-            <Text style={styles.searchButtonText}>Buscar entrenador</Text>
-          </TouchableOpacity>
+            icon={<Search size={18} color={theme.colors.background} />}
+          />
         </View>
       </SafeAreaView>
     );
   }
 
+  const trainer = data.trainer;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Mi Entrenador</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Mi entrenador</Text>
+          <Text style={styles.subtitle}>
+            Consulta tu vínculo activo, rutina asignada y perfil profesional.
+          </Text>
+        </View>
+
         <ActiveTrainerCard
-          data={data.trainer}
-          onViewProfile={() => navigation.navigate('TrainerProfile', { trainerId: data.trainer!.trainerId })}
+          data={trainer}
+          onViewProfile={() => navigation.navigate('TrainerProfile', { trainerId: trainer.trainerId })}
           onDeactivate={handleDeactivate}
         />
-      </View>
+
+        <TouchableOpacity
+          style={styles.assignedRoutineCard}
+          activeOpacity={0.84}
+          onPress={() => navigation.navigate('AssignedRoutine')}
+        >
+          <View style={styles.assignedIcon}>
+            <Dumbbell size={22} color={theme.colors.primary} />
+          </View>
+          <View style={styles.assignedCopy}>
+            <Text style={styles.assignedTitle}>Rutina asignada</Text>
+            <Text style={styles.assignedText}>
+              Fuerza base 3 días · lista para tu siguiente sesión
+            </Text>
+          </View>
+          <ChevronRight size={20} color={theme.colors.textMuted} />
+        </TouchableOpacity>
+
+        <View style={styles.actions}>
+          <SecondaryButton
+            label="Ver perfil completo"
+            onPress={() => navigation.navigate('TrainerProfile', { trainerId: trainer.trainerId })}
+          />
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -113,64 +150,93 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  container: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+  scroll: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.xl,
+    paddingBottom: theme.spacing.xxl,
+    gap: theme.spacing.lg,
+  },
+  header: {
+    gap: theme.spacing.sm,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 20,
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading1.fontSize,
+    lineHeight: theme.typography.heading1.lineHeight,
+    fontWeight: theme.typography.heading1.fontWeight,
+  },
+  subtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.md,
   },
-  noTrainerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  emptyIcon: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading2.fontSize,
+    lineHeight: theme.typography.heading2.lineHeight,
+    fontWeight: theme.typography.heading2.fontWeight,
     textAlign: 'center',
   },
-  noTrainerSubtitle: {
-    fontSize: 14,
-    color: '#A0A0B0',
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
     textAlign: 'center',
-    lineHeight: 20,
   },
-  searchButton: {
+  assignedRoutineCard: {
+    minHeight: 92,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    gap: 8,
-    marginTop: 8,
+    gap: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
   },
-  searchButtonText: {
-    color: '#0A0A0F',
-    fontWeight: '700',
-    fontSize: 15,
+  assignedIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
   },
-  errorText: {
-    fontSize: 15,
-    color: '#EF4444',
-    textAlign: 'center',
+  assignedCopy: {
+    flex: 1,
+    gap: theme.spacing.xs,
   },
-  retryButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+  assignedTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
   },
-  retryText: {
-    color: '#0A0A0F',
-    fontWeight: '700',
+  assignedText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  actions: {
+    gap: theme.spacing.md,
   },
 });

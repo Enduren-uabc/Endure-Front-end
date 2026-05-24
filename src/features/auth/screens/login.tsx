@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -14,33 +14,30 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "@/features/auth/validations/auth";
-import { useLogin, isAccountLockedError } from "@/features/auth/hooks/use-auth";
-import { useGoogleAuth, useAppleAuth } from "@/features/auth/hooks/use-social-auth";
+import { useLogin } from "@/features/auth/hooks/use-auth";
+import { useGoogleAuth } from "@/features/auth/hooks/use-social-auth";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
 import { PasswordInput } from "@/shared/components/PasswordInput";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { theme } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
-import LockoutTimer from "@/features/auth/components/LockoutTimer";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
 export default function LoginScreen({ navigation, route }: Props) {
   const loginMutation = useLogin();
-  const { login: googleLogin, isPending: googlePending, error: googleError } = useGoogleAuth();
-  const { login: appleLogin, isPending: applePending, error: appleError } = useAppleAuth();
+  const { login: googleLogin, isPending: googlePending, error: googleError, clearError } = useGoogleAuth();
   const { email: prefillEmail, password: prefillPassword } = route.params ?? {};
-
-  const isLocked = isAccountLockedError(loginMutation.error);
-  const remainingSeconds = loginMutation.error?.remainingLockSeconds ?? 0;
+  const [, setFailedAttempts] = React.useState(0);
+  const [blockedUntil, setBlockedUntil] = React.useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = React.useState(0);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
     setError,
-    reset: resetForm,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -50,19 +47,53 @@ export default function LoginScreen({ navigation, route }: Props) {
   });
 
   React.useEffect(() => {
-    if (loginMutation.isError && !isLocked) {
+    if (loginMutation.isError) {
       const message = loginMutation.error.message || "Error al iniciar sesión";
       setError("root", { message });
+      setFailedAttempts((current) => {
+        const next = current + 1;
+        if (next >= 3) {
+          setBlockedUntil(Date.now() + 60_000);
+        }
+        return next;
+      });
     }
-  }, [loginMutation.isError, loginMutation.error, setError, isLocked]);
+  }, [loginMutation.isError, loginMutation.error, setError]);
 
-  const handleCountdownEnd = useCallback(() => {
-    loginMutation.reset();
-  }, [loginMutation]);
+  React.useEffect(() => {
+    if (!blockedUntil) return;
+
+    const tick = () => {
+      const seconds = Math.max(0, Math.ceil((blockedUntil - Date.now()) / 1000));
+      setRemainingSeconds(seconds);
+      if (seconds === 0) {
+        setBlockedUntil(null);
+        setFailedAttempts(0);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [blockedUntil]);
+
+  React.useEffect(() => {
+    if (!googleError) return;
+
+    navigation.navigate("OAuthError", {
+      provider: "google",
+      reason: googleError.includes("Cancelaste") ? "cancelled" : "failed",
+      message: googleError,
+    });
+    clearError();
+  }, [clearError, googleError, navigation]);
 
   const onSubmit = (data: LoginFormData) => {
+    if (blockedUntil) return;
     loginMutation.mutate(data);
   };
+
+  const isBlocked = blockedUntil !== null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -90,26 +121,8 @@ export default function LoginScreen({ navigation, route }: Props) {
             )}
           </TouchableOpacity>
 
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity
-              style={styles.appleButton}
-              onPress={appleLogin}
-              disabled={applePending}
-              activeOpacity={0.8}
-            >
-              {applePending ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.appleButtonText}>Continuar con Apple</Text>
-              )}
-            </TouchableOpacity>
-          )}
-
           {googleError && (
             <Text style={styles.errorText}>{googleError}</Text>
-          )}
-          {appleError && (
-            <Text style={styles.errorText}>{appleError}</Text>
           )}
 
           <View style={styles.divider}>
@@ -118,64 +131,66 @@ export default function LoginScreen({ navigation, route }: Props) {
             <View style={styles.dividerLine} />
           </View>
 
-          {isLocked ? (
-            <LockoutTimer
-              remainingLockSeconds={remainingSeconds}
-              onCountdownEnd={handleCountdownEnd}
-            />
-          ) : (
-            <BaseCard>
-              <View style={styles.form}>
-                <Controller
-                  control={control}
-                  name="email"
-                  render={({ field: { onChange, value } }) => (
-                    <TextInput
-                      label="Correo electrónico"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="ejemplo@correo.com"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      error={errors.email?.message}
-                    />
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="password"
-                  render={({ field: { onChange, value } }) => (
-                    <PasswordInput
-                      label="Contraseña"
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Tu contraseña"
-                      error={errors.password?.message}
-                    />
-                  )}
-                />
-
-                <TouchableOpacity
-                  onPress={() => navigation.navigate("ForgotPassword")}
-                  style={styles.forgotLink}
-                >
-                  <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-                </TouchableOpacity>
-
-                {errors.root && (
-                  <Text style={styles.rootError}>{errors.root.message}</Text>
+          <BaseCard>
+            <View style={styles.form}>
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    label="Correo electrónico"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="ejemplo@correo.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={errors.email?.message}
+                  />
                 )}
+              />
 
-                <PrimaryButton
-                  label="Iniciar sesión"
-                  onPress={handleSubmit(onSubmit)}
-                  loading={loginMutation.isPending}
-                  disabled={loginMutation.isPending}
-                />
-              </View>
-            </BaseCard>
-          )}
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value } }) => (
+                  <PasswordInput
+                    label="Contraseña"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Tu contraseña"
+                    error={errors.password?.message}
+                  />
+                )}
+              />
+
+              <TouchableOpacity
+                onPress={() => navigation.navigate("ForgotPassword")}
+                style={styles.forgotLink}
+              >
+                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+              </TouchableOpacity>
+
+              {errors.root && (
+                <Text style={styles.rootError}>{errors.root.message}</Text>
+              )}
+
+              {isBlocked && (
+                <View style={styles.blockedBanner}>
+                  <Text style={styles.blockedTitle}>Inicio bloqueado temporalmente</Text>
+                  <Text style={styles.blockedText}>
+                    Hubo varios intentos fallidos. Intenta de nuevo en {remainingSeconds}s o recupera tu contraseña.
+                  </Text>
+                </View>
+              )}
+
+              <PrimaryButton
+                label={isBlocked ? `Espera ${remainingSeconds}s` : "Iniciar sesión"}
+                onPress={handleSubmit(onSubmit)}
+                loading={loginMutation.isPending}
+                disabled={loginMutation.isPending || isBlocked}
+              />
+            </View>
+          </BaseCard>
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Register")}
@@ -243,20 +258,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     fontWeight: '500',
   },
-  appleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000000',
-    borderRadius: 8,
-    paddingVertical: 14,
-    minHeight: 48,
-  },
-  appleButtonText: {
-    color: '#FFFFFF',
-    fontSize: theme.typography.body.fontSize,
-    fontWeight: '500',
-  },
   errorText: {
     color: theme.colors.error,
     fontSize: theme.typography.body.fontSize,
@@ -281,6 +282,25 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
     textAlign: "center",
+  },
+  blockedBanner: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: theme.colors.error,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
+  },
+  blockedTitle: {
+    color: theme.colors.error,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  blockedText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
   footerLink: {
     alignItems: "center",
