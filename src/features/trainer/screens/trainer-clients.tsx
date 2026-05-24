@@ -8,10 +8,13 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { UsersRound, AlertCircle, User } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { UsersRound, AlertCircle, ChevronRight } from 'lucide-react-native';
 import { theme } from '@/theme';
 import { useLinkedClients } from '@/features/trainer-link/hooks/use-trainer-link';
 import type { ActiveClient } from '@/features/trainer-link/types/trainer-link';
+import type { ClientsStackParamList } from '@/navigation/types';
 
 function formatDate(dateStr: string): string {
   try {
@@ -23,6 +26,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function TrainerClientsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ClientsStackParamList, 'ClientList'>>();
   const { data, isLoading, isError, refetch } = useLinkedClients();
 
   if (isLoading) {
@@ -72,17 +76,32 @@ export default function TrainerClientsScreen() {
           data={data.items}
           keyExtractor={(item: ActiveClient) => item.linkId}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.7}
+              onPress={() =>
+                navigation.navigate('ClientDetail', {
+                  clientId: item.clientId,
+                  clientName: item.clientName,
+                })
+              }
+            >
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
                   {item.clientName?.charAt(0)?.toUpperCase() ?? '?'}
                 </Text>
               </View>
               <View style={styles.cardInfo}>
-                <Text style={styles.clientName}>{item.clientName}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.clientName}>{item.clientName}</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>{item.linkStatus}</Text>
+                  </View>
+                </View>
                 <Text style={styles.date}>Vinculado desde {formatDate(item.activatedAt)}</Text>
               </View>
-            </View>
+              <ChevronRight size={20} color="#A0A0B0" />
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.list}
           refreshing={isLoading}
@@ -173,14 +192,30 @@ const styles = StyleSheet.create({
   cardInfo: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   clientName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  statusBadge: {
+    backgroundColor: '#1B4332',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#52B788',
+  },
   date: {
     fontSize: 12,
     color: '#A0A0B0',
-    marginTop: 2,
+    marginTop: 4,
   },
 });

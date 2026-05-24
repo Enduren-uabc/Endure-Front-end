@@ -80,5 +80,6 @@ export interface ActiveClient {
   linkId: string;
   clientId: string;
   clientName: string;
+  linkStatus: string;
   activatedAt: string;
 }

@@ -59,6 +59,11 @@ export type RemindersStackParamList = {
   NotificationList: undefined;
 };
 
+export type ClientsStackParamList = {
+  ClientList: undefined;
+  ClientDetail: { clientId: string; clientName: string };
+};
+
 export type TrainerLinkStackParamList = {
   SearchTrainer: undefined;
   TrainerProfile: { trainerId: string };

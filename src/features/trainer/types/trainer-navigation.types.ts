@@ -4,13 +4,14 @@ import type {
   TrainingStackParamList,
   SocialStackParamList,
   TrainerLinkStackParamList,
+  ClientsStackParamList,
 } from '@/navigation/types';
 
 export type TrainerTabsParamList = {
   Home: undefined;
   Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
   Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
-  Clients: undefined;
+  Clients: NavigatorScreenParams<ClientsStackParamList> | undefined;
   Social: NavigatorScreenParams<SocialStackParamList> | undefined;
 };
 

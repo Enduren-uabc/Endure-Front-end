@@ -84,13 +84,21 @@ export default function NotificationListScreen({ navigation }: Props) {
           <ArrowLeft size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Notificaciones</Text>
-        <TouchableOpacity
-          style={styles.testButton}
-          onPress={handleTestNotification}
-          disabled={testing}
-        >
-          <Text style={styles.testButtonText}>{testing ? '...' : 'Test'}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.headerLink}
+            onPress={() => navigation.navigate('ReminderList')}
+          >
+            <Text style={styles.headerLinkText}>⏰</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={handleTestNotification}
+            disabled={testing}
+          >
+            <Text style={styles.testButtonText}>{testing ? '...' : 'Test'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -211,6 +219,22 @@ const styles = StyleSheet.create({
   notifTime: {
     color: theme.colors.textMuted,
     fontSize: theme.typography.caption.fontSize,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  headerLink: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerLinkText: {
+    fontSize: 16,
   },
   testButton: {
     width: 50,
