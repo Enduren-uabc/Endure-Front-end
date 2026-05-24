@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "@/features/auth/validations/auth";
-import { useLogin } from "@/features/auth/hooks/use-auth";
+import { useLogin, isAccountLockedError } from "@/features/auth/hooks/use-auth";
 import { useGoogleAuth, useAppleAuth } from "@/features/auth/hooks/use-social-auth";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
@@ -22,6 +22,7 @@ import { PasswordInput } from "@/shared/components/PasswordInput";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { theme } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
+import LockoutTimer from "@/features/auth/components/LockoutTimer";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
@@ -31,11 +32,15 @@ export default function LoginScreen({ navigation, route }: Props) {
   const { login: appleLogin, isPending: applePending, error: appleError } = useAppleAuth();
   const { email: prefillEmail, password: prefillPassword } = route.params ?? {};
 
+  const isLocked = isAccountLockedError(loginMutation.error);
+  const remainingSeconds = loginMutation.error?.remainingLockSeconds ?? 0;
+
   const {
     control,
     handleSubmit,
     formState: { errors },
     setError,
+    reset: resetForm,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -45,11 +50,15 @@ export default function LoginScreen({ navigation, route }: Props) {
   });
 
   React.useEffect(() => {
-    if (loginMutation.isError) {
+    if (loginMutation.isError && !isLocked) {
       const message = loginMutation.error.message || "Error al iniciar sesión";
       setError("root", { message });
     }
-  }, [loginMutation.isError, loginMutation.error, setError]);
+  }, [loginMutation.isError, loginMutation.error, setError, isLocked]);
+
+  const handleCountdownEnd = useCallback(() => {
+    loginMutation.reset();
+  }, [loginMutation]);
 
   const onSubmit = (data: LoginFormData) => {
     loginMutation.mutate(data);
@@ -109,57 +118,64 @@ export default function LoginScreen({ navigation, route }: Props) {
             <View style={styles.dividerLine} />
           </View>
 
-          <BaseCard>
-            <View style={styles.form}>
-              <Controller
-                control={control}
-                name="email"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    label="Correo electrónico"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="ejemplo@correo.com"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    error={errors.email?.message}
-                  />
+          {isLocked ? (
+            <LockoutTimer
+              remainingLockSeconds={remainingSeconds}
+              onCountdownEnd={handleCountdownEnd}
+            />
+          ) : (
+            <BaseCard>
+              <View style={styles.form}>
+                <Controller
+                  control={control}
+                  name="email"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      label="Correo electrónico"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="ejemplo@correo.com"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      error={errors.email?.message}
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field: { onChange, value } }) => (
+                    <PasswordInput
+                      label="Contraseña"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Tu contraseña"
+                      error={errors.password?.message}
+                    />
+                  )}
+                />
+
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("ForgotPassword")}
+                  style={styles.forgotLink}
+                >
+                  <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                </TouchableOpacity>
+
+                {errors.root && (
+                  <Text style={styles.rootError}>{errors.root.message}</Text>
                 )}
-              />
 
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, value } }) => (
-                  <PasswordInput
-                    label="Contraseña"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Tu contraseña"
-                    error={errors.password?.message}
-                  />
-                )}
-              />
-
-              <TouchableOpacity
-                onPress={() => navigation.navigate("ForgotPassword")}
-                style={styles.forgotLink}
-              >
-                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-              </TouchableOpacity>
-
-              {errors.root && (
-                <Text style={styles.rootError}>{errors.root.message}</Text>
-              )}
-
-              <PrimaryButton
-                label="Iniciar sesión"
-                onPress={handleSubmit(onSubmit)}
-                loading={loginMutation.isPending}
-                disabled={loginMutation.isPending}
-              />
-            </View>
-          </BaseCard>
+                <PrimaryButton
+                  label="Iniciar sesión"
+                  onPress={handleSubmit(onSubmit)}
+                  loading={loginMutation.isPending}
+                  disabled={loginMutation.isPending}
+                />
+              </View>
+            </BaseCard>
+          )}
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Register")}

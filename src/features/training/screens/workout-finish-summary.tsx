@@ -23,16 +23,58 @@ type Props = NativeStackScreenProps<
 >;
 
 function formatDuration(durationMinutes: number | null): string {
-  if (durationMinutes === null) {
-    return 'Sin duración';
-  }
-  if (durationMinutes < 1) {
-    return 'Menos de 1 min';
-  }
+  if (durationMinutes === null) return 'Sin duración';
+  if (durationMinutes < 1) return 'Menos de 1 min';
   return `${durationMinutes} min`;
 }
 
-export default function WorkoutFinishSummaryScreen({ navigation, route }: Props) {
+function formatSetLabel(
+  repsPerformed: number | null,
+  weightUsed: number | null,
+  targetReps: number | null,
+  targetWeight: number | null,
+): string {
+  const actualReps = repsPerformed ?? targetReps ?? 0;
+  const actualWeight = weightUsed ?? targetWeight ?? 0;
+  const weightText = actualWeight > 0 ? ` · ${actualWeight}kg` : '';
+  return `${actualReps} reps${weightText}`;
+}
+
+function hasDiff(
+  repsPerformed: number | null,
+  weightUsed: number | null,
+  targetReps: number | null,
+  targetWeight: number | null,
+): boolean {
+  if (repsPerformed === null && targetReps === null) return false;
+  if (repsPerformed !== targetReps) return true;
+  if (weightUsed !== targetWeight) return true;
+  return false;
+}
+
+function formatTarget(
+  targetReps: number | null,
+  targetWeight: number | null,
+): string {
+  const weightText =
+    targetWeight && targetWeight > 0 ? ` · ${targetWeight}kg` : '';
+  return `${targetReps ?? '-'} reps${weightText}`;
+}
+
+function formatActual(
+  repsPerformed: number | null,
+  weightUsed: number | null,
+): string {
+  if (repsPerformed === null && weightUsed === null) return '—';
+  const weightText =
+    weightUsed && weightUsed > 0 ? ` · ${weightUsed}kg` : '';
+  return `${repsPerformed ?? '-'} reps${weightText}`;
+}
+
+export default function WorkoutFinishSummaryScreen({
+  navigation,
+  route,
+}: Props) {
   const { sessionId } = route.params;
   const sessionQuery = useWorkoutSessionDetail(sessionId);
   const session = sessionQuery.data;
@@ -41,12 +83,23 @@ export default function WorkoutFinishSummaryScreen({ navigation, route }: Props)
     const exercises = session?.exercises ?? [];
     const sets = exercises.flatMap((exercise) => exercise.workoutSets);
     const completedSets = sets.filter((set) => set.completed).length;
+    const modifiedSets = sets.filter(
+      (set) =>
+        set.completed &&
+        hasDiff(
+          set.repsPerformed,
+          set.weightUsed,
+          set.targetReps,
+          set.targetWeight,
+        ),
+    ).length;
 
     return {
       exercises: exercises.length,
       completedSets,
       pendingSets: sets.length - completedSets,
       totalSets: sets.length,
+      modifiedSets,
     };
   }, [session]);
 
@@ -110,21 +163,72 @@ export default function WorkoutFinishSummaryScreen({ navigation, route }: Props)
         </View>
 
         <BaseCard style={styles.detailCard}>
-          <Text style={styles.sectionTitle}>Detalle</Text>
+          <Text style={styles.sectionTitle}>Detalle por ejercicio</Text>
           {session.exercises.map((exercise, index) => {
             const completed = exercise.workoutSets.filter(
               (set) => set.completed,
             ).length;
             return (
-              <View key={exercise.exerciseId} style={styles.exerciseRow}>
-                <View style={styles.exerciseIndex}>
-                  <Text style={styles.exerciseIndexText}>{index + 1}</Text>
+              <View key={exercise.exerciseId} style={styles.exerciseBlock}>
+                <View style={styles.exerciseHeader}>
+                  <View style={styles.exerciseIndex}>
+                    <Text style={styles.exerciseIndexText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.exerciseInfo}>
+                    <Text style={styles.exerciseName}>
+                      {exercise.exerciseName}
+                    </Text>
+                    <Text style={styles.exerciseMeta}>
+                      {completed}/{exercise.workoutSets.length} sets completados
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.exerciseInfo}>
-                  <Text style={styles.exerciseName}>{exercise.exerciseName}</Text>
-                  <Text style={styles.exerciseMeta}>
-                    {completed}/{exercise.workoutSets.length} sets completados
-                  </Text>
+
+                {/* Set breakdown with planned vs actual */}
+                <View style={styles.setsBreakdown}>
+                  <View style={styles.setHeaderRow}>
+                    <Text style={styles.setHeaderCell}>Set</Text>
+                    <Text style={styles.setHeaderCell}>Planeado</Text>
+                    <Text style={styles.setHeaderCell}>Real</Text>
+                  </View>
+                  {exercise.workoutSets.map((set) => {
+                    const differs = hasDiff(
+                      set.repsPerformed,
+                      set.weightUsed,
+                      set.targetReps,
+                      set.targetWeight,
+                    );
+                    return (
+                      <View
+                        key={set.setNumber}
+                        style={[
+                          styles.setRow,
+                          differs && styles.setRowModified,
+                        ]}
+                      >
+                        <Text style={styles.setCell}>
+                          {set.setNumber}
+                          {set.completed ? ' ✓' : ' ○'}
+                        </Text>
+                        <Text style={styles.setCell}>
+                          {formatTarget(set.targetReps, set.targetWeight)}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.setCell,
+                            set.completed
+                              ? styles.setCellActual
+                              : styles.setCellPending,
+                            differs && styles.setCellModified,
+                          ]}
+                        >
+                          {set.completed
+                            ? formatActual(set.repsPerformed, set.weightUsed)
+                            : '—'}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             );
@@ -215,7 +319,10 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.heading3.lineHeight,
     fontWeight: theme.typography.heading3.fontWeight,
   },
-  exerciseRow: {
+  exerciseBlock: {
+    gap: theme.spacing.sm,
+  },
+  exerciseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
@@ -248,6 +355,53 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
+  },
+  setsBreakdown: {
+    marginLeft: 46,
+    gap: theme.spacing.xs,
+    borderLeftWidth: 1,
+    borderLeftColor: theme.colors.border,
+    paddingLeft: theme.spacing.md,
+  },
+  setHeaderRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
+  },
+  setHeaderCell: {
+    flex: 1,
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  setRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.sm,
+  },
+  setRowModified: {
+    backgroundColor: `${theme.colors.warning}14`,
+    paddingHorizontal: theme.spacing.sm,
+    marginHorizontal: -theme.spacing.sm,
+  },
+  setCell: {
+    flex: 1,
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  setCellActual: {
+    color: theme.colors.success,
+    fontWeight: '700',
+  },
+  setCellPending: {
+    color: theme.colors.textMuted,
+  },
+  setCellModified: {
+    color: theme.colors.warning,
   },
   footer: {
     position: 'absolute',

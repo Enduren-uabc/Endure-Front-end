@@ -5,21 +5,44 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ArrowLeft, Check, ChevronRight, Save } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  List,
+  Maximize2,
+  Minimize2,
+  Play,
+  Plus,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import {
+  useAddWorkoutSet,
   useAdvanceWorkoutExercise,
   useCompleteWorkoutSet,
   useFinishWorkoutSession,
+  useRegisterWorkoutSet,
+  useRemoveWorkoutSet,
   useWorkoutSessionDetail,
 } from '@/features/training/hooks/use-workout-session';
+import {
+  useWorkoutSessionStore,
+  type WorkoutSessionStoreState,
+  type WorkoutSessionStoreActions,
+} from '@/features/training/stores/workout-session-store';
 import type {
   WorkoutExercise,
   WorkoutSession,
@@ -30,55 +53,187 @@ import { theme } from '@/theme';
 
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'WorkoutSession'>;
 
-function getSetTarget(set: WorkoutSet): string {
-  const reps = set.repsPerformed ?? set.targetReps ?? 0;
-  const weight = set.weightUsed ?? set.targetWeight ?? 0;
-  const weightText = weight > 0 ? ` · ${weight}kg` : '';
-  return `${reps} reps${weightText}`;
-}
-
 function getExerciseProgress(exercise: WorkoutExercise) {
   const completed = exercise.workoutSets.filter((set) => set.completed).length;
-  return {
-    completed,
-    total: exercise.workoutSets.length,
-  };
+  return { completed, total: exercise.workoutSets.length };
+}
+
+function RestTimer() {
+  const restTimerActive = useWorkoutSessionStore((s) => s.restTimerActive);
+  const restEndTime = useWorkoutSessionStore((s) => s.restEndTime);
+  const stopRestTimer = useWorkoutSessionStore((s) => s.stopRestTimer);
+  const [displaySeconds, setDisplaySeconds] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!restTimerActive || restEndTime === null) {
+      setDisplaySeconds(0);
+      return;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.floor((restEndTime - Date.now()) / 1000));
+      setDisplaySeconds(remaining);
+      if (remaining <= 0) {
+        stopRestTimer();
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [restTimerActive, restEndTime, stopRestTimer]);
+
+  if (!restTimerActive) return null;
+
+  const minutes = Math.floor(displaySeconds / 60);
+  const seconds = displaySeconds % 60;
+
+  return (
+    <View style={styles.restTimerBanner}>
+      <Clock size={20} color={theme.colors.warning} />
+      <Text style={styles.restTimerText}>
+        Descanso {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+      </Text>
+      <TouchableOpacity onPress={stopRestTimer} style={styles.restTimerDismiss}>
+        <X size={18} color={theme.colors.textSecondary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function OverviewTab({
+  exercises,
+  currentExerciseIndex,
+  viewingExerciseIndex,
+  onSelectExercise,
+  onBackToSingle,
+}: {
+  exercises: WorkoutExercise[];
+  currentExerciseIndex: number;
+  viewingExerciseIndex: number;
+  onSelectExercise: (index: number) => void;
+  onBackToSingle: () => void;
+}) {
+  return (
+    <View style={styles.overviewContainer}>
+      <TouchableOpacity style={styles.overviewBackButton} onPress={onBackToSingle}>
+        <Minimize2 size={16} color={theme.colors.primary} />
+        <Text style={styles.overviewBackText}>Vista individual</Text>
+      </TouchableOpacity>
+
+      {exercises.map((exercise, index) => {
+        const progress = getExerciseProgress(exercise);
+        const isCurrent = index === currentExerciseIndex;
+        const isViewing = index === viewingExerciseIndex;
+        const isComplete = progress.completed === progress.total && progress.total > 0;
+        const isPartial = progress.completed > 0 && progress.completed < progress.total;
+
+        return (
+          <TouchableOpacity
+            key={exercise.exerciseId}
+            activeOpacity={0.7}
+            onPress={() => onSelectExercise(index)}
+          >
+            <BaseCard
+              style={[
+                styles.overviewCard,
+                isViewing && styles.overviewCardSelected,
+                isComplete && styles.overviewCardComplete,
+              ]}
+            >
+              <View style={styles.overviewCardRow}>
+                <View style={styles.overviewCardIndex}>
+                  <Text style={styles.overviewCardIndexText}>{index + 1}</Text>
+                </View>
+                <View style={styles.overviewCardInfo}>
+                  <Text style={styles.overviewCardName}>{exercise.exerciseName}</Text>
+                  <Text style={styles.overviewCardMeta}>
+                    {progress.completed}/{progress.total} sets
+                    {isCurrent ? ' · Actual' : ''}
+                  </Text>
+                </View>
+                <View style={styles.overviewCardStatus}>
+                  {isComplete && <Check size={18} color={theme.colors.success} />}
+                  {isPartial && (
+                    <Text style={styles.overviewCardPartial}>
+                      {Math.round((progress.completed / progress.total) * 100)}%
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </BaseCard>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function WorkoutSessionScreen({ navigation, route }: Props) {
   const { sessionId } = route.params;
   const sessionQuery = useWorkoutSessionDetail(sessionId);
   const completeSetMutation = useCompleteWorkoutSet();
+  const registerSetMutation = useRegisterWorkoutSet();
   const advanceMutation = useAdvanceWorkoutExercise();
   const finishMutation = useFinishWorkoutSession();
+  const addSetMutation = useAddWorkoutSet();
+  const removeSetMutation = useRemoveWorkoutSet();
 
-  const [mutationError, setMutationError] = React.useState<string | null>(null);
+  const viewingExerciseIndex = useWorkoutSessionStore((s) => s.viewingExerciseIndex);
+  const viewMode = useWorkoutSessionStore((s) => s.viewMode);
+  const localEdits = useWorkoutSessionStore((s) => s.localEdits);
+  const mutationError = useWorkoutSessionStore((s) => s.mutationError);
+  const restTimerActive = useWorkoutSessionStore((s) => s.restTimerActive);
+  const getEditKey = useWorkoutSessionStore((s) => s.getEditKey);
+  const {
+    setSessionId,
+    clearStore,
+    setViewingExerciseIndex,
+    setViewMode,
+    setMutationError,
+    setLocalEdit,
+    clearLocalEdit,
+    startRestTimer,
+    stopRestTimer,
+  } = useWorkoutSessionStore.getState();
+
+  React.useEffect(() => {
+    setSessionId(sessionId);
+    return () => {
+      clearStore();
+    };
+  }, [sessionId, setSessionId, clearStore]);
 
   const session = sessionQuery.data;
-  const currentExercise = session?.exercises[session.currentExerciseIndex];
+  const currentExerciseIndex = session?.currentExerciseIndex ?? 0;
+  const currentExercise = session?.exercises[viewingExerciseIndex] ?? null;
   const exerciseProgress = currentExercise
     ? getExerciseProgress(currentExercise)
     : { completed: 0, total: 0 };
-  const isBusy =
+  const isMutating =
     completeSetMutation.isPending ||
     advanceMutation.isPending ||
-    finishMutation.isPending;
-  const isLastExercise = session
-    ? session.currentExerciseIndex >= session.exercises.length - 1
-    : false;
-  const progressPercent =
-    session && exerciseProgress.total > 0
-      ? ((session.currentExerciseIndex +
-          exerciseProgress.completed / exerciseProgress.total) /
-          session.exercises.length) *
-        100
-      : 0;
+    finishMutation.isPending ||
+    registerSetMutation.isPending ||
+    addSetMutation.isPending ||
+    removeSetMutation.isPending;
+
+  const progressPercent = session
+    ? ((currentExerciseIndex +
+        exerciseProgress.completed / Math.max(exerciseProgress.total, 1)) /
+        session.exercises.length) *
+      100
+    : 0;
 
   React.useEffect(() => {
     if (session?.status === 'finished') {
       navigation.replace('WorkoutFinishSummary', { sessionId: session.id });
     }
   }, [navigation, session]);
+
+  React.useEffect(() => {
+    setViewingExerciseIndex(currentExerciseIndex);
+  }, [currentExerciseIndex, setViewingExerciseIndex]);
 
   const finishSession = React.useCallback(
     (targetSession: WorkoutSession) => {
@@ -94,17 +249,15 @@ export default function WorkoutSessionScreen({ navigation, route }: Props) {
         },
       );
     },
-    [finishMutation, navigation],
+    [finishMutation, navigation, setMutationError],
   );
 
   const autoAdvanceIfNeeded = React.useCallback(
-    (updatedSession: WorkoutSession, exerciseIndex: number) => {
-      const updatedExercise = updatedSession.exercises[exerciseIndex];
-      if (!updatedExercise?.workoutSets.every((set) => set.completed)) {
-        return;
-      }
+    (updatedSession: WorkoutSession, exerciseIdx: number) => {
+      const updatedExercise = updatedSession.exercises[exerciseIdx];
+      if (!updatedExercise?.workoutSets.every((set) => set.completed)) return;
 
-      if (exerciseIndex >= updatedSession.exercises.length - 1) {
+      if (exerciseIdx >= updatedSession.exercises.length - 1) {
         finishSession(updatedSession);
         return;
       }
@@ -112,45 +265,129 @@ export default function WorkoutSessionScreen({ navigation, route }: Props) {
       advanceMutation.mutate(
         { sessionId: updatedSession.id, allowIncomplete: false },
         {
+          onSuccess: (advancedSession) => {
+            setViewingExerciseIndex(advancedSession.currentExerciseIndex);
+          },
           onError: (error) => setMutationError(error.message),
         },
       );
     },
-    [advanceMutation, finishSession],
+    [advanceMutation, finishSession, setViewingExerciseIndex, setMutationError],
   );
 
   const handleCompleteSet = (set: WorkoutSet) => {
-    if (!session || !currentExercise || set.completed || isBusy) return;
+    if (!session || !currentExercise || set.completed || isMutating) return;
     setMutationError(null);
 
-    completeSetMutation.mutate(
+    const key = getEditKey(viewingExerciseIndex, set.setNumber);
+    const edit = localEdits[key];
+    const reps = edit ? parseInt(edit.reps, 10) : set.targetReps;
+    const weight = edit ? parseFloat(edit.weight) : set.targetWeight;
+
+    if (!reps || reps < 1) {
+      setMutationError('Las repeticiones deben ser al menos 1.');
+      return;
+    }
+    if (weight === null || weight === undefined || weight < 0) {
+      setMutationError('El peso no puede ser negativo.');
+      return;
+    }
+
+    const hasChanges =
+      reps !== set.targetReps || weight !== set.targetWeight;
+
+    const doComplete = (updatedSession: WorkoutSession) => {
+      completeSetMutation.mutate(
+        {
+          sessionId: updatedSession.id,
+          exerciseIndex: viewingExerciseIndex,
+          setNumber: set.setNumber,
+        },
+        {
+          onSuccess: (completedSession) => {
+            clearLocalEdit(viewingExerciseIndex, set.setNumber);
+            autoAdvanceIfNeeded(completedSession, viewingExerciseIndex);
+          },
+          onError: (error) => setMutationError(error.message),
+        },
+      );
+    };
+
+    if (hasChanges) {
+      registerSetMutation.mutate(
+        {
+          sessionId: session.id,
+          exerciseIndex: viewingExerciseIndex,
+          setNumber: set.setNumber,
+          repsPerformed: reps,
+          weightUsed: weight,
+        },
+        {
+          onSuccess: (updatedSession) => doComplete(updatedSession),
+          onError: (error) => setMutationError(error.message),
+        },
+      );
+    } else {
+      doComplete(session);
+    }
+  };
+
+  const handleAddSet = () => {
+    if (!session || !currentExercise || isMutating) return;
+    setMutationError(null);
+
+    addSetMutation.mutate(
       {
         sessionId: session.id,
-        exerciseIndex: session.currentExerciseIndex,
-        setNumber: set.setNumber,
+        exerciseIndex: viewingExerciseIndex,
+        reps: 10,
+        weight: 0,
       },
-      {
-        onSuccess: (updatedSession) => {
-          autoAdvanceIfNeeded(updatedSession, session.currentExerciseIndex);
-        },
-        onError: (error) => setMutationError(error.message),
-      },
+      { onError: (error) => setMutationError(error.message) },
     );
   };
 
-  const handleManualNext = () => {
-    if (!session || isLastExercise || isBusy) return;
+  const handleRemoveSet = (setNumber: number) => {
+    if (!session || isMutating) return;
     setMutationError(null);
-    advanceMutation.mutate(
-      { sessionId: session.id, allowIncomplete: true },
+
+    removeSetMutation.mutate(
       {
-        onError: (error) => setMutationError(error.message),
+        sessionId: session.id,
+        exerciseIndex: viewingExerciseIndex,
+        setNumber,
       },
+      { onError: (error) => setMutationError(error.message) },
     );
+  };
+
+  const handlePreviousExercise = () => {
+    if (viewingExerciseIndex <= 0) return;
+    setViewingExerciseIndex(viewingExerciseIndex - 1);
+    setViewMode('single');
+  };
+
+  const handleNextExercise = () => {
+    if (!session) return;
+    if (viewingExerciseIndex >= session.exercises.length - 1) return;
+
+    if (viewingExerciseIndex === currentExerciseIndex) {
+      advanceMutation.mutate(
+        { sessionId: session.id, allowIncomplete: true },
+        {
+          onSuccess: (updatedSession) => {
+            setViewingExerciseIndex(updatedSession.currentExerciseIndex);
+          },
+          onError: (error) => setMutationError(error.message),
+        },
+      );
+    } else {
+      setViewingExerciseIndex(viewingExerciseIndex + 1);
+    }
   };
 
   const handleFinishEarly = () => {
-    if (!session || isBusy) return;
+    if (!session || isMutating) return;
 
     Alert.alert(
       'Terminar sesión',
@@ -168,6 +405,11 @@ export default function WorkoutSessionScreen({ navigation, route }: Props) {
       ],
     );
   };
+
+  const isLastExercise = session
+    ? viewingExerciseIndex >= session.exercises.length - 1
+    : false;
+  const isFirstExercise = viewingExerciseIndex <= 0;
 
   if (sessionQuery.isLoading) {
     return (
@@ -206,87 +448,242 @@ export default function WorkoutSessionScreen({ navigation, route }: Props) {
         <View style={styles.headerText}>
           <Text style={styles.title}>Sesión activa</Text>
           <Text style={styles.subtitle}>
-            Ejercicio {session.currentExerciseIndex + 1} de{' '}
-            {session.exercises.length}
+            {viewingExerciseIndex !== currentExerciseIndex
+              ? `Viendo ejercicio ${viewingExerciseIndex + 1}`
+              : `Ejercicio ${viewingExerciseIndex + 1} de ${session.exercises.length}`}
           </Text>
         </View>
-        <View style={styles.iconButton} />
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() =>
+            setViewMode(
+              viewMode === 'single' ? 'overview' : 'single',
+            )
+          }
+        >
+          {viewMode === 'single' ? (
+            <List size={24} color={theme.colors.primary} />
+          ) : (
+            <Maximize2 size={24} color={theme.colors.primary} />
+          )}
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${progressPercent}%` },
-            ]}
-          />
-        </View>
+      <RestTimer />
 
-        <BaseCard style={styles.exerciseCard}>
-          <Text style={styles.exerciseOrder}>
-            {session.currentExerciseIndex + 1}/{session.exercises.length}
-          </Text>
-          <Text style={styles.exerciseName}>{currentExercise.exerciseName}</Text>
-          <Text style={styles.exerciseMeta}>
-            {exerciseProgress.completed} de {exerciseProgress.total} sets
-            completados
-          </Text>
-        </BaseCard>
+      {viewMode === 'overview' ? (
+        <OverviewTab
+          exercises={session.exercises}
+          currentExerciseIndex={currentExerciseIndex}
+          viewingExerciseIndex={viewingExerciseIndex}
+          onSelectExercise={(index) => {
+            setViewingExerciseIndex(index);
+            setViewMode('single');
+          }}
+          onBackToSingle={() => setViewMode('single')}
+        />
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progressPercent}%` },
+              ]}
+            />
+          </View>
 
-        <View style={styles.setsList}>
-          {currentExercise.workoutSets.map((set) => (
-            <TouchableOpacity
-              key={set.setNumber}
-              activeOpacity={0.8}
-              disabled={set.completed || isBusy}
-              onPress={() => handleCompleteSet(set)}
-            >
+          <BaseCard style={styles.exerciseCard}>
+            <Text style={styles.exerciseOrder}>
+              {viewingExerciseIndex + 1}/{session.exercises.length}
+              {viewingExerciseIndex !== currentExerciseIndex && (
+                <Text style={styles.exerciseOrderNote}>
+                  {'  (navegación libre)'}
+                </Text>
+              )}
+            </Text>
+            <Text style={styles.exerciseName}>{currentExercise.exerciseName}</Text>
+            <Text style={styles.exerciseMeta}>
+              {exerciseProgress.completed} de {exerciseProgress.total} sets
+              completados
+            </Text>
+          </BaseCard>
+
+          <View style={styles.setsList}>
+            {currentExercise.workoutSets.map((set) => (
               <BaseCard
+                key={set.setNumber}
                 style={[
                   styles.setCard,
                   set.completed && styles.setCardCompleted,
                 ]}
               >
                 <View style={styles.setRow}>
-                  <View
-                    style={[
-                      styles.checkCircle,
-                      set.completed && styles.checkCircleCompleted,
-                    ]}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    disabled={set.completed || isMutating}
+                    onPress={() => handleCompleteSet(set)}
+                    style={styles.checkCircleTouchable}
                   >
-                    {set.completed && (
-                      <Check size={16} color={theme.colors.background} />
+                    <View
+                      style={[
+                        styles.checkCircle,
+                        set.completed && styles.checkCircleCompleted,
+                      ]}
+                    >
+                      {set.completed && (
+                        <Check size={16} color={theme.colors.background} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+
+                  <View style={styles.setTextBlock}>
+                    <View style={styles.setTitleRow}>
+                      <Text style={styles.setTitle}>Set {set.setNumber}</Text>
+                      {currentExercise.workoutSets.length > 1 && !set.completed && (
+                        <TouchableOpacity
+                          onPress={() => handleRemoveSet(set.setNumber)}
+                          style={styles.removeSetButtonInline}
+                        >
+                          <Trash2 size={14} color={theme.colors.error} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {!set.completed ? (
+                      <View style={styles.editInputsRow}>
+                        <View style={styles.editInputGroup}>
+                          <TextInput
+                            style={styles.editInput}
+                            value={
+                              localEdits[
+                                getEditKey(viewingExerciseIndex, set.setNumber)
+                              ]?.reps ?? String(set.targetReps ?? '')
+                            }
+                            onChangeText={(text) =>
+                              setLocalEdit(
+                                viewingExerciseIndex,
+                                set.setNumber,
+                                text,
+                                localEdits[
+                                  getEditKey(viewingExerciseIndex, set.setNumber)
+                                ]?.weight ?? String(set.targetWeight ?? '0'),
+                              )
+                            }
+                            keyboardType="numeric"
+                            placeholder="Reps"
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                          <Text style={styles.inputLabel}>reps</Text>
+                        </View>
+                        <View style={styles.editInputGroup}>
+                          <TextInput
+                            style={styles.editInput}
+                            value={
+                              localEdits[
+                                getEditKey(viewingExerciseIndex, set.setNumber)
+                              ]?.weight ?? String(set.targetWeight ?? '0')
+                            }
+                            onChangeText={(text) =>
+                              setLocalEdit(
+                                viewingExerciseIndex,
+                                set.setNumber,
+                                localEdits[
+                                  getEditKey(viewingExerciseIndex, set.setNumber)
+                                ]?.reps ?? String(set.targetReps ?? ''),
+                                text,
+                              )
+                            }
+                            keyboardType="numeric"
+                            placeholder="kg"
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                          <Text style={styles.inputLabel}>kg</Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={styles.setMeta}>
+                        {set.repsPerformed !== null
+                          ? `${set.repsPerformed} reps${set.weightUsed && set.weightUsed > 0 ? ` · ${set.weightUsed}kg` : ''}`
+                          : `${set.targetReps ?? '-'} reps`}
+                        {set.completed && set.repsPerformed !== null && ' (real)'}
+                      </Text>
                     )}
                   </View>
-                  <View style={styles.setTextBlock}>
-                    <Text style={styles.setTitle}>Set {set.setNumber}</Text>
-                    <Text style={styles.setMeta}>{getSetTarget(set)}</Text>
-                  </View>
-                  {!set.completed && (
-                    <Text style={styles.tapHint}>Tocar al terminar</Text>
-                  )}
                 </View>
               </BaseCard>
-            </TouchableOpacity>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        {mutationError && <Text style={styles.errorText}>{mutationError}</Text>}
-      </ScrollView>
+          {currentExercise.workoutSets.length < 10 && (
+            <TouchableOpacity
+              style={styles.addSetButton}
+              onPress={handleAddSet}
+              disabled={isMutating}
+            >
+              <Plus size={20} color={theme.colors.primary} />
+              <Text style={styles.addSetText}>Agregar set</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.restTimerRow}>
+            <TouchableOpacity
+              style={styles.restTimerButton}
+              onPress={() => startRestTimer(90)}
+              disabled={restTimerActive}
+            >
+              <Play size={16} color={theme.colors.primary} />
+              <Text style={styles.restTimerButtonText}>Descanso 90s</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.restTimerButton}
+              onPress={() => startRestTimer(180)}
+              disabled={restTimerActive}
+            >
+              <Play size={16} color={theme.colors.primary} />
+              <Text style={styles.restTimerButtonText}>Descanso 3min</Text>
+            </TouchableOpacity>
+          </View>
+
+          {mutationError && (
+            <Text style={styles.errorText}>{mutationError}</Text>
+          )}
+        </ScrollView>
+      )}
 
       <View style={styles.footer}>
-        {!isLastExercise && (
-          <SecondaryButton
-            label="Siguiente ejercicio"
-            onPress={handleManualNext}
-            disabled={isBusy}
-          />
-        )}
+        <View style={styles.footerNavRow}>
+          <TouchableOpacity
+            style={[styles.navButton, (isFirstExercise || isMutating) && styles.navButtonDisabled]}
+            onPress={handlePreviousExercise}
+            disabled={isFirstExercise || isMutating}
+          >
+            <ChevronLeft size={18} color={isFirstExercise ? theme.colors.textMuted : theme.colors.primary} />
+            <Text style={[styles.navButtonText, (isFirstExercise || isMutating) && styles.navButtonTextDisabled]}>
+              Anterior
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              (isLastExercise && viewingExerciseIndex === currentExerciseIndex || isMutating) && styles.navButtonDisabled,
+            ]}
+            onPress={handleNextExercise}
+            disabled={(isLastExercise && viewingExerciseIndex === currentExerciseIndex) || isMutating}
+          >
+            <Text style={[
+              styles.navButtonText,
+              (isLastExercise && viewingExerciseIndex === currentExerciseIndex || isMutating) && styles.navButtonTextDisabled,
+            ]}>
+              {isLastExercise ? 'Último' : 'Siguiente'}
+            </Text>
+            <ChevronRight size={18} color={(isLastExercise && viewingExerciseIndex === currentExerciseIndex) ? theme.colors.textMuted : theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
-          style={[styles.finishButton, isBusy && styles.finishButtonDisabled]}
+          style={[styles.finishButton, isMutating && styles.finishButtonDisabled]}
           onPress={handleFinishEarly}
-          disabled={isBusy}
+          disabled={isMutating}
         >
           <Save size={18} color={theme.colors.textPrimary} />
           <Text style={styles.finishButtonText}>Terminar y guardar</Text>
@@ -330,10 +727,37 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
+  restTimerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: `${theme.colors.warning}18`,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.warning,
+  },
+  restTimerText: {
+    color: theme.colors.warning,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  restTimerDismiss: {
+    position: 'absolute',
+    right: theme.spacing.sm,
+    padding: theme.spacing.xs,
+  },
   scrollContent: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 180,
+    paddingBottom: 200,
     gap: theme.spacing.md,
+    paddingTop: theme.spacing.md,
   },
   progressTrack: {
     height: 8,
@@ -354,6 +778,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.fontSize,
     lineHeight: theme.typography.caption.lineHeight,
     fontWeight: '700',
+  },
+  exerciseOrderNote: {
+    color: theme.colors.textMuted,
+    fontStyle: 'italic',
   },
   exerciseName: {
     color: theme.colors.textPrimary,
@@ -381,6 +809,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: theme.spacing.md,
   },
+  checkCircleTouchable: {
+    padding: 4,
+  },
   checkCircle: {
     width: 32,
     height: 32,
@@ -398,21 +829,89 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: theme.spacing.xs,
   },
+  setTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
   setTitle: {
     color: theme.colors.textPrimary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
     fontWeight: '700',
   },
+  removeSetButtonInline: {
+    padding: 2,
+  },
   setMeta: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
-  tapHint: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.caption.fontSize,
-    lineHeight: theme.typography.caption.lineHeight,
+  editInputsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+  },
+  editInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  editInput: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.small.fontSize,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  inputLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+  },
+  addSetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+    backgroundColor: `${theme.colors.primary}11`,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderStyle: 'dashed',
+  },
+  addSetText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
+  },
+  restTimerRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  restTimerButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  restTimerButtonText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '600',
   },
   errorText: {
     color: theme.colors.error,
@@ -433,6 +932,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
+  footerNavRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
   finishButton: {
     minHeight: 48,
     borderRadius: theme.radius.lg,
@@ -442,6 +945,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  navButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
+    minHeight: 44,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.md,
+  },
+  navButtonDisabled: {
+    borderColor: theme.colors.borderSoft,
+  },
+  navButtonText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '600',
+  },
+  navButtonTextDisabled: {
+    color: theme.colors.textMuted,
   },
   finishButtonDisabled: {
     opacity: 0.6,
@@ -469,5 +996,78 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.heading3.lineHeight,
     fontWeight: theme.typography.heading3.fontWeight,
     textAlign: 'center',
+  },
+  overviewContainer: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    gap: theme.spacing.md,
+    paddingBottom: 200,
+  },
+  overviewBackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+  },
+  overviewBackText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '600',
+  },
+  overviewCard: {
+    padding: theme.spacing.md,
+  },
+  overviewCardSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: `${theme.colors.primary}11`,
+  },
+  overviewCardComplete: {
+    borderColor: theme.colors.success,
+  },
+  overviewCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  overviewCardIndex: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overviewCardIndexText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '700',
+  },
+  overviewCardInfo: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  overviewCardName: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '700',
+  },
+  overviewCardMeta: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  overviewCardStatus: {
+    minWidth: 30,
+    alignItems: 'center',
+  },
+  overviewCardPartial: {
+    color: theme.colors.warning,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '700',
   },
 });

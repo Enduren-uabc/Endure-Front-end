@@ -66,6 +66,10 @@ export function useLogin() {
   });
 }
 
+export function isAccountLockedError(error: ApiError | null): boolean {
+  return error?.code === 'ACCOUNT_LOCKED';
+}
+
 export function usePasswordRecovery() {
   return useMutation<{ message: string }, ApiError, PasswordRecoveryBody>({
     mutationFn: (body) =>

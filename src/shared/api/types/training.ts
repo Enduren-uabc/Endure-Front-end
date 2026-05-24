@@ -73,6 +73,8 @@ export interface WorkoutSetResponseDto {
   setNumber: number;
   repsPerformed: number | null;
   weightUsed: number | null;
+  targetReps: number | null;
+  targetWeight: number | null;
   completed: boolean;
 }
 

@@ -101,27 +101,33 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly code: string = 'API_ERROR',
+    public readonly remainingLockSeconds?: number,
   ) {
     super(message);
     this.name = 'ApiError';
   }
 }
 
-function getUserMessage(status: number): string {
+function getUserMessage(status: number, serverMessage?: string): string {
   if (status === 0) return 'Revisa tu conexión a internet e intenta de nuevo.';
-  if (status === 400) return 'Revisa los datos ingresados.';
+  if (status === 400) return serverMessage || 'Revisa los datos ingresados.';
   if (status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente.';
   if (status === 403) return 'No tienes permisos para realizar esta acción.';
   if (status === 404) return 'No encontramos lo que buscas.';
   if (status === 409) return 'Ya existe un recurso con esos datos.';
-  if (status === 422) return 'Algunos datos no son válidos. Revísalos e intenta de nuevo.';
+  if (status === 422) return serverMessage || 'Algunos datos no son válidos. Revísalos e intenta de nuevo.';
+  if (status === 423 || status === 429) return serverMessage || 'Demasiados intentos. Intenta de nuevo más tarde.';
   return 'Tuvimos un problema. Intenta de nuevo en un momento.';
 }
 
 function handleError(error: unknown): never {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 0;
-    throw new ApiError(status, getUserMessage(status));
+    const data = error.response?.data as Record<string, unknown> | undefined;
+    const serverMessage = typeof data?.message === 'string' ? data.message : undefined;
+    const code = typeof data?.code === 'string' ? data.code : 'API_ERROR';
+    const remainingLockSeconds = typeof data?.remainingLockSeconds === 'number' ? data.remainingLockSeconds : undefined;
+    throw new ApiError(status, getUserMessage(status, serverMessage), code, remainingLockSeconds);
   }
   throw new ApiError(0, getUserMessage(0));
 }
