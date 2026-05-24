@@ -11,6 +11,7 @@ export const API_ENDPOINTS = {
     verifyEmail: '/auth/verify-email',
     resendVerification: '/auth/resend-verification',
     socialLogin: '/auth/social-login',
+    socialExchangeCode: '/auth/social/exchange-code',
   },
   onboarding: {
     profile: '/onboarding/profile',
