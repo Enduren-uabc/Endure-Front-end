@@ -27,6 +27,7 @@ import type { TrainerClientsStackParamList } from '@/navigation/types';
 import { useTrainerClientAssignmentsStore } from '../stores/trainer-client-assignments.store';
 import type { TrainerClientMetric } from '../types/trainer-clients';
 import {
+  buildDemoAssignedRoutine,
   buildClientMeasurements,
   buildClientMetrics,
   buildClientSessions,
@@ -38,9 +39,11 @@ type Props = NativeStackScreenProps<TrainerClientsStackParamList, 'ClientDetail'
 export default function ClientDetailScreen({ navigation, route }: Props) {
   const linkedClients = useLinkedClients();
   const params = route.params;
-  const assignment = useTrainerClientAssignmentsStore(
+  const savedAssignment = useTrainerClientAssignmentsStore(
     (state) => state.assignmentsByLinkId[params.linkId],
   );
+  const demoAssignment = React.useMemo(() => buildDemoAssignedRoutine(params), [params]);
+  const assignment = savedAssignment ?? demoAssignment;
   const client = React.useMemo(() => buildTrainerClientViewModel(params), [params]);
   const metrics = React.useMemo(() => buildClientMetrics(client), [client]);
   const sessions = React.useMemo(() => buildClientSessions(client, '30d').slice(0, 3), [client]);
@@ -146,7 +149,7 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
         ) : null}
         <View style={styles.actions}>
           <PrimaryButton
-            label={assignment ? 'Reemplazar rutina' : 'Asignar rutina'}
+            label={assignment ? 'Gestionar rutina' : 'Asignar rutina'}
             onPress={openAssignRoutine}
             icon={<Dumbbell size={18} color={theme.colors.background} />}
           />

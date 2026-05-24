@@ -28,7 +28,11 @@ export type WorkoutStackParamList = {
   WorkoutStart: undefined;
   WorkoutSession: { sessionId: string };
   WorkoutFinishSummary: { sessionId: string };
-  WorkoutHistory: undefined;
+  WorkoutHistory: { returnTo?: 'Profile' } | undefined;
+  WorkoutSessionDetail: { sessionId: string; returnTo?: 'Profile' };
+  ExerciseProgress: { exerciseId?: string; returnTo?: 'Profile' } | undefined;
+  Achievements: { returnTo?: 'Profile' } | undefined;
+  Measurements: { returnTo?: 'Profile' } | undefined;
 };
 
 export type SocialStackParamList = {
@@ -56,7 +60,7 @@ export type CoachStackParamList = {
 };
 
 export type SettingsStackParamList = {
-  SettingsHome: undefined;
+  SettingsHome: { returnTo?: 'Profile' } | undefined;
   Reminders: undefined;
   PrivacyNotice: undefined;
 };
@@ -106,6 +110,8 @@ export type TrainerClientsStackParamList = {
     clientName: string;
     linkId: string;
     activatedAt: string;
+    preselectedRoutineId?: string;
+    preselectedRoutineName?: string;
   };
   ClientProgress: {
     clientId: string;

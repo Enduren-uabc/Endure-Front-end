@@ -142,8 +142,14 @@ export function TrainingV2ChipRow({
   );
 }
 
-export function TrainingV2MetricCard({ metric }: { metric: MetricV2 }) {
-  return (
+export function TrainingV2MetricCard({
+  metric,
+  onPress,
+}: {
+  metric: MetricV2;
+  onPress?: () => void;
+}) {
+  const content = (
     <BaseCard style={styles.metricCard}>
       <Text style={styles.metricLabel}>{metric.label}</Text>
       <Text style={styles.metricValue}>{metric.value}</Text>
@@ -152,6 +158,20 @@ export function TrainingV2MetricCard({ metric }: { metric: MetricV2 }) {
         {metric.trend ? <Text style={styles.metricTrend}>{metric.trend}</Text> : null}
       </View>
     </BaseCard>
+  );
+
+  if (!onPress) return content;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.84}
+      onPress={onPress}
+      style={styles.metricTouchable}
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir ${metric.label}`}
+    >
+      {content}
+    </TouchableOpacity>
   );
 }
 
@@ -377,6 +397,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     padding: theme.spacing.md,
     gap: theme.spacing.xs,
+  },
+  metricTouchable: {
+    flex: 1,
   },
   metricLabel: {
     color: theme.colors.textSecondary,
