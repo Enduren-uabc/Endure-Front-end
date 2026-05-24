@@ -694,7 +694,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.full,
     backgroundColor: theme.colors.surfacePressed,
   },
-  },
   skeletonLineSmall: {
     width: '46%',
     height: 10,
