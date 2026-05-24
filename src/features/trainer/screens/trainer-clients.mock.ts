@@ -2,6 +2,7 @@ import type { ActiveClient } from '@/features/trainer-link/types/trainer-link';
 import { DAY_OF_WEEK_LABELS, DAY_OF_WEEK_ORDER, type Routine } from '@/features/training/types/routine';
 import type {
   ClientProgressPeriod,
+  TrainerClientAssignedRoutine,
   TrainerClientMeasurement,
   TrainerClientMetric,
   TrainerClientRouteParams,
@@ -19,6 +20,48 @@ const GOALS = [
 ] as const;
 
 const EXPERIENCES = ['Principiante', 'Intermedio', 'Avanzado'] as const;
+
+const DEMO_ASSIGNED_ROUTINES = [
+  {
+    routineId: 'demo-assigned-strength',
+    routineName: 'Fuerza semanal A',
+    dayOfWeeks: ['monday', 'wednesday', 'friday'] as const,
+    note: 'Mantener tecnica limpia y progresar sin llegar al fallo.',
+  },
+  {
+    routineId: 'demo-assigned-upper',
+    routineName: 'Tren superior controlado',
+    dayOfWeeks: ['tuesday', 'thursday', 'saturday'] as const,
+    note: 'Priorizar rango completo y descanso constante.',
+  },
+  {
+    routineId: 'demo-assigned-hypertrophy',
+    routineName: 'Hipertrofia base',
+    dayOfWeeks: ['monday', 'tuesday', 'thursday', 'friday'] as const,
+    note: 'Subir volumen solo si completa todas las series.',
+  },
+] as const;
+
+const DEMO_REPLACEMENT_ROUTINES = [
+  {
+    id: 'demo-replacement-hypertrophy',
+    name: 'Hipertrofia semanal B',
+    description: 'Rutina demo para revisar reemplazo sin persistencia backend.',
+    dayOfWeeks: ['monday', 'wednesday', 'friday'] as const,
+  },
+  {
+    id: 'demo-replacement-lower',
+    name: 'Pierna y core',
+    description: 'Bloque demo con enfasis en tecnica, fuerza y estabilidad.',
+    dayOfWeeks: ['tuesday', 'thursday', 'saturday'] as const,
+  },
+  {
+    id: 'demo-replacement-conditioning',
+    name: 'Acondicionamiento guiado',
+    description: 'Opcion demo para clientes que necesitan adherencia progresiva.',
+    dayOfWeeks: ['monday', 'thursday'] as const,
+  },
+] as const;
 
 function textSeed(value: string): number {
   return value.split('').reduce((total, char) => total + char.charCodeAt(0), 0);
@@ -156,4 +199,57 @@ export function buildRoutineOption(routine: Routine): TrainerRoutineOption {
     exerciseCount,
     dayLabels,
   };
+}
+
+export function buildDemoAssignedRoutine(
+  client: TrainerClientRouteParams,
+): TrainerClientAssignedRoutine {
+  const seed = textSeed(`${client.linkId}-${client.clientId}`);
+  const template = DEMO_ASSIGNED_ROUTINES[seed % DEMO_ASSIGNED_ROUTINES.length];
+  const assignedDay = 17 + (seed % 7);
+
+  return {
+    linkId: client.linkId,
+    routineId: template.routineId,
+    routineName: template.routineName,
+    assignedAt: new Date(Date.UTC(2026, 4, assignedDay, 12, 0, 0)).toISOString(),
+    days: template.dayOfWeeks.map((day) => DAY_OF_WEEK_LABELS[day]),
+    note: template.note,
+  };
+}
+
+export function buildDemoRoutineOptions(linkId: string): TrainerRoutineOption[] {
+  const seed = textSeed(linkId);
+
+  return DEMO_REPLACEMENT_ROUTINES.map((template, index) =>
+    buildRoutineOption({
+      id: `${template.id}-${seed % 97}`,
+      name: template.name,
+      description: template.description,
+      dayOfWeeks: [...template.dayOfWeeks],
+      days: template.dayOfWeeks.map((dayOfWeek, dayIndex) => ({
+        dayOfWeek,
+        exercises: [
+          {
+            id: `${template.id}-exercise-${dayIndex}-main`,
+            name: ['Sentadilla', 'Press banca', 'Peso muerto', 'Remo'][dayIndex % 4],
+            order: 1,
+            sets: 4,
+            repsPerSet: 8 + ((seed + index + dayIndex) % 4),
+            weight: 40 + ((seed + index + dayIndex) % 8) * 2.5,
+          },
+          {
+            id: `${template.id}-exercise-${dayIndex}-accessory`,
+            name: ['Plancha', 'Zancadas', 'Jalon al pecho', 'Press militar'][
+              (seed + dayIndex) % 4
+            ],
+            order: 2,
+            sets: 3,
+            repsPerSet: 10,
+            weight: 0,
+          },
+        ],
+      })),
+    }),
+  );
 }

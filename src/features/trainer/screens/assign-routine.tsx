@@ -35,7 +35,12 @@ import { theme } from '@/theme';
 import type { TrainerClientsStackParamList } from '@/navigation/types';
 import { useTrainerClientAssignmentsStore } from '../stores/trainer-client-assignments.store';
 import type { TrainerRoutineOption } from '../types/trainer-clients';
-import { buildRoutineOption, buildTrainerClientViewModel } from './trainer-clients.mock';
+import {
+  buildDemoAssignedRoutine,
+  buildDemoRoutineOptions,
+  buildRoutineOption,
+  buildTrainerClientViewModel,
+} from './trainer-clients.mock';
 
 type Props = NativeStackScreenProps<TrainerClientsStackParamList, 'AssignRoutine'>;
 
@@ -47,9 +52,11 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
   const routinesQuery = useRoutines();
   const linkedClients = useLinkedClients();
   const assignRoutine = useTrainerClientAssignmentsStore((state) => state.assignRoutine);
-  const currentAssignment = useTrainerClientAssignmentsStore(
+  const savedAssignment = useTrainerClientAssignmentsStore(
     (state) => state.assignmentsByLinkId[params.linkId],
   );
+  const demoAssignment = React.useMemo(() => buildDemoAssignedRoutine(params), [params]);
+  const currentAssignment = savedAssignment ?? demoAssignment;
   const [query, setQuery] = React.useState('');
   const [selectedRoutineId, setSelectedRoutineId] = React.useState<string | null>(
     currentAssignment?.routineId ?? params.preselectedRoutineId ?? null,
@@ -61,12 +68,19 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [mutationError, setMutationError] = React.useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = React.useState(false);
+  const [discardVisible, setDiscardVisible] = React.useState(false);
 
-  const routineOptions = React.useMemo(
-    () => (routinesQuery.data ?? []).map(buildRoutineOption),
-    [routinesQuery.data],
+  const demoRoutineOptions = React.useMemo(
+    () => buildDemoRoutineOptions(params.linkId),
+    [params.linkId],
   );
+  const routineOptions = React.useMemo(() => {
+    const realOptions = (routinesQuery.data ?? []).map(buildRoutineOption);
+
+    return realOptions.length > 0 ? realOptions : demoRoutineOptions;
+  }, [demoRoutineOptions, routinesQuery.data]);
   const filteredOptions = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return routineOptions.filter((option) =>
@@ -96,10 +110,35 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
     selectedRoutineId !== (currentAssignment?.routineId ?? params.preselectedRoutineId ?? null) ||
     selectedDays.join('|') !== (currentAssignment?.days ?? ['Lun', 'Mie', 'Vie']).join('|') ||
     note.trim() !== (currentAssignment?.note ?? '');
+  const canSubmit =
+    Boolean(selectedOption) &&
+    selectedDays.length > 0 &&
+    !isSubmitting &&
+    (!currentAssignment || hasUnsavedChanges);
+  const screenTitle = currentAssignment ? 'Gestionar rutina' : 'Asignar rutina';
 
-  const toggleDay = (day: string) => {
+  const clearFeedback = () => {
     setValidationError(null);
     setMutationError(null);
+    setSuccessMessage(null);
+  };
+
+  const leaveScreen = () => {
+    setDiscardVisible(false);
+    navigation.goBack();
+  };
+
+  const requestClose = () => {
+    if (hasUnsavedChanges && !isSubmitting) {
+      setDiscardVisible(true);
+      return;
+    }
+
+    navigation.goBack();
+  };
+
+  const toggleDay = (day: string) => {
+    clearFeedback();
     setSelectedDays((current) =>
       current.includes(day)
         ? current.filter((item) => item !== day)
@@ -109,8 +148,7 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
 
   const selectRoutine = (option: TrainerRoutineOption) => {
     setSelectedRoutineId(option.routine.id);
-    setValidationError(null);
-    setMutationError(null);
+    clearFeedback();
     if (!currentAssignment || currentAssignment.routineId !== option.routine.id) {
       setSelectedDays(option.dayLabels.length > 0 ? option.dayLabels : ['Lun', 'Mie', 'Vie']);
     }
@@ -128,6 +166,7 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
     }
 
     setIsSubmitting(true);
+    setSuccessMessage(null);
     setTimeout(() => {
       try {
         assignRoutine({
@@ -145,11 +184,20 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
       }
       setIsSubmitting(false);
       setConfirmVisible(false);
-      navigation.goBack();
+      setSuccessMessage(
+        currentAssignment
+          ? 'Rutina reemplazada correctamente. El cliente conserva solo esta rutina asignada por entrenador.'
+          : 'Rutina asignada correctamente al cliente.',
+      );
     }, 450);
   };
 
   const submitAssignment = () => {
+    if (currentAssignment && !hasUnsavedChanges) {
+      setValidationError('Realiza un cambio antes de guardar el reemplazo.');
+      return;
+    }
+
     if (currentAssignment && hasUnsavedChanges) {
       setConfirmVisible(true);
       return;
@@ -271,21 +319,27 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
   return (
     <>
       <TrainingV2Screen
-        title="Asignar rutina"
+        title={screenTitle}
         subtitle={`Cliente: ${client.clientName}`}
         titleColor={theme.colors.textPrimary}
-        onBack={() => navigation.goBack()}
+        onBack={requestClose}
         footer={
           <View style={styles.footerActions}>
-            {validationError ? <Text style={styles.validationText}>{validationError}</Text> : null}
-            {mutationError ? <Text style={styles.validationText}>{mutationError}</Text> : null}
-            <PrimaryButton
-              label={isSubmitting ? 'Guardando' : currentAssignment ? 'Reemplazar rutina' : 'Asignar rutina'}
-              onPress={submitAssignment}
-              loading={isSubmitting}
-              disabled={isSubmitting || !selectedOption || selectedDays.length === 0}
-            />
-            <SecondaryButton label="Cancelar" onPress={() => navigation.goBack()} disabled={isSubmitting} />
+            {successMessage ? (
+              <PrimaryButton label="Volver al cliente" onPress={leaveScreen} />
+            ) : (
+              <>
+                {validationError ? <Text style={styles.validationText}>{validationError}</Text> : null}
+                {mutationError ? <Text style={styles.validationText}>{mutationError}</Text> : null}
+                <PrimaryButton
+                  label={isSubmitting ? 'Guardando' : currentAssignment ? 'Guardar reemplazo' : 'Asignar rutina'}
+                  onPress={submitAssignment}
+                  loading={isSubmitting}
+                  disabled={!canSubmit}
+                />
+                <SecondaryButton label="Cancelar" onPress={requestClose} disabled={isSubmitting} />
+              </>
+            )}
           </View>
         }
       >
@@ -319,6 +373,16 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
           <Text style={styles.unsavedText}>Tienes cambios sin guardar en esta asignacion.</Text>
         ) : null}
       </BaseCard>
+
+      {successMessage ? (
+        <BaseCard style={styles.successCard}>
+          <CheckCircle2 size={22} color={theme.colors.success} />
+          <View style={styles.successCopy}>
+            <Text style={styles.successTitle}>Cambios guardados</Text>
+            <Text style={styles.successText}>{successMessage}</Text>
+          </View>
+        </BaseCard>
+      ) : null}
 
       <View style={styles.searchBox}>
         <Search size={20} color={theme.colors.textMuted} />
@@ -358,7 +422,10 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
       <View style={styles.noteBox}>
         <TextInput
           value={note}
-          onChangeText={setNote}
+          onChangeText={(value) => {
+            clearFeedback();
+            setNote(value);
+          }}
           placeholder="Ej. Enfatizar tecnica en sentadilla esta semana"
           placeholderTextColor={theme.colors.textMuted}
           selectionColor={theme.colors.primary}
@@ -411,6 +478,36 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
               onPress={() => setConfirmVisible(false)}
               disabled={isSubmitting}
             />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={discardVisible} animationType="slide" transparent>
+        <View style={styles.sheetOverlay}>
+          <View style={styles.confirmSheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.confirmHeader}>
+              <Text style={styles.confirmTitle}>Descartar cambios</Text>
+              <Pressable
+                onPress={() => setDiscardVisible(false)}
+                disabled={isSubmitting}
+                style={styles.closeButton}
+              >
+                <X size={22} color={theme.colors.textSecondary} />
+              </Pressable>
+            </View>
+            <Text style={styles.confirmText}>
+              Hay cambios sin guardar en la rutina asignada de {client.clientName}.
+            </Text>
+            <Text style={styles.confirmHint}>
+              Si sales ahora, la rutina vigente se mantiene sin modificaciones.
+            </Text>
+            <PrimaryButton
+              label="Seguir editando"
+              onPress={() => setDiscardVisible(false)}
+              disabled={isSubmitting}
+            />
+            <SecondaryButton label="Salir sin guardar" onPress={leaveScreen} disabled={isSubmitting} />
           </View>
         </View>
       </Modal>
@@ -509,6 +606,27 @@ const styles = StyleSheet.create({
   },
   unsavedText: {
     color: theme.colors.warning,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  successCard: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    borderColor: 'rgba(34, 197, 94, 0.34)',
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+  },
+  successCopy: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  successTitle: {
+    color: theme.colors.success,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  successText: {
+    color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
