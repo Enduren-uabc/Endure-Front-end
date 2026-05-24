@@ -33,6 +33,7 @@ import {
   useAddWorkoutSet,
   useAdvanceWorkoutExercise,
   useCompleteWorkoutSet,
+  useDiscardWorkoutSession,
   useFinishWorkoutSession,
   useRegisterWorkoutSet,
   useRemoveWorkoutSet,
@@ -386,6 +387,36 @@ export default function WorkoutSessionScreen({ navigation, route }: Props) {
     }
   };
 
+  const discardSessionMutation = useDiscardWorkoutSession();
+
+  const handleDiscard = () => {
+    if (!session || isMutating) return;
+
+    Alert.alert(
+      'Descartar sesión',
+      'Todo el progreso de esta sesión se perderá permanentemente. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Descartar',
+          style: 'destructive',
+          onPress: () => {
+            setMutationError(null);
+            discardSessionMutation.mutate(
+              { sessionId: session.id },
+              {
+                onSuccess: () => {
+                  navigation.navigate('WorkoutStart');
+                },
+                onError: (error) => setMutationError(error.message),
+              },
+            );
+          },
+        },
+      ],
+    );
+  };
+
   const handleFinishEarly = () => {
     if (!session || isMutating) return;
 
@@ -689,6 +720,14 @@ export default function WorkoutSessionScreen({ navigation, route }: Props) {
           <Text style={styles.finishButtonText}>Terminar y guardar</Text>
           <ChevronRight size={18} color={theme.colors.textMuted} />
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.discardButton, isMutating && styles.finishButtonDisabled]}
+          onPress={handleDiscard}
+          disabled={isMutating || discardSessionMutation.isPending}
+        >
+          <Trash2 size={18} color={theme.colors.error} />
+          <Text style={styles.discardButtonText}>Descartar sesión</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -975,6 +1014,23 @@ const styles = StyleSheet.create({
   },
   finishButtonText: {
     color: theme.colors.textPrimary,
+    fontSize: theme.typography.button.fontSize,
+    lineHeight: theme.typography.button.lineHeight,
+    fontWeight: theme.typography.button.fontWeight,
+  },
+  discardButton: {
+    minHeight: 44,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.error + '40',
+    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+  },
+  discardButtonText: {
+    color: theme.colors.error,
     fontSize: theme.typography.button.fontSize,
     lineHeight: theme.typography.button.lineHeight,
     fontWeight: theme.typography.button.fontWeight,
