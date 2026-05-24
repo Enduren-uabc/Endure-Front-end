@@ -1,12 +1,14 @@
 import React from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, type NavigationProp, type NavigatorScreenParams } from '@react-navigation/native';
-import { AlertCircle, CalendarDays, Flame, Play, RefreshCcw, Sparkles } from 'lucide-react-native';
+import { AlertCircle, CalendarDays, Flame, Link2, Play, RefreshCcw, Sparkles } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import type { TrainingStackParamList, WorkoutStackParamList } from '@/navigation/types';
+import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 import {
   TrainingV2MetricCard,
   TrainingV2RoutineCard,
@@ -29,13 +31,14 @@ export default function HomeTrainingV2Screen() {
   const { data: historyData, isLoading: historyLoading, isError: historyError, refetch: refetchHistory } = useWorkoutHistory();
   const greeting = useHomeGreeting();
   const { data: weeklyStats, isLoading: statsLoading, isError: statsError } = useWeeklyStats();
+  const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
+  const role = useSessionStore((state) => state.role);
 
   const activeRoutine = routines?.find((r) => r.isActive) ?? null;
   const historySessions = historyData ?? [];
   const totalExerciseCount = activeRoutine
     ? activeRoutine.days.reduce((sum, d) => sum + d.exercises.length, 0)
     : 0;
-
   const startWorkout = () => navigation.navigate('Workout', { screen: 'WorkoutStart' });
   const openHistory = () => navigation.navigate('Workout', { screen: 'WorkoutHistory' });
   const createRoutine = () =>
@@ -48,6 +51,11 @@ export default function HomeTrainingV2Screen() {
       screen: 'RoutineDetail',
       params: { id: routineId },
     });
+  const openMyTrainer = () =>
+    drawerNavigation?.navigate('TrainerLinkStack', { screen: 'MyTrainer' });
+  const openSearchTrainer = () =>
+    drawerNavigation?.navigate('TrainerLinkStack', { screen: 'SearchTrainer' });
+  const isClient = role !== 'trainer';
 
   const isLoading = routinesLoading || historyLoading || statsLoading;
 
@@ -183,11 +191,34 @@ export default function HomeTrainingV2Screen() {
         </View>
       </BaseCard>
 
-      <TrainingV2SectionHeader
-        title="Tus rutinas"
-        actionLabel="Explorar"
-        onAction={() => navigation.navigate('Routines', { screen: 'RoutinesList' })}
-      />
+      {isClient ? (
+        <BaseCard style={styles.trainerCard}>
+          <View style={styles.trainerHeader}>
+            <View style={styles.trainerIcon}>
+              <Link2 size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.trainerCopy}>
+              <Text style={styles.trainerTitle}>Mi entrenador</Text>
+              <Text style={styles.trainerText}>
+                Revisa tu entrenador vinculado o envia una solicitud si aun no tienes uno.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.trainerActions}>
+            <PrimaryButton
+              label="Ver mi entrenador"
+              onPress={openMyTrainer}
+              icon={<Link2 size={18} color={theme.colors.background} />}
+            />
+            <SecondaryButton
+              label="Buscar entrenador"
+              onPress={openSearchTrainer}
+            />
+          </View>
+        </BaseCard>
+      ) : null}
+
+      <TrainingV2SectionHeader title="Para ti" actionLabel="Explorar" onAction={() => navigation.navigate('Routines', { screen: 'RoutinesList' })} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -341,6 +372,40 @@ const styles = StyleSheet.create({
   },
   streakDotActive: {
     backgroundColor: '#F97316',
+  },
+  trainerCard: {
+    gap: theme.spacing.md,
+  },
+  trainerHeader: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    alignItems: 'flex-start',
+  },
+  trainerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trainerCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  trainerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  trainerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  trainerActions: {
+    gap: theme.spacing.sm,
   },
   suggestions: {
     gap: theme.spacing.md,

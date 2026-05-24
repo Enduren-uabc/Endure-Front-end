@@ -13,13 +13,30 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { NavigationAction } from '@react-navigation/native';
-import { BellOff, ChevronRight, Clock3, RefreshCcw, Save, X } from 'lucide-react-native';
+import { StackActions, usePreventRemove, type NavigationAction } from '@react-navigation/native';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Bell,
+  BellOff,
+  ChevronRight,
+  Clock3,
+  RefreshCcw,
+  Save,
+  X,
+} from 'lucide-react-native';
 import { Chip } from '@/components/ui/Chip';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { SettingsStackParamList } from '@/navigation/types';
+import { useReminderPreferences } from '../hooks/use-reminder-preferences';
+import { DEFAULT_REMINDER_PREFERENCES } from '../mocks/reminders.mock';
+import type {
+  NotificationPermissionStatus,
+  ReminderPreferences,
+  ReminderWeekDay,
+} from '../types/reminders';
 
 const STORAGE_KEY = '@endure/reminder-preferences';
 
@@ -33,22 +50,7 @@ try {
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Reminders'>;
 
-type WeekDayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-type PermissionStatus = 'blocked' | 'checking' | 'unknown';
-
-interface ReminderPreferences {
-  trainingEnabled: boolean;
-  reminderHour: number;
-  reminderMinute: number;
-  activeDays: WeekDayKey[];
-  inactivityEnabled: boolean;
-  inactivityDays: number;
-  prsEnabled: boolean;
-  weeklySummaryEnabled: boolean;
-  trainerMessagesEnabled: boolean;
-}
-
-const WEEK_DAYS: { key: WeekDayKey; label: string }[] = [
+const WEEK_DAYS: { key: ReminderWeekDay; label: string }[] = [
   { key: 'monday', label: 'L' },
   { key: 'tuesday', label: 'M' },
   { key: 'wednesday', label: 'M' },
@@ -58,18 +60,6 @@ const WEEK_DAYS: { key: WeekDayKey; label: string }[] = [
   { key: 'sunday', label: 'D' },
 ];
 
-const INITIAL_PREFERENCES: ReminderPreferences = {
-  trainingEnabled: true,
-  reminderHour: 7,
-  reminderMinute: 30,
-  activeDays: ['monday', 'wednesday', 'friday'],
-  inactivityEnabled: true,
-  inactivityDays: 3,
-  prsEnabled: true,
-  weeklySummaryEnabled: true,
-  trainerMessagesEnabled: true,
-};
-
 function formatTime(hour: number, minute: number) {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
@@ -78,113 +68,139 @@ function arePreferencesEqual(a: ReminderPreferences, b: ReminderPreferences) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function arePreferencesEmpty(preferences: ReminderPreferences) {
+  return (
+    !preferences.trainingEnabled &&
+    !preferences.inactivityEnabled &&
+    !preferences.prsEnabled &&
+    !preferences.weeklySummaryEnabled &&
+    !preferences.trainerMessagesEnabled
+  );
+}
+
 export default function RemindersScreen({ navigation }: Props) {
-  const [initialLoading, setInitialLoading] = React.useState(true);
-  const [savedPreferences, setSavedPreferences] =
-    React.useState<ReminderPreferences>(INITIAL_PREFERENCES);
-  const [preferences, setPreferences] = React.useState<ReminderPreferences>(INITIAL_PREFERENCES);
-  const [permissionStatus, setPermissionStatus] = React.useState<PermissionStatus>('checking');
+  const remindersQuery = useReminderPreferences();
+  const [savedPreferences, setSavedPreferences] = React.useState<ReminderPreferences | null>(null);
+  const [preferences, setPreferences] = React.useState<ReminderPreferences | null>(null);
+  const [permissionStatus, setPermissionStatus] =
+    React.useState<NotificationPermissionStatus>('checking');
   const [permissionMessage, setPermissionMessage] = React.useState<string | null>(null);
   const [timeSheetVisible, setTimeSheetVisible] = React.useState(false);
   const [unsavedSheetVisible, setUnsavedSheetVisible] = React.useState(false);
   const [pendingAction, setPendingAction] = React.useState<NavigationAction | null>(null);
-  const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const allowLeaveRef = React.useRef(false);
 
-  const hasUnsavedChanges = !arePreferencesEqual(savedPreferences, preferences);
-  const hasDayValidationError = preferences.trainingEnabled && preferences.activeDays.length === 0;
-  const canSave = hasUnsavedChanges && !hasDayValidationError && !saving;
+  React.useEffect(() => {
+    if (!remindersQuery.data) return;
+
+    setSavedPreferences(remindersQuery.data.preferences);
+    setPreferences(remindersQuery.data.preferences);
+    setPermissionStatus(remindersQuery.data.notificationPermission);
+    setPermissionMessage(remindersQuery.data.permissionMessage);
+  }, [remindersQuery.data]);
+
+  const saving = remindersQuery.isSaving;
+  const hasUnsavedChanges = Boolean(
+    savedPreferences && preferences && !arePreferencesEqual(savedPreferences, preferences),
+  );
+  const hasDayValidationError = Boolean(
+    preferences?.trainingEnabled && preferences.activeDays.length === 0,
+  );
+  const canSave = Boolean(hasUnsavedChanges && !hasDayValidationError && !saving);
   const isPermissionBlocked = permissionStatus === 'blocked';
+  const isEmptyState = preferences ? arePreferencesEmpty(preferences) : false;
+
+  usePreventRemove(hasUnsavedChanges && !allowLeaveRef.current, ({ data }) => {
+    setPendingAction(data.action);
+    setUnsavedSheetVisible(true);
+  });
 
   React.useEffect(() => {
-    async function load() {
-      try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed: ReminderPreferences = JSON.parse(stored);
-          setSavedPreferences(parsed);
-          setPreferences(parsed);
-        }
-      } catch {
-        // usa defaults
-      } finally {
-        setInitialLoading(false);
-      }
-    }
-    load();
-  }, []);
+    if (hasUnsavedChanges) return;
 
-  React.useEffect(() => {
-    async function checkPermission() {
-      if (!NotificationsModule) {
-        setPermissionStatus('blocked');
-        setPermissionMessage('expo-notifications no esta disponible en este entorno.');
-        return;
-      }
-      try {
-        const { status } = await NotificationsModule.getPermissionsAsync();
-        setPermissionStatus(status === 'granted' ? 'unknown' : 'blocked');
-      } catch {
-        setPermissionStatus('blocked');
-      }
-    }
-    checkPermission();
-  }, []);
+    setPendingAction(null);
+    setUnsavedSheetVisible(false);
+    allowLeaveRef.current = false;
+  }, [hasUnsavedChanges]);
 
-  React.useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (!hasUnsavedChanges || allowLeaveRef.current) return;
-
-      event.preventDefault();
-      setPendingAction(event.data.action);
+  const requestLeave = React.useCallback(() => {
+    if (hasUnsavedChanges) {
+      setPendingAction(StackActions.pop(1));
       setUnsavedSheetVisible(true);
-    });
+      return;
+    }
 
-    return unsubscribe;
+    navigation.goBack();
   }, [hasUnsavedChanges, navigation]);
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity
+          activeOpacity={0.78}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          onPress={requestLeave}
+          style={styles.headerBackButton}
+        >
+          <ArrowLeft size={22} color={theme.colors.textPrimary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, requestLeave]);
 
   const updatePreference = React.useCallback(
     <K extends keyof ReminderPreferences>(key: K, value: ReminderPreferences[K]) => {
-      setPreferences((current) => ({ ...current, [key]: value }));
+      setPreferences((current) => ({
+        ...(current ?? DEFAULT_REMINDER_PREFERENCES),
+        [key]: value,
+      }));
       setSaveError(null);
       setSuccessMessage(null);
+      remindersQuery.clearSaveError();
     },
-    [],
+    [remindersQuery],
   );
 
-  const toggleDay = React.useCallback((day: WeekDayKey) => {
+  const toggleDay = React.useCallback((day: ReminderWeekDay) => {
     setPreferences((current) => {
-      const exists = current.activeDays.includes(day);
+      const base = current ?? DEFAULT_REMINDER_PREFERENCES;
+      const exists = base.activeDays.includes(day);
       const activeDays = exists
-        ? current.activeDays.filter((item) => item !== day)
-        : [...current.activeDays, day];
-      return { ...current, activeDays };
+        ? base.activeDays.filter((item) => item !== day)
+        : [...base.activeDays, day];
+      return { ...base, activeDays };
     });
     setSaveError(null);
     setSuccessMessage(null);
   }, []);
 
-  const savePreferences = React.useCallback(async (afterSave?: () => void) => {
+  const savePreferences = React.useCallback((afterSave?: () => void) => {
+    if (!preferences) {
+      setSaveError('No pudimos preparar tus preferencias. Intenta de nuevo.');
+      return;
+    }
     if (hasDayValidationError) {
       setSaveError('Selecciona al menos un dia para activar los recordatorios.');
       return;
     }
 
-    setSaving(true);
     setSaveError(null);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
-      setSavedPreferences(preferences);
-      setSuccessMessage('Recordatorios guardados.');
-      afterSave?.();
-    } catch {
-      setSaveError('No se pudieron guardar las preferencias. Intenta de nuevo.');
-    } finally {
-      setSaving(false);
-    }
-  }, [hasDayValidationError, preferences]);
+    remindersQuery.savePreferences(preferences)
+      .then(() => {
+        setSavedPreferences(preferences);
+        setSuccessMessage('Recordatorios guardados.');
+        afterSave?.();
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error
+          ? error.message
+          : 'No pudimos guardar tus recordatorios. Intenta de nuevo.';
+        setSaveError(message);
+      });
+  }, [hasDayValidationError, preferences, remindersQuery]);
 
   const retryPermissionCheck = React.useCallback(async () => {
     if (!NotificationsModule) {
@@ -215,7 +231,9 @@ export default function RemindersScreen({ navigation }: Props) {
   }, []);
 
   const discardAndLeave = React.useCallback(() => {
-    setPreferences(savedPreferences);
+    if (savedPreferences) {
+      setPreferences(savedPreferences);
+    }
     setUnsavedSheetVisible(false);
     allowLeaveRef.current = true;
     const action = pendingAction;
@@ -225,26 +243,54 @@ export default function RemindersScreen({ navigation }: Props) {
     }
   }, [navigation, pendingAction, savedPreferences]);
 
+  const keepEditing = React.useCallback(() => {
+    setUnsavedSheetVisible(false);
+    setPendingAction(null);
+    allowLeaveRef.current = false;
+  }, []);
+
   const saveAndLeave = React.useCallback(() => {
+    const actionToDispatch = pendingAction ?? StackActions.pop(1);
+
     savePreferences(() => {
       setUnsavedSheetVisible(false);
       allowLeaveRef.current = true;
-      const action = pendingAction;
       setPendingAction(null);
-      if (action) {
-        navigation.dispatch(action);
-      }
+      setTimeout(() => navigation.dispatch(actionToDispatch), 0);
     });
   }, [navigation, pendingAction, savePreferences]);
 
-  if (initialLoading) {
+  if (remindersQuery.isLoading) {
+    return <ReminderLoadingState />;
+  }
+
+  if (remindersQuery.isError) {
     return (
-      <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <View style={styles.center}>
-          <ActivityIndicator color={theme.colors.primary} size="large" />
-          <Text style={styles.centerText}>Cargando preferencias...</Text>
-        </View>
-      </SafeAreaView>
+      <ReminderScreenState
+        icon={<AlertCircle size={42} color={theme.colors.error} />}
+        title="No pudimos cargar tus recordatorios"
+        description={remindersQuery.error?.message ?? 'Revisa tu conexion e intenta de nuevo.'}
+        actionLabel="Reintentar"
+        onAction={remindersQuery.refetch}
+      />
+    );
+  }
+
+  if (!preferences || !savedPreferences) {
+    return (
+      <ReminderScreenState
+        icon={<BellOff size={42} color={theme.colors.textMuted} />}
+        title="Aun no hay preferencias"
+        description="Preparamos un estado inicial para que configures tus recordatorios."
+        actionLabel="Configurar"
+        onAction={() => {
+          setSavedPreferences(DEFAULT_REMINDER_PREFERENCES);
+          setPreferences(DEFAULT_REMINDER_PREFERENCES);
+          setPermissionStatus('granted');
+        }}
+      />
+    );
+  }
     );
   }
 
@@ -264,6 +310,16 @@ export default function RemindersScreen({ navigation }: Props) {
             message={permissionMessage}
             onRetry={retryPermissionCheck}
             onOpenSettings={openSystemSettings}
+          />
+        ) : null}
+
+        {isEmptyState ? (
+          <EmptyReminderCard
+            onActivate={() => {
+              setPreferences(DEFAULT_REMINDER_PREFERENCES);
+              setSaveError(null);
+              setSuccessMessage(null);
+            }}
           />
         ) : null}
 
@@ -342,7 +398,7 @@ export default function RemindersScreen({ navigation }: Props) {
             label="Mensajes de mi entrenador"
             description="Avisos de rutinas asignadas o comentarios del entrenador."
             value={preferences.trainerMessagesEnabled}
-            disabled={isPermissionBlocked}
+            disabled={isPermissionBlocked || !remindersQuery.data?.trainerNotificationsAvailable}
             onValueChange={(value) => updatePreference('trainerMessagesEnabled', value)}
           />
         </SettingsSection>
@@ -379,11 +435,79 @@ export default function RemindersScreen({ navigation }: Props) {
         visible={unsavedSheetVisible}
         saving={saving}
         error={saveError}
-        onKeepEditing={() => setUnsavedSheetVisible(false)}
+        onKeepEditing={keepEditing}
         onDiscard={discardAndLeave}
         onSave={saveAndLeave}
       />
     </SafeAreaView>
+  );
+}
+
+function ReminderLoadingState() {
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Recordatorios</Text>
+          <Text style={styles.subtitle}>Cargando tus preferencias de entrenamiento.</Text>
+        </View>
+        <View style={styles.skeletonHero} />
+        <View style={styles.skeletonSection}>
+          {Array.from({ length: 3 }, (_, index) => (
+            <View key={`reminder-skeleton-${index}`} style={styles.skeletonRow} />
+          ))}
+        </View>
+        <View style={styles.skeletonSection}>
+          {Array.from({ length: 2 }, (_, index) => (
+            <View key={`reminder-skeleton-extra-${index}`} style={styles.skeletonRow} />
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function ReminderScreenState({
+  icon,
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <View style={styles.stateContainer}>
+        <View style={styles.stateIcon}>{icon}</View>
+        <Text style={styles.stateTitle}>{title}</Text>
+        <Text style={styles.stateText}>{description}</Text>
+        <PrimaryButton label={actionLabel} onPress={onAction} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function EmptyReminderCard({ onActivate }: { onActivate: () => void }) {
+  return (
+    <View style={styles.emptyCard}>
+      <View style={styles.emptyHeader}>
+        <View style={styles.emptyIcon}>
+          <Bell size={24} color={theme.colors.primary} />
+        </View>
+        <View style={styles.emptyCopy}>
+          <Text style={styles.emptyTitle}>Recordatorios desactivados</Text>
+          <Text style={styles.emptyText}>
+            Activa un horario y dias de entrenamiento cuando quieras que Endure te acompane.
+          </Text>
+        </View>
+      </View>
+      <SecondaryButton label="Configurar" onPress={onActivate} />
+    </View>
   );
 }
 
@@ -491,7 +615,7 @@ function PermissionBanner({
   onRetry,
   onOpenSettings,
 }: {
-  status: PermissionStatus;
+  status: NotificationPermissionStatus;
   message: string | null;
   onRetry: () => void;
   onOpenSettings: () => void;
@@ -724,6 +848,98 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
+  },
+  headerBackButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 0,
+  },
+  stateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.md,
+  },
+  stateIcon: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stateTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading2.fontSize,
+    lineHeight: theme.typography.heading2.lineHeight,
+    fontWeight: theme.typography.heading2.fontWeight,
+    textAlign: 'center',
+  },
+  stateText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
+  },
+  skeletonHero: {
+    minHeight: 112,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  skeletonSection: {
+    gap: theme.spacing.sm,
+  },
+  skeletonRow: {
+    minHeight: 64,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  emptyCard: {
+    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  emptyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  emptyIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: theme.colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCopy: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  emptyTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  emptyText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
   permissionBanner: {
     flexDirection: 'row',

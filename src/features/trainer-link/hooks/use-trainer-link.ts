@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { ApiError, apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import type {
   TrainerSearchResult,
@@ -11,6 +11,11 @@ import type {
   ActiveClient,
   LinkRequestStatus,
 } from '../types/trainer-link';
+
+const EMPTY_ACTIVE_TRAINER_RESPONSE: ActiveTrainerResponse = {
+  hasTrainer: false,
+  trainer: null,
+};
 
 export function useSearchTrainers(query: string, page = 1, limit = 20) {
   return useQuery<PaginatedResponse<TrainerSearchResult>>({
@@ -51,11 +56,20 @@ export function useReceivedLinkRequests(status?: LinkRequestStatus, page = 1) {
 }
 
 export function useMyTrainer() {
-  return useQuery<ActiveTrainerResponse>({
+  return useQuery<ActiveTrainerResponse, ApiError>({
     queryKey: ['trainer-link', 'my-trainer'],
-    queryFn: () => apiClient.get<ActiveTrainerResponse>(
-      API_ENDPOINTS.trainerLink.myTrainer,
-    ),
+    queryFn: async () => {
+      try {
+        return await apiClient.get<ActiveTrainerResponse>(
+          API_ENDPOINTS.trainerLink.myTrainer,
+        );
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          return EMPTY_ACTIVE_TRAINER_RESPONSE;
+        }
+        throw error;
+      }
+    },
   });
 }
 

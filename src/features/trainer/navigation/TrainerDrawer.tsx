@@ -6,7 +6,7 @@ import {
   DrawerItemList,
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
-import { Dumbbell, Settings, HelpCircle, UsersRound, Inbox } from 'lucide-react-native';
+import { Dumbbell, Settings, HelpCircle, Inbox } from 'lucide-react-native';
 import TrainerTabs from './TrainerTabs';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
 import SettingsStack from '@/features/settings/navigation/SettingsStack';
@@ -68,7 +68,6 @@ export default function TrainerDrawer() {
         component={TrainerLinkStack}
         options={{
           title: 'Solicitudes',
-          drawerItemStyle: { display: 'none' },
           drawerIcon: ({ color, size }) => <Inbox size={size} color={color} />,
         }}
       />

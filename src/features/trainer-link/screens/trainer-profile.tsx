@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { User, Award, Star, AlertCircle, CheckCircle } from 'lucide-react-native';
 import { theme } from '@/theme';
-import { usePublicTrainerProfile, useSendLinkRequest } from '../hooks/use-trainer-link';
+import { useMyTrainer, usePublicTrainerProfile, useSendLinkRequest } from '../hooks/use-trainer-link';
 import type { TrainerLinkStackParamList } from '@/navigation/types';
 
 type ProfileRoute = RouteProp<TrainerLinkStackParamList, 'TrainerProfile'>;
@@ -21,9 +21,34 @@ export default function TrainerProfileScreen() {
   const route = useRoute<ProfileRoute>();
   const { trainerId } = route.params;
   const { data: profile, isLoading, isError, refetch } = usePublicTrainerProfile(trainerId);
+  const { data: myTrainer, isLoading: isMyTrainerLoading } = useMyTrainer();
   const sendRequest = useSendLinkRequest();
 
+  const linkedTrainerId = myTrainer?.trainer?.trainerId ?? null;
+  const isLinkedTrainer = linkedTrainerId === trainerId;
+  const hasDifferentActiveTrainer = Boolean(linkedTrainerId && linkedTrainerId !== trainerId);
+  const isSendDisabled = sendRequest.isPending || isMyTrainerLoading || hasDifferentActiveTrainer;
+
+  const getSendButtonText = () => {
+    if (isMyTrainerLoading) return 'Validando vinculación...';
+    if (hasDifferentActiveTrainer) return 'Ya tienes entrenador';
+    if (sendRequest.isPending) return 'Enviando...';
+    return 'Enviar solicitud de vinculación';
+  };
+
   const handleSendRequest = () => {
+    if (isMyTrainerLoading) return;
+
+    if (isLinkedTrainer) {
+      Alert.alert('Entrenador vinculado', 'Ya estás vinculado con este entrenador.');
+      return;
+    }
+
+    if (hasDifferentActiveTrainer) {
+      Alert.alert('Ya tienes un entrenador', 'Ya tienes un entrenador vinculado. Desvincúlate primero para enviar una nueva solicitud.');
+      return;
+    }
+
     Alert.alert(
       'Enviar solicitud',
       `¿Enviar solicitud de vinculación a ${profile?.displayName ?? 'este entrenador'}?`,
@@ -38,8 +63,8 @@ export default function TrainerProfileScreen() {
                 onSuccess: () => {
                   Alert.alert('Solicitud enviada', 'Tu solicitud de vinculación ha sido enviada.');
                 },
-                onError: (err: any) => {
-                  Alert.alert('Error', err?.message ?? 'No pudimos enviar la solicitud.');
+                onError: (err: Error) => {
+                  Alert.alert('Error', err.message || 'No pudimos enviar la solicitud.');
                 },
               },
             );
@@ -113,22 +138,36 @@ export default function TrainerProfileScreen() {
           </View>
         )}
 
-        <TouchableOpacity
-          style={[styles.sendButton, sendRequest.isPending && styles.sendButtonDisabled]}
-          onPress={handleSendRequest}
-          disabled={sendRequest.isPending}
-        >
-          {sendRequest.isSuccess ? (
-            <>
-              <CheckCircle size={20} color="#0A0A0F" />
-              <Text style={styles.sendText}>Solicitud enviada</Text>
-            </>
-          ) : (
-            <Text style={styles.sendText}>
-              {sendRequest.isPending ? 'Enviando...' : 'Enviar solicitud de vinculación'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {isLinkedTrainer ? (
+          <View style={styles.linkedStatus}>
+            <CheckCircle size={20} color="#22C55E" />
+            <Text style={styles.linkedStatusText}>Ya estás vinculado con este entrenador</Text>
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.sendButton, isSendDisabled && styles.sendButtonDisabled]}
+              onPress={handleSendRequest}
+              disabled={isSendDisabled}
+            >
+              {sendRequest.isSuccess ? (
+                <>
+                  <CheckCircle size={20} color="#0A0A0F" />
+                  <Text style={styles.sendText}>Solicitud enviada</Text>
+                </>
+              ) : (
+                <Text style={[styles.sendText, isSendDisabled && styles.sendTextDisabled]}>
+                  {getSendButtonText()}
+                </Text>
+              )}
+            </TouchableOpacity>
+            {hasDifferentActiveTrainer && (
+              <Text style={styles.blockedHelp}>
+                Para enviar una nueva solicitud, primero desvincúlate de tu entrenador actual.
+              </Text>
+            )}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -231,6 +270,34 @@ const styles = StyleSheet.create({
     color: '#0A0A0F',
     fontWeight: '700',
     fontSize: 15,
+  },
+  sendTextDisabled: {
+    color: '#A0A0B0',
+  },
+  linkedStatus: {
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderWidth: 1,
+    borderColor: '#22C55E',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  linkedStatusText: {
+    color: '#22C55E',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  blockedHelp: {
+    color: '#A0A0B0',
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: -8,
   },
   errorText: {
     fontSize: 15,

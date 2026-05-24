@@ -91,6 +91,29 @@ export type TrainerLinkStackParamList = {
   AssignedRoutine: undefined;
   MyAssignedRoutines: undefined;
 };
+
+
+export type TrainerClientsStackParamList = {
+  ClientsList: undefined;
+  ClientDetail: {
+    clientId: string;
+    clientName: string;
+    linkId: string;
+    activatedAt: string;
+  };
+  AssignRoutine: {
+    clientId: string;
+    clientName: string;
+    linkId: string;
+    activatedAt: string;
+  };
+  ClientProgress: {
+    clientId: string;
+    clientName: string;
+    linkId: string;
+    activatedAt: string;
+  };
+};
 };
 
 export type AppTabsParamList = {
