@@ -6,7 +6,7 @@ import HomeTrainingV2Screen from '@/features/home/screens/v2/HomeTrainingV2Scree
 import TrainingStack from '@/navigation/TrainingStack';
 import WorkoutStack from '@/navigation/WorkoutStack';
 import SocialStack from '@/navigation/SocialStack';
-import TrainerClientsStack from './TrainerClientsStack';
+import ClientsStack from './ClientsStack';
 import { useReceivedLinkRequests } from '@/features/trainer-link/hooks/use-trainer-link';
 import { theme } from '@/theme';
 import type { TrainerTabsParamList } from '../types/trainer-navigation.types';
@@ -107,7 +107,7 @@ export default function TrainerTabs() {
       />
       <Tabs.Screen
         name="Clients"
-        component={TrainerClientsStack}
+        component={ClientsStack}
         options={{
           title: 'Clientes',
           tabBarIcon: ({ color, size }) => <ClientsTabIcon color={color} size={size} />,

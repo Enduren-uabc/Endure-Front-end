@@ -157,6 +157,14 @@ export const apiClient = {
       handleError(error);
     }
   },
+  put: async <T>(path: string, body?: unknown): Promise<T> => {
+    try {
+      const { data } = await api.put<T>(path, body);
+      return data;
+    } catch (error) {
+      handleError(error);
+    }
+  },
   del: async <T>(path: string): Promise<T> => {
     try {
       const { data } = await api.delete<T>(path);

@@ -15,9 +15,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useLinkedClients, useReceivedLinkRequests } from '@/features/trainer-link/hooks/use-trainer-link';
 import type { ActiveClient } from '@/features/trainer-link/types/trainer-link';
 import { theme } from '@/theme';
-import type { TrainerClientsStackParamList } from '@/navigation/types';
-
-type ClientsNavigation = NativeStackNavigationProp<TrainerClientsStackParamList, 'ClientsList'>;
+import type { ClientsStackParamList } from '@/navigation/types';
 
 function formatDate(dateStr: string): string {
   try {
@@ -29,7 +27,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function TrainerClientsScreen() {
-  const navigation = useNavigation<ClientsNavigation>();
+  const navigation = useNavigation<NativeStackNavigationProp<ClientsStackParamList, 'ClientList'>>();
   const { data, isLoading, isError, refetch } = useLinkedClients();
   const pendingRequests = useReceivedLinkRequests('pendiente');
   const pendingCount = pendingRequests.data?.items.length ?? 0;
@@ -113,13 +111,12 @@ export default function TrainerClientsScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.card}
-              activeOpacity={0.82}
+              activeOpacity={0.7}
               onPress={() =>
-                navigation.navigate('ClientProgress', {
+                navigation.navigate('ClientDetail', {
                   clientId: item.clientId,
                   clientName: item.clientName,
-                  linkId: item.linkId,
-                  activatedAt: item.activatedAt,
+
                 })
               }
             >
@@ -129,7 +126,12 @@ export default function TrainerClientsScreen() {
                 </Text>
               </View>
               <View style={styles.cardInfo}>
-                <Text style={styles.clientName}>{item.clientName}</Text>
+                <View style={styles.nameRow}>
+                  <Text style={styles.clientName}>{item.clientName}</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>{item.linkStatus}</Text>
+                  </View>
+                </View>
                 <Text style={styles.date}>Vinculado desde {formatDate(item.activatedAt)}</Text>
                 <Text style={styles.cardHint}>Toca para revisar progreso y asignar rutina</Text>
               </View>
@@ -256,11 +258,27 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: theme.spacing.xs,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   clientName: {
     fontSize: theme.typography.bodyStrong.fontSize,
     lineHeight: theme.typography.bodyStrong.lineHeight,
     fontWeight: theme.typography.bodyStrong.fontWeight,
     color: theme.colors.textPrimary,
+  },
+  statusBadge: {
+    backgroundColor: '#1B4332',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#52B788',
   },
   date: {
     fontSize: theme.typography.small.fontSize,
@@ -271,5 +289,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.fontSize,
     lineHeight: theme.typography.caption.lineHeight,
     color: theme.colors.textMuted,
+  },
   },
 });

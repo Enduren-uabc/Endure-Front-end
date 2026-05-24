@@ -14,6 +14,7 @@ export type AuthStackParamList = {
     reason: 'cancelled' | 'failed';
     message?: string;
   };
+  Privacy: { from?: string } | undefined;
 };
 
 export type OnboardingStackParamList = {
@@ -72,6 +73,15 @@ export type RemindersStackParamList = {
   NotificationList: undefined;
 };
 
+export type ClientsStackParamList = {
+  ClientList: undefined;
+  ClientDetail: { clientId: string; clientName: string };
+  ExerciseProgress: { clientId: string; exerciseId: string; exerciseName: string };
+  AssignRoutine: { clientId: string; clientName: string };
+  AssignedRoutineDetail: { clientId: string; assignedId: string; routineName: string };
+  EditAssignedRoutine: { clientId: string; clientName: string; assignedId: string; routineName: string };
+};
+
 export type TrainerLinkStackParamList = {
   SearchTrainer: undefined;
   TrainerProfile: { trainerId: string };
@@ -79,16 +89,8 @@ export type TrainerLinkStackParamList = {
   MyTrainer: undefined;
   ReceivedRequests: undefined;
   AssignedRoutine: undefined;
+  MyAssignedRoutines: undefined;
 };
-
-export type TrainerClientsStackParamList = {
-  ClientsList: undefined;
-  ClientProgress: {
-    clientId: string;
-    clientName: string;
-    linkId: string;
-    activatedAt: string;
-  };
 };
 
 export type AppTabsParamList = {

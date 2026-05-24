@@ -17,10 +17,10 @@ export default function RemindersStack() {
         contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
+      <Stack.Screen name="NotificationList" component={NotificationListScreen} />
       <Stack.Screen name="ReminderList" component={ReminderListScreen} />
       <Stack.Screen name="ReminderCreate" component={ReminderCreateScreen} />
       <Stack.Screen name="ReminderEdit" component={ReminderEditScreen} />
-      <Stack.Screen name="NotificationList" component={NotificationListScreen} />
     </Stack.Navigator>
   );
 }

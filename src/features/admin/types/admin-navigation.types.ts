@@ -10,4 +10,5 @@ export type AdminDrawerParamList = {
   MainTabs: NavigatorScreenParams<AdminTabsParamList> | undefined;
   Settings: undefined;
   Help: undefined;
+  PrivacyNotice: undefined;
 };

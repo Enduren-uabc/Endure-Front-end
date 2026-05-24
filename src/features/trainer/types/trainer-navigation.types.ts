@@ -4,7 +4,7 @@ import type {
   TrainingStackParamList,
   SocialStackParamList,
   TrainerLinkStackParamList,
-  TrainerClientsStackParamList,
+  ClientsStackParamList,
   SettingsStackParamList,
 } from '@/navigation/types';
 
@@ -12,7 +12,7 @@ export type TrainerTabsParamList = {
   Home: undefined;
   Workout: NavigatorScreenParams<WorkoutStackParamList> | undefined;
   Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
-  Clients: NavigatorScreenParams<TrainerClientsStackParamList> | undefined;
+  Clients: NavigatorScreenParams<ClientsStackParamList> | undefined;
   Social: NavigatorScreenParams<SocialStackParamList> | undefined;
 };
 
@@ -21,4 +21,5 @@ export type TrainerDrawerParamList = {
   TrainerLinkStack: NavigatorScreenParams<TrainerLinkStackParamList> | undefined;
   Settings: NavigatorScreenParams<SettingsStackParamList> | undefined;
   Help: undefined;
+  PrivacyNotice: undefined;
 };

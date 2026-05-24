@@ -107,6 +107,27 @@ export const API_ENDPOINTS = {
       return `/trainer/clients?${query.toString()}`;
     },
     deactivateLink: (id: string) => `/trainer-links/${id}/deactivate`,
+    clientGeneralInfo: (clientId: string) => `/trainer/clients/${clientId}`,
+    clientRecentSessions: (clientId: string) => `/trainer/clients/${clientId}/sessions/recent`,
+    clientIndicators: (clientId: string) => `/trainer/clients/${clientId}/indicators`,
+    clientProgress: (clientId: string) => `/trainer/clients/${clientId}/progress`,
+    clientExerciseProgress: (clientId: string, exerciseId: string) =>
+      `/trainer/clients/${clientId}/progress/exercises/${exerciseId}`,
+    assignableRoutines: (clientId: string) =>
+      `/trainer/clients/${clientId}/routines/assignable`,
+    assignRoutine: (clientId: string) =>
+      `/trainer/clients/${clientId}/assigned-routine`,
+    clientAssignedRoutines: (clientId: string) =>
+      `/trainer/clients/${clientId}/assigned-routine`,
+    replaceRoutine: (clientId: string, assignedId: string) =>
+      `/trainer/clients/${clientId}/assigned-routine/${assignedId}/replace`,
+    assignedRoutineDetail: (clientId: string, assignedId: string) =>
+      `/trainer/clients/${clientId}/assigned-routine/${assignedId}/detail`,
+    updateRoutineNotes: (clientId: string, assignedId: string) =>
+      `/trainer/clients/${clientId}/assigned-routine/${assignedId}/notes`,
+    editRoutineContent: (clientId: string, assignedId: string) =>
+      `/trainer/clients/${clientId}/assigned-routine/${assignedId}/content`,
+    myAssignedRoutines: '/client/assigned-routine',
   },
   reminders: {
     list: '/training-reminders',
@@ -121,6 +142,10 @@ export const API_ENDPOINTS = {
     list: '/notifications',
     unreadCount: '/notifications/unread-count',
     markRead: (id: string) => `/notifications/${id}/read`,
+    test: '/notifications/test',
+  },
+  privacy: {
+    current: '/privacy-notice/current',
   },
   trainerVerification: {
     flowConfig: '/trainer-verification/flow-config',

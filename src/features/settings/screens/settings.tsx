@@ -73,6 +73,22 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <View style={styles.optionsSection}>
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => navigation.navigate('PrivacyNotice')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionIconContainer}>
+              <FileText size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.optionTextContainer}>
+              <Text style={styles.optionTitle}>Aviso de privacidad</Text>
+              <Text style={styles.optionSubtitle}>Consulta el aviso de privacidad de Endure</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.divider} />
 
         <View style={styles.logoutSection}>
@@ -219,6 +235,43 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
+  },
+  optionsSection: {
+    marginTop: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    gap: theme.spacing.md,
+  },
+  optionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '600',
+  },
+  optionSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    marginTop: 2,
+  },
   },
   divider: {
     flex: 1,

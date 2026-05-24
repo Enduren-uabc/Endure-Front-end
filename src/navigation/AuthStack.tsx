@@ -9,6 +9,7 @@ import ResetPasswordScreen from '@/features/auth/screens/reset-password';
 import SessionExpiredScreen from '@/features/auth/screens/session-expired';
 import OAuthErrorScreen from '@/features/auth/screens/oauth-error';
 import { useSessionStore } from '@/features/auth/stores/session-store';
+import PrivacyScreen from '@/features/privacy/screens/PrivacyScreen';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from './types';
 
@@ -33,6 +34,18 @@ export default function AuthStack() {
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="SessionExpired" component={SessionExpiredScreen} />
       <Stack.Screen name="OAuthError" component={OAuthErrorScreen} />
+      <Stack.Screen
+        name="Privacy"
+        component={PrivacyScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Aviso de Privacidad',
+          headerBackTitle: 'Regresar',
+          headerStyle: { backgroundColor: theme.colors.background },
+          headerTintColor: theme.colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
     </Stack.Navigator>
   );
 }
