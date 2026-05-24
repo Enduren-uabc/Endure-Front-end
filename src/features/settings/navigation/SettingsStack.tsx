@@ -32,7 +32,11 @@ export default function SettingsStack() {
       <Stack.Screen
         name="Reminders"
         component={RemindersScreen}
-        options={{ title: 'Recordatorios' }}
+        options={{
+          title: 'Recordatorios',
+          headerBackButtonMenuEnabled: false,
+          headerBackVisible: false,
+        }}
       />
       <Stack.Screen
         name="PrivacyNotice"
