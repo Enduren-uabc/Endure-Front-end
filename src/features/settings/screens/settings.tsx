@@ -1,10 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { FileText } from 'lucide-react-native';
 import { theme } from '@/theme';
 import { useLogout } from '@/features/auth/hooks/use-auth';
 
 export default function SettingsScreen() {
+  const navigation = useNavigation<any>();
   const logoutMutation = useLogout();
 
   const handleLogout = () => {
@@ -26,6 +29,22 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>Configuración</Text>
+
+        <View style={styles.optionsSection}>
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => navigation.navigate('PrivacyNotice')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionIconContainer}>
+              <FileText size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.optionTextContainer}>
+              <Text style={styles.optionTitle}>Aviso de privacidad</Text>
+              <Text style={styles.optionSubtitle}>Consulta el aviso de privacidad de Endure</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.divider} />
 
@@ -68,6 +87,42 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.heading1.fontSize,
     lineHeight: theme.typography.heading1.lineHeight,
     fontWeight: theme.typography.heading1.fontWeight,
+  },
+  optionsSection: {
+    marginTop: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    gap: theme.spacing.md,
+  },
+  optionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '600',
+  },
+  optionSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    marginTop: 2,
   },
   divider: {
     flex: 1,

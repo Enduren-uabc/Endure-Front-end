@@ -176,7 +176,14 @@ export default function RegisterScreen({ navigation }: Props) {
                         {value && <Text style={styles.checkmark}>✓</Text>}
                       </View>
                       <Text style={styles.checkboxLabel}>
-                        Acepto la política de privacidad y términos de uso
+                        <Text>Acepto la </Text>
+                        <Text
+                          style={styles.privacyLink}
+                          onPress={() => navigation.navigate('Privacy', { from: 'Register' })}
+                        >
+                          política de privacidad
+                        </Text>
+                        <Text> y términos de uso</Text>
                       </Text>
                     </TouchableOpacity>
                     {errors.acceptPrivacy && (
@@ -267,6 +274,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
     flex: 1,
+  },
+  privacyLink: {
+    color: theme.colors.primary,
+    textDecorationLine: 'underline',
   },
   checkboxError: {
     color: theme.colors.error,

@@ -14,4 +14,5 @@ export type UserDrawerParamList = {
   TrainerLinkStack: NavigatorScreenParams<TrainerLinkStackParamList> | undefined;
   Settings: undefined;
   Help: undefined;
+  PrivacyNotice: undefined;
 };

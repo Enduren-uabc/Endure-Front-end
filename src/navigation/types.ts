@@ -8,6 +8,7 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
   ResetPasswordCode: { email: string };
   ResetPassword: { email: string; token: string };
+  Privacy: { from?: string } | undefined;
 };
 
 export type OnboardingStackParamList = {
@@ -62,6 +63,10 @@ export type RemindersStackParamList = {
 export type ClientsStackParamList = {
   ClientList: undefined;
   ClientDetail: { clientId: string; clientName: string };
+  ExerciseProgress: { clientId: string; exerciseId: string; exerciseName: string };
+  AssignRoutine: { clientId: string; clientName: string };
+  AssignedRoutineDetail: { clientId: string; assignedId: string; routineName: string };
+  EditAssignedRoutine: { clientId: string; clientName: string; assignedId: string; routineName: string };
 };
 
 export type TrainerLinkStackParamList = {
@@ -70,6 +75,7 @@ export type TrainerLinkStackParamList = {
   SentRequests: undefined;
   MyTrainer: undefined;
   ReceivedRequests: undefined;
+  MyAssignedRoutines: undefined;
 };
 
 export type AppTabsParamList = {

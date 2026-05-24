@@ -59,6 +59,13 @@ export default function VerificationDetailScreen() {
     [verificationId, reviewMutation],
   );
 
+  const reviewError = reviewMutation.isError
+    ? (reviewMutation.error as Error)?.message || 'Ocurrió un error al procesar la solicitud.'
+    : null;
+  const startReviewError = startReviewMutation.isError
+    ? (startReviewMutation.error as Error)?.message || 'Ocurrió un error al iniciar la revisión.'
+    : null;
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -215,9 +222,22 @@ export default function VerificationDetailScreen() {
           <RiskSummaryCard scoring={data.scoringResult} />
         )}
 
+        {startReviewError && (
+          <View style={styles.errorBanner}>
+            <AlertTriangle size={16} color={theme.colors.error} />
+            <Text style={styles.errorBannerText}>{startReviewError}</Text>
+          </View>
+        )}
+        {reviewError && (
+          <View style={styles.errorBanner}>
+            <AlertTriangle size={16} color={theme.colors.error} />
+            <Text style={styles.errorBannerText}>{reviewError}</Text>
+          </View>
+        )}
+
         <ReviewActions
           verificationId={verificationId}
-          advancedStatus={data.advancedStatus}
+          advancedStatus={data.advancedStatus ?? (data.status as any)}
           assignedReviewerId={data.assignedReviewerId}
           currentUserId={currentUserId ?? undefined}
           onStartReview={handleStartReview}
@@ -268,6 +288,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.primary,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.error + '15',
+    borderWidth: 1,
+    borderColor: theme.colors.error + '40',
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  errorBannerText: {
+    color: theme.colors.error,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    flex: 1,
   },
   retryText: {
     color: theme.colors.primary,

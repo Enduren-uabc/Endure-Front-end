@@ -6,6 +6,7 @@ import RegisterScreen from '@/features/auth/screens/register';
 import ForgotPasswordScreen from '@/features/auth/screens/forgot-password';
 import ResetPasswordCodeScreen from '@/features/auth/screens/reset-password-code';
 import ResetPasswordScreen from '@/features/auth/screens/reset-password';
+import PrivacyScreen from '@/features/privacy/screens/PrivacyScreen';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from './types';
 
@@ -26,6 +27,18 @@ export default function AuthStack() {
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPasswordCode" component={ResetPasswordCodeScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen
+        name="Privacy"
+        component={PrivacyScreen}
+        options={{
+          headerShown: true,
+          headerTitle: 'Aviso de Privacidad',
+          headerBackTitle: 'Regresar',
+          headerStyle: { backgroundColor: theme.colors.background },
+          headerTintColor: theme.colors.textPrimary,
+          headerShadowVisible: false,
+        }}
+      />
     </Stack.Navigator>
   );
 }

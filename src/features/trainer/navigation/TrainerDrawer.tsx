@@ -5,6 +5,7 @@ import { Dumbbell, Settings, HelpCircle, UsersRound, Inbox } from 'lucide-react-
 import TrainerTabs from './TrainerTabs';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
 import SettingsScreen from '@/features/settings/screens/settings';
+import PrivacyScreen from '@/features/privacy/screens/PrivacyScreen';
 import HelpScreen from '@/features/help/screens/help';
 import { theme } from '@/theme';
 import type { TrainerDrawerParamList } from '../types/trainer-navigation.types';
@@ -72,6 +73,14 @@ export default function TrainerDrawer() {
         options={{
           title: 'Configuración',
           drawerIcon: ({ color, size }) => <Settings size={size} color={color} />,
+        }}
+      />
+      <Drawer.Screen
+        name="PrivacyNotice"
+        component={PrivacyScreen}
+        options={{
+          title: 'Aviso de Privacidad',
+          drawerItemStyle: { display: 'none' },
         }}
       />
       <Drawer.Screen
