@@ -19,6 +19,8 @@ import { useRoutines } from '@/features/training/hooks/use-routines';
 import {
   useStartWorkoutSession,
   useWorkoutSessionInProgress,
+  useFinishWorkoutSession,
+  useDiscardWorkoutSession,
 } from '@/features/training/hooks/use-workout-session';
 import {
   DAY_OF_WEEK_LABELS,
@@ -28,6 +30,7 @@ import {
   type ExerciseSet,
   type Routine,
 } from '@/features/training/types/routine';
+import PendingSessionModal from '@/features/training/components/PendingSessionModal';
 import type { AppTabsParamList, WorkoutStackParamList } from '@/navigation/types';
 import { theme } from '@/theme';
 
@@ -93,6 +96,10 @@ export default function WorkoutStartScreen({ navigation }: Props) {
   const { data: routines = [], isLoading: routinesLoading, refetch } = useRoutines();
   const inProgressQuery = useWorkoutSessionInProgress();
   const startMutation = useStartWorkoutSession();
+  const finishMutation = useFinishWorkoutSession();
+  const discardMutation = useDiscardWorkoutSession();
+
+  const [showPendingModal, setShowPendingModal] = React.useState(false);
 
   const [selectedDay, setSelectedDay] = React.useState<DayOfWeek | null>(null);
 
@@ -130,11 +137,63 @@ export default function WorkoutStartScreen({ navigation }: Props) {
   const handleStart = () => {
     if (!activeRoutine || !selectedDay) return;
 
+    if (inProgress) {
+      setShowPendingModal(true);
+      return;
+    }
+
     startMutation.mutate(
       { routineId: activeRoutine.id, dayOfWeek: selectedDay },
       {
         onSuccess: (session) => {
           navigation.navigate('WorkoutSession', { sessionId: session.id });
+        },
+      },
+    );
+  };
+
+  const handleResume = () => {
+    setShowPendingModal(false);
+    navigation.navigate('WorkoutSession', { sessionId: inProgress!.id });
+  };
+
+  const handleDiscardAndStart = () => {
+    if (!activeRoutine || !selectedDay || !inProgress) return;
+
+    discardMutation.mutate(
+      { sessionId: inProgress.id },
+      {
+        onSuccess: () => {
+          startMutation.mutate(
+            { routineId: activeRoutine.id, dayOfWeek: selectedDay },
+            {
+              onSuccess: (session) => {
+                setShowPendingModal(false);
+                navigation.navigate('WorkoutSession', { sessionId: session.id });
+              },
+            },
+          );
+        },
+      },
+    );
+  };
+
+  const handleFinishAndStart = () => {
+    if (!activeRoutine || !selectedDay || !inProgress) return;
+
+    finishMutation.mutate(
+      { sessionId: inProgress.id },
+      {
+        onSuccess: () => {
+          startMutation.mutate(
+            { routineId: activeRoutine.id, dayOfWeek: selectedDay },
+            {
+              onSuccess: (session) => {
+                setShowPendingModal(false);
+                navigation.navigate('WorkoutSession', { sessionId: session.id });
+              },
+            },
+          );
         },
       },
     );
@@ -163,25 +222,17 @@ export default function WorkoutStartScreen({ navigation }: Props) {
           </View>
         )}
 
-        {!isLoading && inProgress && (
-          <BaseCard style={styles.resumeCard}>
-            <View style={styles.cardIconRow}>
-              <RotateCcw size={22} color={theme.colors.primary} />
-              <Text style={styles.cardTitle}>Sesión en curso</Text>
-            </View>
-            <Text style={styles.cardText}>
-              Vas en el ejercicio {inProgress.currentExerciseIndex + 1} de{' '}
-              {inProgress.exercises.length}.
-            </Text>
-            <PrimaryButton
-              label="Continuar sesión"
-              onPress={() =>
-                navigation.navigate('WorkoutSession', {
-                  sessionId: inProgress.id,
-                })
-              }
-            />
-          </BaseCard>
+        {showPendingModal && inProgress && (
+          <PendingSessionModal
+            visible={showPendingModal}
+            session={inProgress}
+            onResume={handleResume}
+            onDiscardAndStart={handleDiscardAndStart}
+            onFinishAndStart={handleFinishAndStart}
+            onClose={() => setShowPendingModal(false)}
+            isDiscarding={discardMutation.isPending}
+            isFinishing={finishMutation.isPending}
+          />
         )}
 
         {!isLoading && inProgressError && (
