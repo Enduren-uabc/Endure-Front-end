@@ -15,7 +15,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "@/features/auth/validations/auth";
 import { useLogin } from "@/features/auth/hooks/use-auth";
-import { useGoogleAuth } from "@/features/auth/hooks/use-social-auth";
+import { useGoogleAuth, useAppleAuth } from "@/features/auth/hooks/use-social-auth";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
 import { PasswordInput } from "@/shared/components/PasswordInput";
@@ -28,6 +28,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 export default function LoginScreen({ navigation, route }: Props) {
   const loginMutation = useLogin();
   const { login: googleLogin, isPending: googlePending, error: googleError } = useGoogleAuth();
+  const { login: appleLogin, isPending: applePending, error: appleError } = useAppleAuth();
   const { email: prefillEmail, password: prefillPassword } = route.params ?? {};
 
   const {
@@ -80,8 +81,26 @@ export default function LoginScreen({ navigation, route }: Props) {
             )}
           </TouchableOpacity>
 
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={styles.appleButton}
+              onPress={appleLogin}
+              disabled={applePending}
+              activeOpacity={0.8}
+            >
+              {applePending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.appleButtonText}>Continuar con Apple</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           {googleError && (
             <Text style={styles.errorText}>{googleError}</Text>
+          )}
+          {appleError && (
+            <Text style={styles.errorText}>{appleError}</Text>
           )}
 
           <View style={styles.divider}>
@@ -205,6 +224,20 @@ const styles = StyleSheet.create({
   },
   googleButtonText: {
     color: theme.colors.textPrimary,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '500',
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+    borderRadius: 8,
+    paddingVertical: 14,
+    minHeight: 48,
+  },
+  appleButtonText: {
+    color: '#FFFFFF',
     fontSize: theme.typography.body.fontSize,
     fontWeight: '500',
   },

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   View,
   Text,
@@ -30,11 +30,13 @@ import { useTrainingStrategies } from "@/features/training/hooks/use-training-st
 import { useSetRoutineStrategy } from "@/features/training/hooks/use-set-routine-strategy";
 import { useGenerateExerciseSets } from "@/features/training/hooks/use-generate-exercise-sets";
 import { useRoutineDraftStore } from "@/features/training/stores/routine-draft-store";
+import { exerciseNameSchema } from "@/features/training/validations/routine";
 import { TrainingStrategySelector } from "@/features/training/components/TrainingStrategySelector";
 import { ExerciseSetsTable } from "@/features/training/components/ExerciseSetsTable";
 
 import { BaseCard } from "@/components/ui/BaseCard";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { NameInput } from "@/components/ui/NameInput";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
 import { generateId } from "@/lib/generate-id";
 import { theme } from "@/theme";
@@ -334,14 +336,15 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
 
   const handleAddExercise = () => {
     if (selectedDaysForNewExercise.length === 0) {
-      setMutationError("Selecciona al menos un día para el ejercicio");
+      setMutationError("Selecciona al menos un dÃ­a para el ejercicio");
       return;
     }
-    if (!newExerciseName.trim()) {
-      setMutationError("Ingresa un nombre para el ejercicio");
+    const result = exerciseNameSchema.safeParse(newExerciseName);
+    if (!result.success) {
+      setMutationError(result.error.issues[0].message);
       return;
     }
-    const name = newExerciseName.trim();
+    const name = result.data;
     setMutationError(null);
 
     selectedDaysForNewExercise.forEach((day) => {
@@ -529,7 +532,7 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
 
             <View style={styles.exercisesHeader}>
               <Text style={styles.sectionTitle}>
-                Ejercicios · {DAY_OF_WEEK_LABELS[selectedDay ?? "monday"]}
+                Ejercicios Â· {DAY_OF_WEEK_LABELS[selectedDay ?? "monday"]}
               </Text>
               <TouchableOpacity
                 style={styles.addButton}
@@ -559,7 +562,7 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
                       {hasStrategy && (
                         <View style={styles.autoGenSection}>
                           <Text style={styles.editLabel}>
-                            Configuración rápida
+                            ConfiguraciÃ³n rÃ¡pida
                           </Text>
                           <View style={styles.editRow}>
                             <View style={styles.editField}>
@@ -732,7 +735,7 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
         >
           <BaseCard style={styles.modalCard}>
             <Text style={styles.modalTitle}>Nuevo Ejercicio</Text>
-            <Text style={styles.modalLabel}>Días</Text>
+            <Text style={styles.modalLabel}>DÃ­as</Text>
             <View style={styles.daysChipsRow}>
               {sortedDays.map((day) => {
                 const isSelected = selectedDaysForNewExercise.includes(day);
@@ -759,7 +762,7 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
             </View>
             {selectedDaysForNewExercise.length === 0 && (
               <Text style={styles.modalHintText}>
-                Selecciona al menos un día
+                Selecciona al menos un dÃ­a
               </Text>
             )}
             <Text style={styles.modalLabel}>Nombre</Text>
@@ -774,19 +777,18 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
               }}
             >
               <Search size={18} color={theme.colors.primary} />
-              <Text style={styles.catalogButtonText}>Buscar en catálogo</Text>
+              <Text style={styles.catalogButtonText}>Buscar en catÃ¡logo</Text>
             </TouchableOpacity>
             <View style={styles.orDivider}>
               <View style={styles.orLine} />
               <Text style={styles.orText}>o escribe manualmente</Text>
               <View style={styles.orLine} />
             </View>
-            <RNTextInput
-              style={styles.modalInput}
+            <NameInput
+              label="Nombre del ejercicio"
               value={newExerciseName}
               onChangeText={setNewExerciseName}
               placeholder="Ej. Press de banca"
-              placeholderTextColor={theme.colors.textMuted}
             />
             {mutationError && showAddModal && (
               <Text style={styles.modalErrorText}>{mutationError}</Text>
@@ -818,9 +820,9 @@ export default function RoutineBuilderScreen({ navigation, route }: Props) {
       >
         <View style={styles.modalOverlay}>
           <BaseCard style={styles.modalCard}>
-            <Text style={styles.modalTitle}>¿Eliminar ejercicio?</Text>
+            <Text style={styles.modalTitle}>Â¿Eliminar ejercicio?</Text>
             <Text style={styles.modalText}>
-              Esta acción no se puede deshacer.
+              Esta acciÃ³n no se puede deshacer.
             </Text>
             <View style={styles.modalButtons}>
               <SecondaryButton
@@ -1164,3 +1166,4 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.small.lineHeight,
   },
 });
+

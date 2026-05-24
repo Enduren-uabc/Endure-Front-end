@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   View,
   Text,
@@ -27,9 +27,11 @@ import {
 import { useSyncRoutine } from "@/features/training/hooks/use-sync-routine";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRoutineDraftStore } from "@/features/training/stores/routine-draft-store";
+import { exerciseNameSchema } from "@/features/training/validations/routine";
 import { BaseCard } from "@/components/ui/BaseCard";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { SecondaryButton } from "@/components/ui/SecondaryButton";
+import { NameInput } from "@/components/ui/NameInput";
 import { generateId } from "@/lib/generate-id";
 import { theme } from "@/theme";
 import {
@@ -78,8 +80,8 @@ function formatExerciseMeta(exercise: ExerciseConfig): string {
 }
 
 function formatSetLine(set: ExerciseSet): string {
-  const rest = set.restSeconds ? ` · descanso ${set.restSeconds}s` : "";
-  const weight = set.weight > 0 ? ` · ${set.weight}kg` : "";
+  const rest = set.restSeconds ? ` Â· descanso ${set.restSeconds}s` : "";
+  const weight = set.weight > 0 ? ` Â· ${set.weight}kg` : "";
   return `Set ${set.setNumber}: ${set.reps} reps${weight}${rest}`;
 }
 
@@ -179,16 +181,17 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
 
   const handleAddExercise = () => {
     if (selectedDaysForNewExercise.length === 0) {
-      setMutationError("Selecciona al menos un día para el ejercicio");
+      setMutationError("Selecciona al menos un dÃ­a para el ejercicio");
       return;
     }
-    if (!newExerciseName.trim()) {
-      setMutationError("Ingresa un nombre para el ejercicio");
+    const result = exerciseNameSchema.safeParse(newExerciseName);
+    if (!result.success) {
+      setMutationError(result.error.issues[0].message);
       return;
     }
     if (!routine) return;
 
-    const name = newExerciseName.trim();
+    const name = result.data;
     setMutationError(null);
 
     const updatedDays = routine.days.map((day) => ({
@@ -394,7 +397,7 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
               <BaseCard>
                 <View style={styles.emptyDay}>
                   <Text style={styles.emptyDayText}>
-                    No hay ejercicios para este día
+                    No hay ejercicios para este dÃ­a
                   </Text>
                   <View style={styles.emptyDayButton}>
                     <PrimaryButton
@@ -497,7 +500,7 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
         >
           <BaseCard style={styles.modalCard}>
             <Text style={styles.modalTitle}>Nuevo Ejercicio</Text>
-            <Text style={styles.modalLabel}>Días</Text>
+            <Text style={styles.modalLabel}>DÃ­as</Text>
             <View style={styles.daysChipsRow}>
               {sortedDays.map((day) => {
                 const isSelected = selectedDaysForNewExercise.includes(day);
@@ -524,7 +527,7 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
             </View>
             {selectedDaysForNewExercise.length === 0 && (
               <Text style={styles.modalHintText}>
-                Selecciona al menos un día
+                Selecciona al menos un dÃ­a
               </Text>
             )}
             <Text style={styles.modalLabel}>Nombre</Text>
@@ -539,19 +542,18 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
               }}
             >
               <Search size={18} color={theme.colors.primary} />
-              <Text style={styles.catalogButtonText}>Buscar en catálogo</Text>
+              <Text style={styles.catalogButtonText}>Buscar en catÃ¡logo</Text>
             </TouchableOpacity>
             <View style={styles.orDivider}>
               <View style={styles.orLine} />
               <Text style={styles.orText}>o escribe manualmente</Text>
               <View style={styles.orLine} />
             </View>
-            <RNTextInput
-              style={styles.modalInput}
+            <NameInput
+              label="Nombre del ejercicio"
               value={newExerciseName}
               onChangeText={setNewExerciseName}
               placeholder="Ej. Press de banca"
-              placeholderTextColor={theme.colors.textMuted}
             />
             {mutationError && showAddModal && (
               <Text style={styles.modalErrorText}>{mutationError}</Text>
@@ -583,9 +585,9 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
       >
         <View style={styles.modalOverlay}>
           <BaseCard style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Agregar días</Text>
+            <Text style={styles.modalTitle}>Agregar dÃ­as</Text>
             <Text style={styles.modalLabel}>
-              Selecciona los días que quieres agregar a la rutina
+              Selecciona los dÃ­as que quieres agregar a la rutina
             </Text>
             <View style={styles.daysChipsRow}>
               {availableDays.map((day) => {
@@ -613,7 +615,7 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
             </View>
             {selectedNewDays.length === 0 && (
               <Text style={styles.modalHintText}>
-                Selecciona al menos un día
+                Selecciona al menos un dÃ­a
               </Text>
             )}
             <View style={styles.modalButtons}>
@@ -644,9 +646,9 @@ export default function RoutineDetailScreen({ navigation, route }: Props) {
       >
         <View style={styles.modalOverlay}>
           <BaseCard style={styles.modalCard}>
-            <Text style={styles.modalTitle}>¿Eliminar rutina?</Text>
+            <Text style={styles.modalTitle}>Â¿Eliminar rutina?</Text>
             <Text style={styles.modalText}>
-              Esta acción no se puede deshacer. Se eliminará "{routine?.name}" y
+              Esta acciÃ³n no se puede deshacer. Se eliminarÃ¡ "{routine?.name}" y
               todos sus ejercicios.
             </Text>
             <View style={styles.modalButtons}>
@@ -937,3 +939,5 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
 });
+
+

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { Camera, FileText, Trash2, CheckCircle2, ChevronLeft, X } from 'lucide-r
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { NameInput } from "@/components/ui/NameInput";
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useSpecialtyCatalog, useSubmitVerification, useUpdateVerification } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import { useCoachDraftStore } from '@/features/trainer-verification/stores/coach-draft-store';
@@ -31,7 +32,7 @@ import { theme } from '@/theme';
 type CoachNav = NativeStackNavigationProp<CoachStackParamList>;
 type RouteParams = { isResubmit?: boolean } | undefined;
 
-const STEPS = ['Información', 'Certificados', 'Documentos'];
+const STEPS = ['InformaciÃ³n', 'Certificados', 'Documentos'];
 const DOC_TYPES: { key: DocumentType; label: string }[] = [
   { key: 'ine_front', label: 'INE (Frente)' },
   { key: 'ine_back', label: 'INE (Reverso)' },
@@ -141,7 +142,7 @@ export default function CoachForm() {
       navigation.replace('CoachStatus');
     };
     const onError = (err: any) => {
-      Alert.alert('Error', err.message || 'Ocurrió un problema al enviar.');
+      Alert.alert('Error', err.message || 'OcurriÃ³ un problema al enviar.');
     };
 
     if (isResubmit) {
@@ -176,7 +177,7 @@ export default function CoachForm() {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ChevronLeft size={24} color={theme.colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Aplicación de coach</Text>
+          <Text style={styles.headerTitle}>AplicaciÃ³n de coach</Text>
           <TouchableOpacity onPress={saveDraft} style={styles.saveBtn}>
             <Text style={styles.saveBtnText}>Guardar</Text>
           </TouchableOpacity>
@@ -223,7 +224,7 @@ export default function CoachForm() {
           {step === 0 && (
             <View style={styles.formSection}>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Especialidades (Máx. 5)</Text>
+                <Text style={styles.inputLabel}>Especialidades (MÃ¡x. 5)</Text>
                 <View style={styles.chipsContainer}>
                   {specialties?.map((spec) => {
                     const isSelected = watchedSpecialtyKeys.includes(spec.key);
@@ -252,7 +253,7 @@ export default function CoachForm() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Años de experiencia profesional</Text>
+                <Text style={styles.inputLabel}>AÃ±os de experiencia profesional</Text>
                 <Controller
                   control={control}
                   name="yearsOfExperience"
@@ -272,7 +273,7 @@ export default function CoachForm() {
 
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.inputLabel}>Biografía profesional</Text>
+                  <Text style={styles.inputLabel}>BiografÃ­a profesional</Text>
                   <Text style={styles.charCount}>{(getValues('shortBio')?.length ?? 0)}/500</Text>
                 </View>
                 <Controller
@@ -284,7 +285,7 @@ export default function CoachForm() {
                       multiline
                       numberOfLines={4}
                       maxLength={500}
-                      placeholder="Resume tu experiencia, métodos y logros..."
+                      placeholder="Resume tu experiencia, mÃ©todos y logros..."
                       placeholderTextColor={theme.colors.textMuted}
                       value={value ?? ''}
                       onChangeText={onChange}
@@ -295,14 +296,14 @@ export default function CoachForm() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Número de identificación (INE/CURP)</Text>
+                <Text style={styles.inputLabel}>NÃºmero de identificaciÃ³n (INE/CURP)</Text>
                 <Controller
                   control={control}
                   name="idDocumentNumber"
                   render={({ field: { onChange, value } }) => (
                     <TextInput
                       style={styles.input}
-                      placeholder="Para validación interna"
+                      placeholder="Para validaciÃ³n interna"
                       placeholderTextColor={theme.colors.textMuted}
                       value={value ?? ''}
                       onChangeText={onChange}
@@ -333,10 +334,8 @@ export default function CoachForm() {
                     </TouchableOpacity>
                   </View>
 
-                  <TextInput
-                    style={[styles.input, styles.marginBottom]}
-                    placeholder="Nombre del certificado"
-                    placeholderTextColor={theme.colors.textMuted}
+                  <NameInput
+                    label="Nombre del certificado"
                     value={cert?.name ?? ''}
                     onChangeText={(t) => {
                       const updated = [...getValues('certificates')];
@@ -344,10 +343,8 @@ export default function CoachForm() {
                       setValue('certificates', updated, { shouldValidate: true });
                     }}
                   />
-                  <TextInput
-                    style={[styles.input, styles.marginBottom]}
-                    placeholder="Organización emisora"
-                    placeholderTextColor={theme.colors.textMuted}
+                  <NameInput
+                    label="Institución emisora"
                     value={cert?.issuingOrganization ?? ''}
                     onChangeText={(t) => {
                       const updated = [...getValues('certificates')];
@@ -426,7 +423,7 @@ export default function CoachForm() {
                     ]);
                   }}
                 >
-                  <Text style={styles.addMoreText}>+ Añadir otro certificado</Text>
+                  <Text style={styles.addMoreText}>+ AÃ±adir otro certificado</Text>
                 </TouchableOpacity>
               )}
               {errors.certificates && <Text style={styles.errorText}>{errors.certificates.message}</Text>}
@@ -435,7 +432,7 @@ export default function CoachForm() {
 
           {step === 2 && (
             <View style={styles.formSection}>
-              <Text style={styles.sectionDesc}>Sube de 1 a 3 documentos oficiales que coincidan con tu número de identificación (INE, pasaporte).</Text>
+              <Text style={styles.sectionDesc}>Sube de 1 a 3 documentos oficiales que coincidan con tu nÃºmero de identificaciÃ³n (INE, pasaporte).</Text>
 
               {watchedIdDocuments.map((doc: any, index: number) => (
                 <View key={index} style={styles.fileCard}>
@@ -550,7 +547,7 @@ export default function CoachForm() {
                     ]);
                   }}
                 >
-                  <Text style={styles.addMoreText}>+ Añadir otro documento</Text>
+                  <Text style={styles.addMoreText}>+ AÃ±adir otro documento</Text>
                 </TouchableOpacity>
               )}
               {errors.idDocuments && <Text style={styles.errorText}>{errors.idDocuments.message}</Text>}
@@ -563,7 +560,7 @@ export default function CoachForm() {
           <View style={styles.bottomBarInner}>
             {step > 0 ? (
               <TouchableOpacity style={styles.secondaryAction} onPress={() => setStep((s) => s - 1)}>
-                <Text style={styles.secondaryActionText}>Atrás</Text>
+                <Text style={styles.secondaryActionText}>AtrÃ¡s</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.spacer} />
@@ -904,3 +901,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+
