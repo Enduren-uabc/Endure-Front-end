@@ -291,8 +291,6 @@ export default function RemindersScreen({ navigation }: Props) {
       />
     );
   }
-    );
-  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
