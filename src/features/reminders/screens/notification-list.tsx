@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,8 @@ import { ArrowLeft, Bell } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { useNotifications, useMarkAsRead } from '@/features/reminders/hooks/use-notifications';
+import { apiClient } from '@/lib/api-client';
+import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import type { RemindersStackParamList } from '@/navigation/types';
 import type { InAppNotification } from '@/features/reminders/types/notification';
 import { theme } from '@/theme';
@@ -59,6 +62,20 @@ export default function NotificationListScreen({ navigation }: Props) {
   const notificationsQuery = useNotifications();
   const markAsRead = useMarkAsRead();
   const notifications = notificationsQuery.data ?? [];
+  const [testing, setTesting] = useState(false);
+
+  const handleTestNotification = async () => {
+    setTesting(true);
+    try {
+      const res = await apiClient.post<{ ok: boolean; message: string }>(API_ENDPOINTS.notifications.test);
+      Alert.alert('✅ Enviada', res.message);
+      notificationsQuery.refetch();
+    } catch (err: any) {
+      Alert.alert('❌ Error', err?.message ?? 'No se pudo enviar');
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -67,7 +84,13 @@ export default function NotificationListScreen({ navigation }: Props) {
           <ArrowLeft size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Notificaciones</Text>
-        <View style={styles.iconButton} />
+        <TouchableOpacity
+          style={styles.testButton}
+          onPress={handleTestNotification}
+          disabled={testing}
+        >
+          <Text style={styles.testButtonText}>{testing ? '...' : 'Test'}</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -188,5 +211,18 @@ const styles = StyleSheet.create({
   notifTime: {
     color: theme.colors.textMuted,
     fontSize: theme.typography.caption.fontSize,
+  },
+  testButton: {
+    width: 50,
+    height: 32,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testButtonText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    fontWeight: '700',
   },
 });

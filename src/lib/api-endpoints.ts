@@ -121,6 +121,7 @@ export const API_ENDPOINTS = {
     list: '/notifications',
     unreadCount: '/notifications/unread-count',
     markRead: (id: string) => `/notifications/${id}/read`,
+    test: '/notifications/test',
   },
   trainerVerification: {
     flowConfig: '/trainer-verification/flow-config',
