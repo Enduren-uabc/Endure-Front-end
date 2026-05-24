@@ -6,7 +6,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { AuthStackParamList } from '@/navigation/types';
-import { useGoogleAuth } from '@/features/auth/hooks/use-social-auth';
+import { useGoogleAuth, useAppleAuth } from '@/features/auth/hooks/use-social-auth';
 
 const LogoImage = require('../../../../assets/Logo.png');
 
@@ -14,6 +14,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen({ navigation }: Props) {
   const { login: googleLogin, isPending: googlePending, error: googleError, clearError } = useGoogleAuth();
+  const { login: appleLogin, isPending: applePending, error: appleError } = useAppleAuth();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -45,13 +46,25 @@ export default function WelcomeScreen({ navigation }: Props) {
           </TouchableOpacity>
 
           {Platform.OS === 'ios' && (
-            <TouchableOpacity style={styles.appleButton} activeOpacity={0.8}>
-              <Text style={styles.appleButtonText}>Continuar con Apple</Text>
+            <TouchableOpacity
+              style={styles.appleButton}
+              onPress={appleLogin}
+              disabled={applePending}
+              activeOpacity={0.8}
+            >
+              {applePending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.appleButtonText}>Continuar con Apple</Text>
+              )}
             </TouchableOpacity>
           )}
 
           {googleError && (
             <Text style={styles.errorText}>{googleError}</Text>
+          )}
+          {appleError && (
+            <Text style={styles.errorText}>{appleError}</Text>
           )}
 
           <View style={styles.divider}>
