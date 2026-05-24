@@ -1,6 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TrainerClientsScreen from '@/features/trainer/screens/trainer-clients';
+import ClientDetailScreen from '@/features/trainer/screens/client-detail';
+import AssignRoutineScreen from '@/features/trainer/screens/assign-routine';
 import ClientProgressScreen from '@/features/trainer/screens/client-progress';
 import { theme } from '@/theme';
 import type { TrainerClientsStackParamList } from '@/navigation/types';
@@ -29,9 +31,19 @@ export default function TrainerClientsStack() {
         options={{ title: 'Clientes', headerShown: false }}
       />
       <Stack.Screen
+        name="ClientDetail"
+        component={ClientDetailScreen}
+        options={{ title: 'Detalle de cliente', headerShown: false }}
+      />
+      <Stack.Screen
+        name="AssignRoutine"
+        component={AssignRoutineScreen}
+        options={{ title: 'Asignar rutina', headerShown: false }}
+      />
+      <Stack.Screen
         name="ClientProgress"
         component={ClientProgressScreen}
-        options={({ route }) => ({ title: route.params.clientName })}
+        options={{ title: 'Progreso', headerShown: false }}
       />
     </Stack.Navigator>
   );
