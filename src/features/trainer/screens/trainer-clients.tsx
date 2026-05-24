@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AlertCircle, ChevronRight, RefreshCcw, UserPlus, UsersRound } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -16,6 +16,7 @@ import { useLinkedClients, useReceivedLinkRequests } from '@/features/trainer-li
 import type { ActiveClient } from '@/features/trainer-link/types/trainer-link';
 import { theme } from '@/theme';
 import type { TrainerClientsStackParamList } from '@/navigation/types';
+import type { TrainerDrawerParamList } from '../types/trainer-navigation.types';
 
 type ClientsNavigation = NativeStackNavigationProp<TrainerClientsStackParamList, 'ClientsList'>;
 
@@ -30,9 +31,12 @@ function formatDate(dateStr: string): string {
 
 export default function TrainerClientsScreen() {
   const navigation = useNavigation<ClientsNavigation>();
+  const drawerNavigation = navigation.getParent()?.getParent<NavigationProp<TrainerDrawerParamList>>();
   const { data, isLoading, isError, refetch } = useLinkedClients();
   const pendingRequests = useReceivedLinkRequests('pendiente');
   const pendingCount = pendingRequests.data?.items.length ?? 0;
+  const openReceivedRequests = () =>
+    drawerNavigation?.navigate('TrainerLinkStack', { screen: 'ReceivedRequests' });
 
   if (isLoading) {
     return (
@@ -74,13 +78,18 @@ export default function TrainerClientsScreen() {
             Los clientes apareceran aqui cuando aceptes sus solicitudes de vinculacion.
           </Text>
           {pendingCount > 0 ? (
-            <View style={styles.pendingBanner}>
+            <TouchableOpacity
+              style={styles.pendingBanner}
+              activeOpacity={0.84}
+              onPress={openReceivedRequests}
+            >
               <UserPlus size={18} color={theme.colors.primary} />
               <Text style={styles.pendingText}>
                 Tienes {pendingCount} solicitud{pendingCount === 1 ? '' : 'es'} pendiente
-                {pendingCount === 1 ? '' : 's'} en el menu de solicitudes.
+                {pendingCount === 1 ? '' : 's'} por revisar.
               </Text>
-            </View>
+              <ChevronRight size={18} color={theme.colors.primary} />
+            </TouchableOpacity>
           ) : null}
         </View>
       </SafeAreaView>
@@ -98,13 +107,18 @@ export default function TrainerClientsScreen() {
         </View>
 
         {pendingCount > 0 ? (
-          <View style={styles.pendingBanner}>
+          <TouchableOpacity
+            style={styles.pendingBanner}
+            activeOpacity={0.84}
+            onPress={openReceivedRequests}
+          >
             <UserPlus size={18} color={theme.colors.primary} />
             <Text style={styles.pendingText}>
               {pendingCount} solicitud{pendingCount === 1 ? '' : 'es'} pendiente
               {pendingCount === 1 ? '' : 's'} de revisar.
             </Text>
-          </View>
+            <ChevronRight size={18} color={theme.colors.primary} />
+          </TouchableOpacity>
         ) : null}
 
         <FlatList

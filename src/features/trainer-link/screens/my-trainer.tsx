@@ -23,7 +23,7 @@ type TrainerLinkNavigation = NativeStackNavigationProp<TrainerLinkStackParamList
 
 export default function MyTrainerScreen() {
   const navigation = useNavigation<TrainerLinkNavigation>();
-  const { data, isLoading, isError, refetch } = useMyTrainer();
+  const { data, error, isLoading, isError, refetch } = useMyTrainer();
   const deactivateLink = useDeactivateLink();
 
   const handleDeactivate = useCallback(() => {
@@ -71,7 +71,9 @@ export default function MyTrainerScreen() {
         <View style={styles.center}>
           <AlertCircle size={48} color={theme.colors.error} />
           <Text style={styles.centerTitle}>No pudimos cargar la información</Text>
-          <Text style={styles.centerText}>Revisa tu conexión e intenta nuevamente.</Text>
+          <Text style={styles.centerText}>
+            {error?.message ?? 'Revisa tu conexión e intenta nuevamente.'}
+          </Text>
           <PrimaryButton label="Intentar de nuevo" onPress={() => refetch()} />
         </View>
       </SafeAreaView>

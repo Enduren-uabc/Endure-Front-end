@@ -1,17 +1,30 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { User, Award, Star } from 'lucide-react-native';
+import { User, Star } from 'lucide-react-native';
 import { theme } from '@/theme';
 import type { TrainerSearchResult } from '../types/trainer-link';
+
+export type TrainerSearchSendState = 'available' | 'linked' | 'blocked';
 
 interface Props {
   trainer: TrainerSearchResult;
   onSendRequest: (trainerId: string) => void;
   onViewProfile: (trainerId: string) => void;
+  sendState?: TrainerSearchSendState;
   disabled?: boolean;
 }
 
-export default function TrainerSearchCard({ trainer, onSendRequest, onViewProfile, disabled }: Props) {
+export default function TrainerSearchCard({
+  trainer,
+  onSendRequest,
+  onViewProfile,
+  sendState,
+  disabled,
+}: Props) {
+  const resolvedSendState: TrainerSearchSendState = sendState ?? (disabled ? 'blocked' : 'available');
+  const isSendBlocked = resolvedSendState === 'blocked';
+  const isLinked = resolvedSendState === 'linked';
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -36,15 +49,21 @@ export default function TrainerSearchCard({ trainer, onSendRequest, onViewProfil
           <Text style={styles.experienceText}>{trainer.yearsOfExperience} años de experiencia</Text>
         </View>
       </View>
-      <TouchableOpacity
-        style={[styles.sendButton, disabled && styles.sendButtonDisabled]}
-        onPress={() => onSendRequest(trainer.userId)}
-        disabled={disabled}
-      >
-        <Text style={[styles.sendButtonText, disabled && styles.sendButtonTextDisabled]}>
-          {disabled ? 'Enviado' : 'Enviar'}
-        </Text>
-      </TouchableOpacity>
+      {isLinked ? (
+        <View style={styles.linkedBadge}>
+          <Text style={styles.linkedBadgeText}>Vinculado</Text>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={[styles.sendButton, isSendBlocked && styles.sendButtonDisabled]}
+          onPress={() => onSendRequest(trainer.userId)}
+          disabled={isSendBlocked}
+        >
+          <Text style={[styles.sendButtonText, isSendBlocked && styles.sendButtonTextDisabled]}>
+            {isSendBlocked ? 'No disponible' : 'Enviar'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -122,5 +141,18 @@ const styles = StyleSheet.create({
   },
   sendButtonTextDisabled: {
     color: '#A0A0B0',
+  },
+  linkedBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderWidth: 1,
+    borderColor: '#22C55E',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  linkedBadgeText: {
+    color: '#22C55E',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });

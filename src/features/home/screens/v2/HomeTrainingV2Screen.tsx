@@ -1,12 +1,14 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, type NavigationProp, type NavigatorScreenParams } from '@react-navigation/native';
-import { CalendarDays, Flame, Play, Sparkles } from 'lucide-react-native';
+import { CalendarDays, Flame, Link2, Play, Sparkles } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import type { TrainingStackParamList, WorkoutStackParamList } from '@/navigation/types';
+import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 import {
   TrainingV2MetricCard,
   TrainingV2RoutineCard,
@@ -23,6 +25,8 @@ type HomeTrainingTabsParamList = {
 
 export default function HomeTrainingV2Screen() {
   const navigation = useNavigation<NavigationProp<HomeTrainingTabsParamList>>();
+  const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
+  const role = useSessionStore((state) => state.role);
   const todayRoutine = routinesV2[0];
   const startWorkout = () => navigation.navigate('Workout', { screen: 'WorkoutStart' });
   const openHistory = () => navigation.navigate('Workout', { screen: 'WorkoutHistory' });
@@ -36,9 +40,14 @@ export default function HomeTrainingV2Screen() {
       screen: 'RoutineDetail',
       params: { id: routineId },
     });
+  const openMyTrainer = () =>
+    drawerNavigation?.navigate('TrainerLinkStack', { screen: 'MyTrainer' });
+  const openSearchTrainer = () =>
+    drawerNavigation?.navigate('TrainerLinkStack', { screen: 'SearchTrainer' });
+  const isClient = role !== 'trainer';
 
   return (
-      <TrainingV2Screen
+    <TrainingV2Screen
       title="Inicio"
       subtitle="Domingo, 24 de mayo"
     >
@@ -93,6 +102,33 @@ export default function HomeTrainingV2Screen() {
           ))}
         </View>
       </BaseCard>
+
+      {isClient ? (
+        <BaseCard style={styles.trainerCard}>
+          <View style={styles.trainerHeader}>
+            <View style={styles.trainerIcon}>
+              <Link2 size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.trainerCopy}>
+              <Text style={styles.trainerTitle}>Mi entrenador</Text>
+              <Text style={styles.trainerText}>
+                Revisa tu entrenador vinculado o envia una solicitud si aun no tienes uno.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.trainerActions}>
+            <PrimaryButton
+              label="Ver mi entrenador"
+              onPress={openMyTrainer}
+              icon={<Link2 size={18} color={theme.colors.background} />}
+            />
+            <SecondaryButton
+              label="Buscar entrenador"
+              onPress={openSearchTrainer}
+            />
+          </View>
+        </BaseCard>
+      ) : null}
 
       <TrainingV2SectionHeader title="Para ti" actionLabel="Explorar" onAction={() => navigation.navigate('Routines', { screen: 'RoutinesList' })} />
       <ScrollView
@@ -220,6 +256,40 @@ const styles = StyleSheet.create({
   },
   streakDotActive: {
     backgroundColor: '#F97316',
+  },
+  trainerCard: {
+    gap: theme.spacing.md,
+  },
+  trainerHeader: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    alignItems: 'flex-start',
+  },
+  trainerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trainerCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  trainerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  trainerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  trainerActions: {
+    gap: theme.spacing.sm,
   },
   suggestions: {
     gap: theme.spacing.md,

@@ -116,8 +116,7 @@ export default function UserDrawer() {
         name="TrainerLinkStack"
         component={TrainerLinkStack}
         options={{
-          title: 'Vinculación',
-          drawerItemStyle: { display: 'none' },
+          title: 'Mi entrenador',
           drawerIcon: ({ color, size }) => <Link2 size={size} color={color} />,
         }}
       />

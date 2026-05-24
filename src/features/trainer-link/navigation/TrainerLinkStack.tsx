@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import SearchTrainerScreen from '../screens/search-trainer';
 import TrainerProfileScreen from '../screens/trainer-profile';
@@ -12,8 +13,11 @@ import type { TrainerLinkStackParamList } from '@/navigation/types';
 const Stack = createNativeStackNavigator<TrainerLinkStackParamList>();
 
 export default function TrainerLinkStack() {
+  const role = useSessionStore((state) => state.role);
+
   return (
     <Stack.Navigator
+      initialRouteName={role === 'trainer' ? 'ReceivedRequests' : 'MyTrainer'}
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: theme.colors.background },

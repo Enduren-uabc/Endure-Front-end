@@ -19,6 +19,7 @@ import { useSearchTrainers, useMyTrainer, useSendLinkRequest } from '../hooks/us
 import TrainerSearchCard from '../components/trainer-search-card';
 import type { TrainerLinkStackParamList } from '@/navigation/types';
 import type { TrainerSearchResult } from '../types/trainer-link';
+import type { TrainerSearchSendState } from '../components/trainer-search-card';
 
 const SPECIALTY_FILTERS = ['Todas', 'Fuerza', 'Hipertrofia', 'Cardio', 'Movilidad'];
 
@@ -42,8 +43,14 @@ export default function SearchTrainerScreen() {
   const { data: myTrainer } = useMyTrainer();
   const sendRequest = useSendLinkRequest();
 
-  const hasActiveTrainer = myTrainer?.hasTrainer && myTrainer?.trainer !== null;
-  const canSendRequest = !hasActiveTrainer;
+  const linkedTrainerId = myTrainer?.trainer?.trainerId ?? null;
+  const hasActiveTrainer = Boolean(linkedTrainerId);
+  const getSendState = useCallback((trainerId: string): TrainerSearchSendState => {
+    if (linkedTrainerId === trainerId) return 'linked';
+    if (hasActiveTrainer) return 'blocked';
+    return 'available';
+  }, [hasActiveTrainer, linkedTrainerId]);
+
   const filteredItems = React.useMemo(() => {
     const items = results?.items ?? [];
     if (specialtyFilter === 'Todas') return items;
@@ -55,10 +62,18 @@ export default function SearchTrainerScreen() {
   }, [results?.items, specialtyFilter]);
 
   const handleSendRequest = useCallback((trainerId: string) => {
-    if (!canSendRequest) {
+    const sendState = getSendState(trainerId);
+
+    if (sendState === 'linked') {
+      Alert.alert('Entrenador vinculado', 'Ya estás vinculado con este entrenador.');
+      return;
+    }
+
+    if (sendState === 'blocked') {
       Alert.alert('Ya tienes un entrenador', 'Ya tienes un entrenador vinculado. Desvincúlate primero para enviar una nueva solicitud.');
       return;
     }
+
     Alert.alert(
       'Enviar solicitud',
       '¿Enviar solicitud de vinculación a este entrenador?',
@@ -82,16 +97,16 @@ export default function SearchTrainerScreen() {
         },
       ],
     );
-  }, [canSendRequest, sendRequest]);
+  }, [getSendState, sendRequest]);
 
   const renderItem = useCallback(({ item }: { item: TrainerSearchResult }) => (
     <TrainerSearchCard
       trainer={item}
       onSendRequest={handleSendRequest}
       onViewProfile={(trainerId) => navigation.navigate('TrainerProfile', { trainerId })}
-      disabled={!canSendRequest}
+      sendState={getSendState(item.userId)}
     />
-  ), [canSendRequest, handleSendRequest, navigation]);
+  ), [getSendState, handleSendRequest, navigation]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
