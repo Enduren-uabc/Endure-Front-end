@@ -290,5 +290,4 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.caption.lineHeight,
     color: theme.colors.textMuted,
   },
-  },
 });

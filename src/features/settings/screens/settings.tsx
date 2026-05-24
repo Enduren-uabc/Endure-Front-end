@@ -272,7 +272,6 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.caption.lineHeight,
     marginTop: 2,
   },
-  },
   divider: {
     flex: 1,
   },
