@@ -52,6 +52,13 @@ export type AdminStackParamList = {
   VerificationDetail: { verificationId: string };
 };
 
+export type RemindersStackParamList = {
+  ReminderList: undefined;
+  ReminderCreate: undefined;
+  ReminderEdit: { reminderId: string };
+  NotificationList: undefined;
+};
+
 export type TrainerLinkStackParamList = {
   SearchTrainer: undefined;
   TrainerProfile: { trainerId: string };
@@ -74,5 +81,6 @@ export type RootStackParamList = {
   TrainerApp: undefined;
   AdminApp: undefined;
   ExerciseCatalogModal: undefined;
+  RemindersStack: NavigatorScreenParams<RemindersStackParamList> | undefined;
   PendingVerification: { email: string };
 };

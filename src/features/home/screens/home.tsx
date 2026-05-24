@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Bell,
   Calendar,
@@ -11,9 +12,10 @@ import {
   Flame,
   TrendingUp,
 } from 'lucide-react-native';
-import type { AppTabsParamList } from '@/navigation/types';
+import type { AppTabsParamList, RootStackParamList } from '@/navigation/types';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { useHomeGreeting, useWeeklyStats } from '@/features/home/hooks/use-home-data';
+import { useUnreadCount } from '@/features/reminders/hooks/use-notifications';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
@@ -24,13 +26,16 @@ const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { name, dateLabel } = useHomeGreeting();
   const { data: weeklyStats, isLoading: statsLoading } = useWeeklyStats();
+  const { data: unreadData } = useUnreadCount();
 
   const hasStats = weeklyStats !== null && weeklyStats !== undefined;
+  const unreadCount = unreadData?.count ?? 0;
 
   const handleNotifications = () => {
-    // Placeholder: notificaciones no implementadas
+    rootNavigation.navigate('RemindersStack');
   };
 
   const handleCreateRoutine = () => {
@@ -58,6 +63,13 @@ export default function HomeScreen() {
             accessibilityLabel="Notificaciones"
           >
             <Bell size={22} color={theme.colors.textSecondary} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -389,5 +401,22 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.small.lineHeight,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.md,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: theme.colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

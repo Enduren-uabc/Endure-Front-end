@@ -108,6 +108,20 @@ export const API_ENDPOINTS = {
     },
     deactivateLink: (id: string) => `/trainer-links/${id}/deactivate`,
   },
+  reminders: {
+    list: '/training-reminders',
+    create: '/training-reminders',
+    edit: (id: string) => `/training-reminders/${id}`,
+    delete: (id: string) => `/training-reminders/${id}`,
+  },
+  push: {
+    registerToken: '/push/register-token',
+  },
+  notifications: {
+    list: '/notifications',
+    unreadCount: '/notifications/unread-count',
+    markRead: (id: string) => `/notifications/${id}/read`,
+  },
   trainerVerification: {
     flowConfig: '/trainer-verification/flow-config',
     specialties: '/trainer-verification/specialties',

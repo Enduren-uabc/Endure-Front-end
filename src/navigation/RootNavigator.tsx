@@ -19,6 +19,7 @@ import UserDrawer from '@/features/user/navigation/UserDrawer';
 import TrainerDrawer from '@/features/trainer/navigation/TrainerDrawer';
 import AdminDrawer from '@/features/admin/navigation/AdminDrawer';
 import ExerciseCatalogScreen from '@/features/training/screens/exercise-catalog';
+import RemindersStack from '@/navigation/RemindersStack';
 import { RootStackParamList } from './types';
 import { theme } from '@/theme';
 import { ROLE_ROUTING_CONFIG, getRoleConfig, AppRole } from './role-routing.config';
@@ -245,6 +246,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="ExerciseCatalogModal"
           component={ExerciseCatalogScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="RemindersStack"
+          component={RemindersStack}
           options={{ presentation: 'modal' }}
         />
       </Stack.Navigator>
