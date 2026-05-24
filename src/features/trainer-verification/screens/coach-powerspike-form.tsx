@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextInput } from '@/components/ui/TextInput';
+import { NameInput } from '@/components/ui/NameInput';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
 import {
@@ -499,20 +500,18 @@ export default function PowerspikeForm() {
               </Text>
             )}
 
-            <TextInput
+            <NameInput
               label="Nombre del certificado"
               value={certName}
               onChangeText={setCertName}
               placeholder="Ej: Certificación NASM-CPT"
             />
-
-            <TextInput
+            <NameInput
               label="Institución emisora"
               value={certOrg}
               onChangeText={setCertOrg}
               placeholder="Ej: NASM"
             />
-
             <PrimaryButton
               label={confirmMutation.isPending ? 'Guardando...' : 'Confirmar datos'}
               onPress={handleConfirmCertificate}

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { useOnboardingStore } from '@/features/onboarding/stores/onboarding-stor
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { TextInput } from '@/components/ui/TextInput';
+import { NameInput } from '@/components/ui/NameInput';
 import { Chip } from '@/components/ui/Chip';
 import { theme } from '@/theme';
 
@@ -126,12 +127,11 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
                 control={control}
                 name="fullName"
                 render={({ field: { onChange, value } }) => (
-                  <TextInput
+                  <NameInput
                     label="Nombre completo"
                     value={value}
                     onChangeText={onChange}
                     placeholder="Ej. Juan Perez"
-                    autoCapitalize="words"
                     error={errors.fullName?.message}
                   />
                 )}
@@ -426,3 +426,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
