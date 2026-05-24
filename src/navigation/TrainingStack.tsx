@@ -1,9 +1,10 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import RoutinesListScreen from '@/features/training/screens/routines-list';
-import RoutineDetailScreen from '@/features/training/screens/routine-detail';
-import RoutineBuilderScreen from '@/features/training/screens/routine-builder';
-import ExerciseDetailScreen from '@/features/training/screens/exercise-detail';
+import RoutinesListV2Screen from '@/features/training/screens/v2/RoutinesListV2Screen';
+import RoutineDetailV2Screen from '@/features/training/screens/v2/RoutineDetailV2Screen';
+import RoutineBuilderV2Screen from '@/features/training/screens/v2/RoutineBuilderV2Screen';
+import ExerciseCatalogV2Screen from '@/features/training/screens/v2/ExerciseCatalogV2Screen';
+import ExerciseDetailV2Screen from '@/features/training/screens/v2/ExerciseDetailV2Screen';
 import { TrainingStackParamList } from './types';
 import { theme } from '@/theme';
 
@@ -17,10 +18,11 @@ export default function TrainingStack() {
         contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
-      <Stack.Screen name="RoutinesList" component={RoutinesListScreen} />
-      <Stack.Screen name="RoutineDetail" component={RoutineDetailScreen} />
-      <Stack.Screen name="RoutineBuilder" component={RoutineBuilderScreen} />
-      <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
+      <Stack.Screen name="RoutinesList" component={RoutinesListV2Screen} />
+      <Stack.Screen name="RoutineDetail" component={RoutineDetailV2Screen} />
+      <Stack.Screen name="RoutineBuilder" component={RoutineBuilderV2Screen} />
+      <Stack.Screen name="ExerciseCatalog" component={ExerciseCatalogV2Screen} />
+      <Stack.Screen name="ExerciseDetail" component={ExerciseDetailV2Screen} />
     </Stack.Navigator>
   );
 }

@@ -1,17 +1,23 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  FlatList,
   ActivityIndicator,
-  TouchableOpacity,
+  FlatList,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { UsersRound, AlertCircle, User } from 'lucide-react-native';
-import { theme } from '@/theme';
-import { useLinkedClients } from '@/features/trainer-link/hooks/use-trainer-link';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AlertCircle, ChevronRight, RefreshCcw, UserPlus, UsersRound } from 'lucide-react-native';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { useLinkedClients, useReceivedLinkRequests } from '@/features/trainer-link/hooks/use-trainer-link';
 import type { ActiveClient } from '@/features/trainer-link/types/trainer-link';
+import { theme } from '@/theme';
+import type { TrainerClientsStackParamList } from '@/navigation/types';
+
+type ClientsNavigation = NativeStackNavigationProp<TrainerClientsStackParamList, 'ClientsList'>;
 
 function formatDate(dateStr: string): string {
   try {
@@ -23,13 +29,17 @@ function formatDate(dateStr: string): string {
 }
 
 export default function TrainerClientsScreen() {
+  const navigation = useNavigation<ClientsNavigation>();
   const { data, isLoading, isError, refetch } = useLinkedClients();
+  const pendingRequests = useReceivedLinkRequests('pendiente');
+  const pendingCount = pendingRequests.data?.items.length ?? 0;
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.centerText}>Cargando clientes...</Text>
         </View>
       </SafeAreaView>
     );
@@ -40,10 +50,13 @@ export default function TrainerClientsScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.center}>
           <AlertCircle size={48} color={theme.colors.error} />
-          <Text style={styles.errorText}>No pudimos cargar tus clientes</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-            <Text style={styles.retryText}>Intentar de nuevo</Text>
-          </TouchableOpacity>
+          <Text style={styles.centerTitle}>No pudimos cargar tus clientes</Text>
+          <Text style={styles.centerText}>Revisa tu conexion e intenta nuevamente.</Text>
+          <PrimaryButton
+            label="Intentar de nuevo"
+            onPress={() => refetch()}
+            icon={<RefreshCcw size={18} color={theme.colors.background} />}
+          />
         </View>
       </SafeAreaView>
     );
@@ -52,13 +65,23 @@ export default function TrainerClientsScreen() {
   if (!data || data.items.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.center}>
-          <UsersRound size={48} color={theme.colors.textMuted} />
-          <Text style={styles.title}>Gestión de Clientes</Text>
-          <Text style={styles.subtitle}>
-            Aún no tienes clientes vinculados. Los clientes aparecerán aquí cuando aceptes sus
-            solicitudes de vinculación.
+        <View style={styles.emptyContent}>
+          <View style={styles.emptyIcon}>
+            <UsersRound size={42} color={theme.colors.textMuted} />
+          </View>
+          <Text style={styles.centerTitle}>Aun no tienes clientes</Text>
+          <Text style={styles.centerText}>
+            Los clientes apareceran aqui cuando aceptes sus solicitudes de vinculacion.
           </Text>
+          {pendingCount > 0 ? (
+            <View style={styles.pendingBanner}>
+              <UserPlus size={18} color={theme.colors.primary} />
+              <Text style={styles.pendingText}>
+                Tienes {pendingCount} solicitud{pendingCount === 1 ? '' : 'es'} pendiente
+                {pendingCount === 1 ? '' : 's'} en el menu de solicitudes.
+              </Text>
+            </View>
+          ) : null}
         </View>
       </SafeAreaView>
     );
@@ -67,12 +90,39 @@ export default function TrainerClientsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.container}>
-        <Text style={styles.headerTitle}>Mis Clientes ({data.total})</Text>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Clientes</Text>
+          <Text style={styles.headerSubtitle}>
+            {data.total} cliente{data.total === 1 ? '' : 's'} vinculado{data.total === 1 ? '' : 's'}
+          </Text>
+        </View>
+
+        {pendingCount > 0 ? (
+          <View style={styles.pendingBanner}>
+            <UserPlus size={18} color={theme.colors.primary} />
+            <Text style={styles.pendingText}>
+              {pendingCount} solicitud{pendingCount === 1 ? '' : 'es'} pendiente
+              {pendingCount === 1 ? '' : 's'} de revisar.
+            </Text>
+          </View>
+        ) : null}
+
         <FlatList
           data={data.items}
           keyExtractor={(item: ActiveClient) => item.linkId}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.82}
+              onPress={() =>
+                navigation.navigate('ClientProgress', {
+                  clientId: item.clientId,
+                  clientName: item.clientName,
+                  linkId: item.linkId,
+                  activatedAt: item.activatedAt,
+                })
+              }
+            >
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
                   {item.clientName?.charAt(0)?.toUpperCase() ?? '?'}
@@ -81,12 +131,15 @@ export default function TrainerClientsScreen() {
               <View style={styles.cardInfo}>
                 <Text style={styles.clientName}>{item.clientName}</Text>
                 <Text style={styles.date}>Vinculado desde {formatDate(item.activatedAt)}</Text>
+                <Text style={styles.cardHint}>Toca para revisar progreso y asignar rutina</Text>
               </View>
-            </View>
+              <ChevronRight size={20} color={theme.colors.textMuted} />
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.list}
           refreshing={isLoading}
           onRefresh={refetch}
+          showsVerticalScrollIndicator={false}
         />
       </View>
     </SafeAreaView>
@@ -100,87 +153,123 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.xl,
+    gap: theme.spacing.lg,
+  },
+  header: {
+    gap: theme.spacing.xs,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 16,
+    color: theme.colors.primary,
+    fontSize: theme.typography.heading1.fontSize,
+    lineHeight: theme.typography.heading1.lineHeight,
+    fontWeight: theme.typography.heading1.fontWeight,
+  },
+  headerSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.md,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  emptyContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.md,
+  },
+  emptyIcon: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading2.fontSize,
+    lineHeight: theme.typography.heading2.lineHeight,
+    fontWeight: theme.typography.heading2.fontWeight,
     textAlign: 'center',
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#A0A0B0',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  errorText: {
-    fontSize: 15,
-    color: '#EF4444',
+  centerText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
     textAlign: 'center',
   },
-  retryButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
   },
-  retryText: {
-    color: '#0A0A0F',
-    fontWeight: '700',
+  pendingText: {
+    flex: 1,
+    color: theme.colors.primary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '600',
   },
   list: {
-    gap: 12,
-    paddingBottom: 24,
+    gap: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A2E',
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
+    gap: theme.spacing.md,
     borderWidth: 1,
-    borderColor: '#2A2A3E',
+    borderColor: theme.colors.border,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2A2A3E',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: theme.colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
+    color: theme.colors.primary,
   },
   cardInfo: {
     flex: 1,
+    gap: theme.spacing.xs,
   },
   clientName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+    color: theme.colors.textPrimary,
   },
   date: {
-    fontSize: 12,
-    color: '#A0A0B0',
-    marginTop: 2,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    color: theme.colors.textSecondary,
+  },
+  cardHint: {
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    color: theme.colors.textMuted,
   },
 });

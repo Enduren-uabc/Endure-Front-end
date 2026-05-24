@@ -6,6 +6,7 @@ import TrainerProfileScreen from '../screens/trainer-profile';
 import SentLinkRequestsScreen from '../screens/sent-link-requests';
 import MyTrainerScreen from '../screens/my-trainer';
 import ReceivedLinkRequestsScreen from '../screens/received-link-requests';
+import AssignedRoutineScreen from '../screens/assigned-routine';
 import type { TrainerLinkStackParamList } from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<TrainerLinkStackParamList>();
@@ -43,6 +44,11 @@ export default function TrainerLinkStack() {
         name="MyTrainer"
         component={MyTrainerScreen}
         options={{ title: 'Mi Entrenador' }}
+      />
+      <Stack.Screen
+        name="AssignedRoutine"
+        component={AssignedRoutineScreen}
+        options={{ title: 'Rutina asignada' }}
       />
       <Stack.Screen
         name="ReceivedRequests"

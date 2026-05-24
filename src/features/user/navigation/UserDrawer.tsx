@@ -4,12 +4,13 @@ import {
   createDrawerNavigator,
   DrawerContentScrollView,
   DrawerItemList,
+  type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
 import { Dumbbell, Settings, HelpCircle, Award, ChevronRight, Link2 } from 'lucide-react-native';
 import UserTabs from './UserTabs';
 import CoachStack from '@/navigation/CoachStack';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
-import SettingsScreen from '@/features/settings/screens/settings';
+import SettingsStack from '@/features/settings/navigation/SettingsStack';
 import HelpScreen from '@/features/help/screens/help';
 import { theme } from '@/theme';
 import type { UserDrawerParamList } from '../types/user-navigation.types';
@@ -17,7 +18,7 @@ import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/u
 
 const Drawer = createDrawerNavigator<UserDrawerParamList>();
 
-function CustomDrawerContent(props: any) {
+function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { data: statusData } = useMyVerificationStatus();
   const navigation = props.navigation;
 
@@ -122,7 +123,7 @@ export default function UserDrawer() {
       />
       <Drawer.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           title: 'Configuración',
           drawerIcon: ({ color, size }) => <Settings size={size} color={color} />,

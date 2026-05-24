@@ -1,9 +1,9 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import WorkoutStartScreen from '@/features/training/screens/workout-start';
-import WorkoutSessionScreen from '@/features/training/screens/workout-session';
-import WorkoutFinishSummaryScreen from '@/features/training/screens/workout-finish-summary';
-import WorkoutHistoryScreen from '@/features/training/screens/workout-history';
+import WorkoutStartV2Screen from '@/features/training/screens/v2/WorkoutStartV2Screen';
+import WorkoutSessionV2Screen from '@/features/training/screens/v2/WorkoutSessionV2Screen';
+import WorkoutFinishSummaryV2Screen from '@/features/training/screens/v2/WorkoutFinishSummaryV2Screen';
+import WorkoutHistoryV2Screen from '@/features/training/screens/v2/WorkoutHistoryV2Screen';
 import type { WorkoutStackParamList } from './types';
 import { theme } from '@/theme';
 
@@ -17,13 +17,13 @@ export default function WorkoutStack() {
         contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
-      <Stack.Screen name="WorkoutStart" component={WorkoutStartScreen} />
-      <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} />
+      <Stack.Screen name="WorkoutStart" component={WorkoutStartV2Screen} />
+      <Stack.Screen name="WorkoutSession" component={WorkoutSessionV2Screen} />
       <Stack.Screen
         name="WorkoutFinishSummary"
-        component={WorkoutFinishSummaryScreen}
+        component={WorkoutFinishSummaryV2Screen}
       />
-      <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
+      <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryV2Screen} />
     </Stack.Navigator>
   );
 }

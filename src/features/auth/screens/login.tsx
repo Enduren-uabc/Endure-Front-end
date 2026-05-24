@@ -27,8 +27,11 @@ type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
 export default function LoginScreen({ navigation, route }: Props) {
   const loginMutation = useLogin();
-  const { login: googleLogin, isPending: googlePending, error: googleError } = useGoogleAuth();
+  const { login: googleLogin, isPending: googlePending, error: googleError, clearError } = useGoogleAuth();
   const { email: prefillEmail, password: prefillPassword } = route.params ?? {};
+  const [, setFailedAttempts] = React.useState(0);
+  const [blockedUntil, setBlockedUntil] = React.useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = React.useState(0);
 
   const {
     control,
@@ -47,12 +50,50 @@ export default function LoginScreen({ navigation, route }: Props) {
     if (loginMutation.isError) {
       const message = loginMutation.error.message || "Error al iniciar sesión";
       setError("root", { message });
+      setFailedAttempts((current) => {
+        const next = current + 1;
+        if (next >= 3) {
+          setBlockedUntil(Date.now() + 60_000);
+        }
+        return next;
+      });
     }
   }, [loginMutation.isError, loginMutation.error, setError]);
 
+  React.useEffect(() => {
+    if (!blockedUntil) return;
+
+    const tick = () => {
+      const seconds = Math.max(0, Math.ceil((blockedUntil - Date.now()) / 1000));
+      setRemainingSeconds(seconds);
+      if (seconds === 0) {
+        setBlockedUntil(null);
+        setFailedAttempts(0);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [blockedUntil]);
+
+  React.useEffect(() => {
+    if (!googleError) return;
+
+    navigation.navigate("OAuthError", {
+      provider: "google",
+      reason: googleError.includes("Cancelaste") ? "cancelled" : "failed",
+      message: googleError,
+    });
+    clearError();
+  }, [clearError, googleError, navigation]);
+
   const onSubmit = (data: LoginFormData) => {
+    if (blockedUntil) return;
     loginMutation.mutate(data);
   };
+
+  const isBlocked = blockedUntil !== null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -133,11 +174,20 @@ export default function LoginScreen({ navigation, route }: Props) {
                 <Text style={styles.rootError}>{errors.root.message}</Text>
               )}
 
+              {isBlocked && (
+                <View style={styles.blockedBanner}>
+                  <Text style={styles.blockedTitle}>Inicio bloqueado temporalmente</Text>
+                  <Text style={styles.blockedText}>
+                    Hubo varios intentos fallidos. Intenta de nuevo en {remainingSeconds}s o recupera tu contraseña.
+                  </Text>
+                </View>
+              )}
+
               <PrimaryButton
-                label="Iniciar sesión"
+                label={isBlocked ? `Espera ${remainingSeconds}s` : "Iniciar sesión"}
                 onPress={handleSubmit(onSubmit)}
                 loading={loginMutation.isPending}
-                disabled={loginMutation.isPending}
+                disabled={loginMutation.isPending || isBlocked}
               />
             </View>
           </BaseCard>
@@ -232,6 +282,25 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
     textAlign: "center",
+  },
+  blockedBanner: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: theme.colors.error,
+    borderWidth: 1,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
+  },
+  blockedTitle: {
+    color: theme.colors.error,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  blockedText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
   footerLink: {
     alignItems: "center",

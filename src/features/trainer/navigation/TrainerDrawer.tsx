@@ -1,17 +1,22 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+  type DrawerContentComponentProps,
+} from '@react-navigation/drawer';
 import { Dumbbell, Settings, HelpCircle, UsersRound, Inbox } from 'lucide-react-native';
 import TrainerTabs from './TrainerTabs';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
-import SettingsScreen from '@/features/settings/screens/settings';
+import SettingsStack from '@/features/settings/navigation/SettingsStack';
 import HelpScreen from '@/features/help/screens/help';
 import { theme } from '@/theme';
 import type { TrainerDrawerParamList } from '../types/trainer-navigation.types';
 
 const Drawer = createDrawerNavigator<TrainerDrawerParamList>();
 
-function CustomDrawerContent(props: any) {
+function CustomDrawerContent(props: DrawerContentComponentProps) {
   return (
     <DrawerContentScrollView {...props} contentContainerStyle={styles.drawerContent}>
       <DrawerItemList {...props} />
@@ -68,7 +73,7 @@ export default function TrainerDrawer() {
       />
       <Drawer.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           title: 'Configuración',
           drawerIcon: ({ color, size }) => <Settings size={size} color={color} />,

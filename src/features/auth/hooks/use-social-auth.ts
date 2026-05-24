@@ -55,6 +55,7 @@ export function useGoogleAuth() {
       const result = await promptAsync();
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
+        setError('Cancelaste el inicio con Google. Puedes intentarlo de nuevo o usar tu correo.');
         setIsPending(false);
         return;
       }
