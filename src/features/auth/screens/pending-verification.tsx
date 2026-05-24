@@ -14,11 +14,15 @@ import { useVerifyEmail, useResendVerification } from '@/features/auth/hooks/use
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { theme } from '@/theme';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
 
 const CODE_LENGTH = 6;
 const RESEND_COOLDOWN = 60;
 
 export default function PendingVerificationScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const email = useSessionStore(s => s.email) ?? '';
   const setEmailVerified = useSessionStore(s => s.setEmailVerified);
   const verifyMutation = useVerifyEmail();
@@ -173,6 +177,13 @@ export default function PendingVerificationScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'AuthStack' }] })}
+            style={styles.exitButton}
+          >
+            <Text style={styles.exitText}>Salir</Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -265,6 +276,17 @@ const styles = StyleSheet.create({
   },
   resendTextDisabled: {
     color: theme.colors.textSecondary,
+  },
+  exitButton: {
+    marginTop: theme.spacing.lg,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exitText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    textDecorationLine: 'underline',
   },
   successCircle: {
     width: 72,
