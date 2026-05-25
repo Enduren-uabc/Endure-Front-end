@@ -62,6 +62,7 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
       mainGoal: draft.mainGoal as OnboardingProfileBody['mainGoal'],
       daysAvailablePerWeek: draft.daysAvailablePerWeek ?? 3,
       weightUnit: draft.weightUnit ?? 'kg',
+      defaultTrainingStrategyKey: draft.trainingStrategyKey,
     };
 
     mutation.mutate(body, {
