@@ -120,7 +120,6 @@ export type TrainerClientsStackParamList = {
     activatedAt: string;
   };
 };
-};
 
 export type AppTabsParamList = {
   Home: undefined;
