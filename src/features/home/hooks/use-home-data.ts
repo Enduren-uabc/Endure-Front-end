@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { useSessionStore } from '@/features/auth/stores/session-store';
-import type { HomeProfileData, WeeklyStats } from '@/features/home/types/home';
+import type { HomeProfileData, WeeklyStats, WorkoutSessionStatsResponse, UnreadNotificationsResponse } from '@/features/home/types/home';
 
 export function useHomeProfile() {
   return useQuery<HomeProfileData | null>({
@@ -45,7 +45,37 @@ export function useWeeklyStats() {
   });
 }
 
-export function useHomeGreeting(): { name: string | null; dateLabel: string } {
+export function useHomeStats() {
+  return useQuery<WorkoutSessionStatsResponse | null>({
+    queryKey: ['workout-session', 'stats'],
+    queryFn: async () => {
+      try {
+        return await apiClient.get<WorkoutSessionStatsResponse>(API_ENDPOINTS.workoutSessions.stats);
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useHomeUnreadNotifications() {
+  return useQuery<UnreadNotificationsResponse | null>({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: async () => {
+      try {
+        return await apiClient.get<UnreadNotificationsResponse>(API_ENDPOINTS.notifications.unreadCount);
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useHomeGreeting(): { name: string | null; dateLabel: string; experienceLevel: string | null } {
   const username = useSessionStore((s) => s.username);
   const { data: profile } = useHomeProfile();
 
@@ -59,5 +89,5 @@ export function useHomeGreeting(): { name: string | null; dateLabel: string } {
 
   const capitalized = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
 
-  return { name: displayName, dateLabel: capitalized };
+  return { name: displayName, dateLabel: capitalized, experienceLevel: profile?.experienceLevel ?? null };
 }

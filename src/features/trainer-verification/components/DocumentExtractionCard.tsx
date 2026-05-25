@@ -17,6 +17,8 @@ export interface CertificateExtractionData {
   curp?: string;
   competencyStandardCode?: string;
   competencyStandardName?: string;
+  hasVeracityCode?: boolean;
+  veracityCode?: string;
 }
 
 export interface IdExtractionData {
@@ -183,6 +185,9 @@ export function CertificateExtractionCard({ data }: { data: CertificateExtractio
       <DataRow icon={<CreditCard size={16} color={theme.colors.primary} />} label="CURP" value={data.curp} />
       <DataRow icon={<Shield size={16} color={theme.colors.primary} />} label="Estándar de competencia" value={data.competencyStandardName ?? data.competencyStandardCode} />
       <DataRow icon={<Link size={16} color={theme.colors.primary} />} label="URL de verificación" value={data.qrUrl} isLink />
+      {data.hasVeracityCode && (
+        <DataRow icon={<FileText size={16} color={theme.colors.primary} />} label="Código de veracidad" value={data.veracityCode ?? 'Detectado'} />
+      )}
 
       <ConfidenceBar value={data.ocrConfidence} />
     </BaseCard>

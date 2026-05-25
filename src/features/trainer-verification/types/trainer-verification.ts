@@ -57,6 +57,8 @@ export interface MyStatusResponse {
     curp?: string;
     competencyStandardCode?: string;
     competencyStandardName?: string;
+    hasVeracityCode?: boolean;
+    veracityCode?: string;
   };
   extractedIdInfo?: {
     fullName: string;

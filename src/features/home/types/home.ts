@@ -28,3 +28,13 @@ export interface HomeData {
   streak: StreakData | null;
   hasActiveRoutine: boolean;
 }
+
+export interface WorkoutSessionStatsResponse {
+  totalWorkouts: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+export interface UnreadNotificationsResponse {
+  count: number;
+}
