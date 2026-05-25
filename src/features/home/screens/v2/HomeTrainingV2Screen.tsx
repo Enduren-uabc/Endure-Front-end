@@ -39,8 +39,8 @@ export default function HomeTrainingV2Screen() {
   const totalExerciseCount = activeRoutine
     ? activeRoutine.days.reduce((sum, d) => sum + d.exercises.length, 0)
     : 0;
-  const startWorkout = () => navigation.navigate('Workout', { screen: 'WorkoutStart' });
-  const openHistory = () => navigation.navigate('Workout', { screen: 'WorkoutHistory' });
+  const startWorkout = () => drawerNavigation?.navigate('WorkoutStack', { screen: 'WorkoutStart' });
+  const openHistory = () => drawerNavigation?.navigate('WorkoutStack', { screen: 'WorkoutHistory' });
   const createRoutine = () =>
     navigation.navigate('Routines', {
       screen: 'RoutineBuilder',

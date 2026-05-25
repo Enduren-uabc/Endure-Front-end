@@ -1,8 +1,11 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
+import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { fetchMe, useLogout } from '@/features/auth/hooks/use-auth';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
+import { useWorkoutStats } from '@/features/training/hooks/use-workout-stats';
 import {
   buildTrainerApplicationCard,
   clientProfileDefaults,
@@ -14,6 +17,7 @@ import {
   mapTrainerApplicationStatus,
   type TrainerProfessionalProfile,
 } from '../types/profile';
+import type { OnboardingProfileResponse } from '@/features/onboarding/hooks/use-onboarding';
 
 function initialsFromName(name: string): string {
   return name
@@ -40,6 +44,12 @@ export function useClientProfileDashboard() {
     queryFn: fetchMe,
     retry: 1,
   });
+  const profileQuery = useQuery<OnboardingProfileResponse>({
+    queryKey: ['profile', 'data'],
+    queryFn: () => apiClient.get<OnboardingProfileResponse>(API_ENDPOINTS.profile.get),
+    retry: 1,
+  });
+  const stats = useWorkoutStats();
   const verification = useMyVerificationStatus();
   const logout = useLogout();
   const [localProfile, setLocalProfile] = React.useState<EditableProfileInput | null>(null);
@@ -54,13 +64,26 @@ export function useClientProfileDashboard() {
   const bio = localProfile?.bio ?? clientProfileDefaults.bio;
   const email = me.data?.email ?? sessionEmail ?? 'gerardo@endure.local';
 
+  const weight = profileQuery.data?.weight;
+  const weightUnit = profileQuery.data?.weightUnit ?? 'kg';
+  const weightDisplay = weight ? `${weight} ${weightUnit}` : '--';
+
+  const totalWorkouts = stats.data?.totalWorkouts ?? 0;
+  const longestStreak = stats.data?.longestStreak ?? 0;
+  const currentStreak = stats.data?.currentStreak ?? 0;
+
   const profile: ClientProfileViewModel = {
     displayName,
     email,
     handle: `@${handleFromName(displayName)}`,
     bio,
     avatarInitials: initialsFromName(displayName),
-    metrics: clientProfileDefaults.metrics,
+    metrics: [
+      { id: 'workouts', label: 'Entrenos', value: `${totalWorkouts}`, helper: 'Completados' },
+      { id: 'streak', label: 'Mejor racha', value: `${longestStreak}d`, helper: 'Historica' },
+      { id: 'currentStreak', label: 'Racha actual', value: `${currentStreak}d`, helper: 'Dias seguidos' },
+      { id: 'weight', label: 'Peso', value: weightDisplay, helper: 'Actual' },
+    ],
   };
 
   const applicationStatus = mapTrainerApplicationStatus(verification.data?.status);
@@ -97,11 +120,13 @@ export function useClientProfileDashboard() {
   return {
     profile,
     trainerCard,
-    isLoading: me.isLoading || verification.isLoading,
-    isError: me.isError,
-    isRefreshing: me.isRefetching || verification.isRefetching,
+    isLoading: me.isLoading || profileQuery.isLoading || stats.isLoading || verification.isLoading,
+    isError: me.isError || profileQuery.isError || stats.isError,
+    isRefreshing: me.isRefetching || profileQuery.isRefetching || stats.isRefetching || verification.isRefetching,
     refetch: () => {
       void me.refetch();
+      void profileQuery.refetch();
+      void stats.refetch();
       void verification.refetch();
     },
     saveProfile,

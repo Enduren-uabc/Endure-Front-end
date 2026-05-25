@@ -60,6 +60,7 @@ export const API_ENDPOINTS = {
     removeSet: (id: string, exerciseIndex: number, setNumber: number) =>
       `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}`,
     discard: (id: string) => `/workout-sessions/${id}/discard`,
+    stats: '/workout-sessions/stats',
   },
   publications: {
     feed: '/publications',
