@@ -16,6 +16,10 @@ import {
   TrainingV2Tag,
 } from './TrainingV2Primitives';
 import { useCreateRoutine, useRoutineDetail } from '@/features/training/hooks/use-routines';
+import { useTrainingStrategies } from '@/features/training/hooks/use-training-strategies';
+import { useSetRoutineStrategy } from '@/features/training/hooks/use-set-routine-strategy';
+import { TrainingStrategySelector } from '@/features/training/components/TrainingStrategySelector';
+import { useHomeProfile } from '@/features/home/hooks/use-home-data';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import type { DayOfWeek } from '@/features/training/types/routine';
@@ -47,9 +51,12 @@ function newSetId() { return `set-${++setIdCounter}`; }
 export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
   const isNewRoutine = route.params.id === 'new';
   const { data: existingRoutine, isLoading: loadingExisting, refetch: refetchRoutine } = useRoutineDetail(
-    isNewRoutine ? '' : route.params.id,
+    routineId,
   );
   const createRoutine = useCreateRoutine();
+  const { data: strategies } = useTrainingStrategies();
+  const setStrategyMutation = useSetRoutineStrategy();
+  const { data: homeProfile } = useHomeProfile();
 
   const [routineName, setRoutineName] = React.useState('');
   const [selectedDayKeys, setSelectedDayKeys] = React.useState<string[]>([]);
@@ -100,9 +107,10 @@ export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
           setRoutineId(routine.id);
           setCreated(true);
           setRoutineName(routine.name);
+          setTimeout(() => refetchRoutine(), 100);
         },
-        onError: () => {
-          setSaveError('No pudimos guardar la rutina. Intenta nuevamente.');
+        onError: (error) => {
+          setSaveError(error.message || 'No pudimos guardar la rutina. Intenta nuevamente.');
         },
       },
     );
@@ -264,6 +272,22 @@ export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
           <Text style={styles.errorText}>{saveError}</Text>
         ) : null}
       </BaseCard>
+
+      {created && existingRoutine && strategies ? (
+        <BaseCard style={styles.formCard}>
+          <TrainingStrategySelector
+            strategies={strategies}
+            selectedKey={existingRoutine.trainingStrategyKey}
+            onSelect={(key) =>
+              setStrategyMutation.mutate(
+                { routineId, strategyKey: key },
+                { onSuccess: () => refetchRoutine() },
+              )
+            }
+            disabled={setStrategyMutation.isPending}
+          />
+        </BaseCard>
+      ) : null}
 
       {created ? (
         <>

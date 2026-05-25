@@ -8,6 +8,7 @@ export interface HomeProfileData {
   experienceLevel: string;
   mainGoal: string;
   weightUnit: string;
+  defaultTrainingStrategyKey: string | null;
 }
 
 export interface WeeklyStats {

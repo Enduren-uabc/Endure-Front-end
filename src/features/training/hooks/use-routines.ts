@@ -26,8 +26,10 @@ export function useRoutines() {
 export function useRoutineDetail(routineId: string) {
   return useQuery<Routine>({
     queryKey: ["routine", routineId],
-    queryFn: () =>
-      apiClient.get<Routine>(API_ENDPOINTS.routines.detail(routineId)),
+    queryFn: () => {
+      if (!routineId) return Promise.reject(new Error("ID de rutina inválido"));
+      return apiClient.get<Routine>(API_ENDPOINTS.routines.detail(routineId));
+    },
     enabled: !!routineId,
   });
 }
