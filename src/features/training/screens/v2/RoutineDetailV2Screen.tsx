@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import { AlertCircle, Clock3, Dumbbell, Pencil, Play, Rows3, Star } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
@@ -17,10 +17,10 @@ import { TrainingV2EmptyState } from './TrainingV2States';
 import { useRoutineDetail } from '@/features/training/hooks/use-routines';
 import { DAY_OF_WEEK_LABELS } from '@/features/training/types/routine';
 import type { ExerciseConfig } from '@/features/training/types/routine';
-import type { AppTabsParamList, TrainingStackParamList } from '@/navigation/types';
+import type { TrainingStackParamList } from '@/navigation/types';
+import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 
 type Props = NativeStackScreenProps<TrainingStackParamList, 'RoutineDetail'>;
-type AppTabsNavigation = BottomTabNavigationProp<AppTabsParamList>;
 
 const DAY_LABELS: Record<string, string> = {
   monday: 'Lun', tuesday: 'Mar', wednesday: 'Mie',
@@ -39,9 +39,8 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
   const { data: routine, isLoading, isError, refetch } = useRoutineDetail(route.params.id);
 
   const openWorkoutStart = () => {
-    navigation.getParent<AppTabsNavigation>()?.navigate('Workout', {
-      screen: 'WorkoutStart',
-    });
+    const drawer = navigation.getParent()?.getParent<DrawerNavigationProp<UserDrawerParamList>>();
+    drawer?.navigate('WorkoutStack', { screen: 'WorkoutStart' });
   };
 
   if (isLoading) {
