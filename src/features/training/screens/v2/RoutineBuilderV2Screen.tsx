@@ -372,7 +372,7 @@ export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
               />
               <SecondaryButton
                 label="Del catalogo"
-                onPress={() => navigation.navigate('ExerciseCatalog', { routineId })}
+                onPress={() => navigation.navigate('ExerciseCatalog', { routineId, selectedDay: DAY_MAP[selectedDayForExercise] || undefined })}
               />
             </View>
           </BaseCard>

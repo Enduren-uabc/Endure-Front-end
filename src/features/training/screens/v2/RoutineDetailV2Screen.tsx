@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import { AlertCircle, Clock3, Dumbbell, Pencil, Play, Rows3, Star } from 'lucide-react-native';
@@ -17,15 +17,11 @@ import { TrainingV2EmptyState } from './TrainingV2States';
 import { useRoutineDetail } from '@/features/training/hooks/use-routines';
 import { DAY_OF_WEEK_LABELS } from '@/features/training/types/routine';
 import type { ExerciseConfig } from '@/features/training/types/routine';
+import type { DayOfWeek } from '@/features/training/types/routine';
 import type { TrainingStackParamList } from '@/navigation/types';
 import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 
 type Props = NativeStackScreenProps<TrainingStackParamList, 'RoutineDetail'>;
-
-const DAY_LABELS: Record<string, string> = {
-  monday: 'Lun', tuesday: 'Mar', wednesday: 'Mie',
-  thursday: 'Jue', friday: 'Vie', saturday: 'Sab', sunday: 'Dom',
-};
 
 function setsCount(exercise: ExerciseConfig): number {
   return Array.isArray(exercise.sets) ? exercise.sets.length : exercise.sets;
@@ -38,10 +34,27 @@ function totalSetsCount(exercises: ExerciseConfig[]): number {
 export default function RoutineDetailV2Screen({ navigation, route }: Props) {
   const { data: routine, isLoading, isError, refetch } = useRoutineDetail(route.params.id);
 
+  const [selectedDay, setSelectedDay] = React.useState<DayOfWeek | null>(null);
+  const [showAddModal, setShowAddModal] = React.useState(false);
+
+  React.useEffect(() => {
+    if (routine && !selectedDay) {
+      const jsDay = new Date().getDay();
+      const JS_TO_DAY: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const todayDayOfWeek = JS_TO_DAY[jsDay];
+      const hasToday = routine.days.some((d) => d.dayOfWeek === todayDayOfWeek);
+      setSelectedDay(hasToday ? todayDayOfWeek : (routine.days[0]?.dayOfWeek ?? null));
+    }
+  }, [routine, selectedDay]);
+
+
+
   const openWorkoutStart = () => {
     const drawer = navigation.getParent()?.getParent<DrawerNavigationProp<UserDrawerParamList>>();
     drawer?.navigate('WorkoutStack', { screen: 'WorkoutStart' });
   };
+
+  const routineDays = routine?.days.map((d) => d.dayOfWeek) ?? [];
 
   if (isLoading) {
     return (
@@ -67,9 +80,10 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
     );
   }
 
-  const exercises = routine.days.flatMap((d) => d.exercises);
-  const exerciseCount = exercises.length;
-  const totalSets = totalSetsCount(exercises);
+  const allExercises = routine.days.flatMap((d) => d.exercises);
+  const exerciseCount = allExercises.length;
+  const totalSets = totalSetsCount(allExercises);
+  const selectedDayExercises = routine.days.find((d) => d.dayOfWeek === selectedDay)?.exercises ?? [];
 
   return (
     <TrainingV2Screen
@@ -81,7 +95,7 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
         <View style={styles.footerActions}>
           <SecondaryButton
             label="Editar"
-            onPress={() => navigation.navigate('RoutineBuilder', { id: routine.id })}
+            onPress={() => navigation.navigate('RoutineEdit', { id: routine.id })}
             style={styles.footerButton}
           />
           <PrimaryButton
@@ -106,7 +120,7 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.metaGrid}>
-        <TrainingV2FieldPreview label="Dias" value={`${routine.dayOfWeeks.length}`} helper={routine.dayOfWeeks.map((d) => DAY_LABELS[d] ?? d.slice(0, 3)).join(' / ')} />
+        <TrainingV2FieldPreview label="Dias" value={`${routine.dayOfWeeks.length}`} helper={routine.dayOfWeeks.map((d) => DAY_OF_WEEK_LABELS[d] ?? d.slice(0, 3)).join(' / ')} />
         <TrainingV2FieldPreview label="Ejercicios" value={`${exerciseCount}`} helper="Totales" />
         <TrainingV2FieldPreview label="Series" value={`${totalSets}`} helper="Configurables" />
       </View>
@@ -130,19 +144,43 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
       <TrainingV2SectionHeader
         title="Ejercicios"
         actionLabel="Agregar"
-        onAction={() => navigation.navigate('ExerciseCatalog', { routineId: routine.id })}
+        onAction={() => setShowAddModal(true)}
       />
 
-      {exercises.length === 0 ? (
+      {routine.days.length > 1 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dayTabsRow}
+        >
+          {routine.days.map((day) => {
+            const isActive = day.dayOfWeek === selectedDay;
+            return (
+              <TouchableOpacity
+                key={day.dayOfWeek}
+                activeOpacity={0.78}
+                onPress={() => setSelectedDay(day.dayOfWeek)}
+                style={[styles.dayTab, isActive && styles.dayTabActive]}
+              >
+                <Text style={[styles.dayTabText, isActive && styles.dayTabTextActive]}>
+                  {DAY_OF_WEEK_LABELS[day.dayOfWeek]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
+      {selectedDayExercises.length === 0 ? (
         <TrainingV2EmptyState
-          title="Esta rutina no tiene ejercicios"
-          description="Agrega al menos un ejercicio antes de iniciar el entrenamiento."
+          title="Sin ejercicios en este dia"
+          description="Agrega ejercicios desde el catalogo para este dia."
           actionLabel="Agregar ejercicio"
-          onAction={() => navigation.navigate('ExerciseCatalog', { routineId: routine.id })}
+          onAction={() => setShowAddModal(true)}
         />
       ) : (
         <View style={styles.exerciseList}>
-          {exercises.map((exercise) => (
+          {selectedDayExercises.map((exercise) => (
             <TouchableOpacity
               key={exercise.id}
               activeOpacity={0.84}
@@ -178,6 +216,42 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
         <Text style={styles.noteText}>Cada ejercicio tiene {totalSets} series en total. Descansa 90 segundos entre cada una.</Text>
         <Pencil size={18} color={theme.colors.textMuted} />
       </BaseCard>
+
+      <Modal visible={showAddModal} transparent animationType="fade" onRequestClose={() => setShowAddModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAddModal(false)}>
+          <Pressable style={styles.choiceCard}>
+            <Text style={styles.choiceTitle}>Agregar ejercicio</Text>
+            <TouchableOpacity
+              style={styles.choiceBtn}
+              onPress={() => {
+                setShowAddModal(false);
+                navigation.navigate('ExerciseCatalog', {
+                  routineId: routine.id,
+                  selectedDay: selectedDay ?? undefined,
+                });
+              }}
+            >
+              <Text style={styles.choiceBtnIcon}>📋</Text>
+              <Text style={styles.choiceBtnText}>Del catalogo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.choiceBtn}
+              onPress={() => {
+                setShowAddModal(false);
+                navigation.navigate('ManualExercise', {
+                  routineId: routine.id,
+                  selectedDay: selectedDay ?? undefined,
+                });
+              }}
+            >
+              <Text style={styles.choiceBtnIcon}>✏️</Text>
+              <Text style={styles.choiceBtnText}>Manual</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+
     </TrainingV2Screen>
   );
 }
@@ -264,6 +338,32 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
+  dayTabsRow: {
+    gap: theme.spacing.sm,
+  },
+  dayTab: {
+    minHeight: 44,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayTabActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryMuted,
+  },
+  dayTabText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: '600',
+  },
+  dayTabTextActive: {
+    color: theme.colors.primary,
+  },
   exerciseList: {
     gap: theme.spacing.sm,
   },
@@ -320,11 +420,12 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
-  footerActions: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-  },
-  footerButton: {
-    flex: 1,
-  },
+  footerActions: { flexDirection: 'row', gap: theme.spacing.md },
+  footerButton: { flex: 1 },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.overlay, padding: theme.spacing.xl },
+  choiceCard: { width: '100%', maxWidth: 320, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, padding: theme.spacing.lg, gap: theme.spacing.md },
+  choiceTitle: { color: theme.colors.textPrimary, fontSize: theme.typography.heading3.fontSize, lineHeight: theme.typography.heading3.lineHeight, fontWeight: theme.typography.heading3.fontWeight, textAlign: 'center' },
+  choiceBtn: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md, padding: theme.spacing.md, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceElevated },
+  choiceBtnIcon: { fontSize: 22 },
+  choiceBtnText: { color: theme.colors.textPrimary, fontSize: theme.typography.bodyStrong.fontSize, lineHeight: theme.typography.bodyStrong.lineHeight, fontWeight: '600' },
 });

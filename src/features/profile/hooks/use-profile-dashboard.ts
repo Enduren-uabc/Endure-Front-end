@@ -108,13 +108,22 @@ export function useClientProfileDashboard() {
 
     setIsSavingProfile(true);
     setProfileSaveError(null);
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    setLocalProfile({
-      displayName: nextDisplayName,
-      bio: nextBio.length > 0 ? nextBio : clientProfileDefaults.bio,
-    });
-    setIsSavingProfile(false);
-    return true;
+    try {
+      await apiClient.patch(API_ENDPOINTS.socialProfiles.update, {
+        displayName: nextDisplayName,
+        bio: nextBio.length > 0 ? nextBio : null,
+      });
+      setLocalProfile({
+        displayName: nextDisplayName,
+        bio: nextBio.length > 0 ? nextBio : clientProfileDefaults.bio,
+      });
+      return true;
+    } catch {
+      setProfileSaveError('Error al guardar. Intenta de nuevo.');
+      return false;
+    } finally {
+      setIsSavingProfile(false);
+    }
   }, []);
 
   return {
@@ -183,13 +192,22 @@ export function useTrainerProfileDashboard() {
 
     setIsSavingProfile(true);
     setProfileSaveError(null);
-    await new Promise((resolve) => setTimeout(resolve, 450));
-    setLocalProfile({
-      displayName: nextDisplayName,
-      bio: nextBio.length > 0 ? nextBio : trainerProfileDefaults.bio,
-    });
-    setIsSavingProfile(false);
-    return true;
+    try {
+      await apiClient.patch(API_ENDPOINTS.socialProfiles.update, {
+        displayName: nextDisplayName,
+        bio: nextBio.length > 0 ? nextBio : null,
+      });
+      setLocalProfile({
+        displayName: nextDisplayName,
+        bio: nextBio.length > 0 ? nextBio : trainerProfileDefaults.bio,
+      });
+      return true;
+    } catch {
+      setProfileSaveError('Error al guardar. Intenta de nuevo.');
+      return false;
+    } finally {
+      setIsSavingProfile(false);
+    }
   }, []);
 
   return {

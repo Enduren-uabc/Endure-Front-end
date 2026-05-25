@@ -31,10 +31,13 @@ export const API_ENDPOINTS = {
       `/routines/${routineId}/days/${dayOfWeek}/exercises/${exerciseId}`,
     configureExercise: (routineId: string, dayOfWeek: string, exerciseId: string) =>
       `/routines/${routineId}/days/${dayOfWeek}/exercises/${exerciseId}`,
+    name: (id: string) => `/routines/${id}/name`,
     activate: (id: string) => `/routines/${id}/activate`,
     deactivate: (id: string) => `/routines/${id}/deactivate`,
     delete: (id: string) => `/routines/${id}`,
     sync: (id: string) => `/routines/${id}/sync`,
+    forkWorkout: (routineId: string, dayOfWeek: string) =>
+      `/routines/${routineId}/days/${dayOfWeek}/fork`,
     trainingStrategy: (id: string) => `/routines/${id}/training-strategy`,
     generateSets: (id: string) => `/routines/${id}/generate-sets`,
   },
@@ -61,10 +64,17 @@ export const API_ENDPOINTS = {
       `/workout-sessions/${id}/exercises/${exerciseIndex}/sets/${setNumber}`,
     discard: (id: string) => `/workout-sessions/${id}/discard`,
     stats: '/workout-sessions/stats',
+    exerciseProgress: (exerciseId: string) =>
+      `/workout-sessions/exercises/${exerciseId}/progress`,
+    weeklyVolume: '/workout-sessions/volume/weekly',
+    personalRecords: '/workout-sessions/personal-records',
   },
   publications: {
     feed: '/publications',
     detail: (id: string) => `/publications/${id}`,
+    fromWorkout: (sessionId: string) => `/publications/from-workout/${sessionId}`,
+    uploadMedia: '/publications/media/upload',
+    deleteMedia: (id: string) => `/publications/media/${id}`,
     reactions: (id: string) => `/publications/${id}/reactions`,
     comments: (id: string) => `/publications/${id}/comments`,
     comment: (commentId: string) => `/comments/${commentId}`,
@@ -77,6 +87,8 @@ export const API_ENDPOINTS = {
     following: (userId: string) => `/profiles/${userId}/following`,
     follow: (userId: string) => `/profiles/${userId}/follow`,
     me: '/profiles/me',
+    update: '/profiles/me',
+    avatar: '/profiles/me/avatar',
   },
   trainerLink: {
     search: (params: { q: string; page?: number; limit?: number }) =>

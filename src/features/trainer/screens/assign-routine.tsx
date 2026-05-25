@@ -22,6 +22,7 @@ import {
 } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useLinkedClients } from '@/features/trainer-link/hooks/use-trainer-link';
@@ -448,7 +449,7 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
       <Modal visible={confirmVisible} animationType="slide" transparent>
         <View style={styles.sheetOverlay}>
           <View style={styles.confirmSheet}>
-            <View style={styles.sheetHandle} />
+            <DragIndicator position="inside" />
             <View style={styles.confirmHeader}>
               <Text style={styles.confirmTitle}>Confirmar reemplazo</Text>
               <Pressable
@@ -485,7 +486,7 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
       <Modal visible={discardVisible} animationType="slide" transparent>
         <View style={styles.sheetOverlay}>
           <View style={styles.confirmSheet}>
-            <View style={styles.sheetHandle} />
+            <DragIndicator position="inside" />
             <View style={styles.confirmHeader}>
               <Text style={styles.confirmTitle}>Descartar cambios</Text>
               <Pressable
@@ -789,13 +790,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
-  },
+
   confirmHeader: {
     flexDirection: 'row',
     alignItems: 'center',

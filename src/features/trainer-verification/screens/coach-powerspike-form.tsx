@@ -14,21 +14,18 @@ import { useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   CheckCircle2,
-  Circle,
   Upload,
   FileText,
   AlertTriangle,
-  RefreshCw,
   ArrowRight,
-  ChevronLeft,
 } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { TextInput } from '@/components/ui/TextInput';
 import { NameInput } from '@/components/ui/NameInput';
-import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
+import { CompactStepper } from '@/features/trainer-verification/components/CompactStepper';
+import { CertificateExtractionCard, IdExtractionCard } from '@/features/trainer-verification/components/DocumentExtractionCard';
 import {
-  useFlowConfig,
   useSpecialtyCatalog,
   useMyVerificationPolling,
   usePowerspikeDraft,
@@ -38,7 +35,7 @@ import {
   usePowerspikeSubmit,
 } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import type { CoachStackParamList } from '@/navigation/types';
-import type { AdvancedStatus, MyStatusResponse, FileInfo } from '@/features/trainer-verification/types/trainer-verification';
+import type { MyStatusResponse, FileInfo } from '@/features/trainer-verification/types/trainer-verification';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '@/theme';
@@ -115,7 +112,7 @@ export default function PowerspikeForm() {
   const [idFile, setIdFile] = useState<FileInfo | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
-  const [pageWidth, setPageWidth] = useState(0);
+  const sectionRefs = useRef<Record<number, number>>({});
 
   useEffect(() => {
     const info = effectiveStatus?.extractedCertificateInfo;
@@ -184,9 +181,7 @@ export default function PowerspikeForm() {
       return;
     }
     try {
-      await certMutation.mutateAsync({
-        file: certFile,
-      });
+      await certMutation.mutateAsync({ file: certFile });
       setCertUploadStarted(true);
     } catch {
       setCertUploadStarted(false);
@@ -216,10 +211,7 @@ export default function PowerspikeForm() {
       return;
     }
     try {
-      await idMutation.mutateAsync({
-        idDocumentType: idDocType,
-        file: idFile,
-      });
+      await idMutation.mutateAsync({ idDocumentType: idDocType, file: idFile });
       setIdUploadStarted(true);
     } catch {
       setIdUploadStarted(false);
@@ -311,57 +303,59 @@ export default function PowerspikeForm() {
 
   const goToStep = useCallback((step: StepKey) => {
     setCurrentStep(step);
-    if (pageWidth > 0 && scrollRef.current) {
-      scrollRef.current.scrollTo({ x: (step - 1) * pageWidth, animated: true });
+    const y = sectionRefs.current[step];
+    if (y !== undefined && scrollRef.current) {
+      scrollRef.current.scrollTo({ y, animated: true });
     }
-  }, [pageWidth]);
+  }, []);
 
   const canNavigate = useCallback((step: StepKey) => step <= currentStep, [currentStep]);
 
   const certExtractionStatus = effectiveStatus?.certificateExtractionStatus;
   const idExtractionStatus = effectiveStatus?.idExtractionStatus;
 
-  const renderStepIndicator = () => (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.stepIndicator}
-      contentContainerStyle={styles.stepIndicatorContent}
-    >
-      {([1, 2, 3, 4] as StepKey[]).map((step, idx) => {
-        const isActive = step === currentStep;
-        const isPast = step < currentStep;
-        const isFuture = step > currentStep;
-        const Icon = isPast ? CheckCircle2 : isActive ? Circle : Circle;
+  const renderExtractionBadge = (status: string | null | undefined) => {
+    switch (status) {
+      case 'pending':
         return (
-          <TouchableOpacity
-            key={step}
-            style={styles.stepItem}
-            onPress={() => goToStep(step)}
-            disabled={isFuture}
-            activeOpacity={0.6}
-          >
-            <Icon size={22} color={isPast ? theme.colors.success : isActive ? theme.colors.primary : theme.colors.textMuted} />
-            <Text style={[
-              styles.stepLabel,
-              (isActive || isPast) && styles.stepLabelActive,
-              isFuture && styles.stepLabelFuture,
-            ]}>
-              {STEP_LABELS[idx]}
-            </Text>
-            {idx < 3 && <View style={[styles.stepConnector, isPast && styles.stepConnectorDone]} />}
-          </TouchableOpacity>
+          <View style={[styles.badge, styles.badgePending]}>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <Text style={styles.badgeTextPending}>Procesando documento...</Text>
+          </View>
         );
-      })}
-    </ScrollView>
-  );
+      case 'extracted':
+        return (
+          <View style={[styles.badge, styles.badgeSuccess]}>
+            <CheckCircle2 size={16} color={theme.colors.success} />
+            <Text style={styles.badgeTextSuccess}>Documento verificado</Text>
+          </View>
+        );
+      case 'failed':
+        return (
+          <View style={[styles.badge, styles.badgeError]}>
+            <AlertTriangle size={16} color={theme.colors.error} />
+            <Text style={styles.badgeTextError}>Error en verificación</Text>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
 
-  const renderStep1 = () => (
-    <View>
-      <Text style={styles.stepTitle}>Información básica</Text>
-      <Text style={styles.stepDescription}>
-        Cuéntanos sobre tu experiencia y perfil profesional.
-      </Text>
+  const renderStep1 = (sectionY: number) => (
+    <View
+      key="step1"
+      onLayout={() => { sectionRefs.current[1] = sectionY; }}
+    >
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionBadge}>
+          <Text style={styles.sectionBadgeText}>1</Text>
+        </View>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionTitle}>Información básica</Text>
+          <Text style={styles.sectionSubtitle}>Cuéntanos sobre tu experiencia y perfil profesional</Text>
+        </View>
+      </View>
 
       <Text style={styles.fieldLabel}>Especialidades (máx. 5)</Text>
       <View style={styles.chipsContainer}>
@@ -401,35 +395,7 @@ export default function PowerspikeForm() {
     </View>
   );
 
-  const renderExtractionBadge = (status: string | null | undefined) => {
-    switch (status) {
-      case 'pending':
-        return (
-          <View style={[styles.badge, styles.badgePending]}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={styles.badgeTextPending}>Procesando documento...</Text>
-          </View>
-        );
-      case 'extracted':
-        return (
-          <View style={[styles.badge, styles.badgeSuccess]}>
-            <CheckCircle2 size={16} color={theme.colors.success} />
-            <Text style={styles.badgeTextSuccess}>Documento verificado</Text>
-          </View>
-        );
-      case 'failed':
-        return (
-          <View style={[styles.badge, styles.badgeError]}>
-            <AlertTriangle size={16} color={theme.colors.error} />
-            <Text style={styles.badgeTextError}>Error en verificación</Text>
-          </View>
-        );
-      default:
-        return null;
-    }
-  };
-
-  const renderStep2 = () => {
+  const renderStep2 = (sectionY: number) => {
     const isUploaded = advStatus === 'certificate_uploaded';
     const isProcessing = isUploaded || advStatus === 'certificate_extraction_pending' || certExtractionStatus === 'pending';
     const isExtracted = advStatus === 'certificate_extracted' || certExtractionStatus === 'extracted';
@@ -448,13 +414,23 @@ export default function PowerspikeForm() {
       : certExtractionStatus;
 
     return (
-      <View>
-        <Text style={styles.stepTitle}>Certificado profesional</Text>
-        <Text style={styles.stepDescription}>
-          {showConfirmForm
-            ? 'Revisa los datos extraídos de tu certificado.'
-            : 'Sube tu título o certificado profesional relacionado con fitness.'}
-        </Text>
+      <View
+        key="step2"
+        onLayout={() => { sectionRefs.current[2] = sectionY; }}
+      >
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionBadge}>
+            <Text style={styles.sectionBadgeText}>2</Text>
+          </View>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Certificado profesional</Text>
+            <Text style={styles.sectionSubtitle}>
+              {showConfirmForm
+                ? 'Revisa los datos extraídos por IA'
+                : 'Sube tu título o certificado profesional'}
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.fileSection}>
           <Text style={styles.fieldLabel}>Archivo del certificado</Text>
@@ -482,9 +458,7 @@ export default function PowerspikeForm() {
             ) : (
               <View style={styles.filePlaceholder}>
                 <Upload size={20} color={theme.colors.textMuted} />
-                <Text style={styles.filePlaceholderText}>
-                  Toca para seleccionar archivo
-                </Text>
+                <Text style={styles.filePlaceholderText}>Toca para seleccionar archivo</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -492,10 +466,14 @@ export default function PowerspikeForm() {
 
         {renderExtractionBadge(displayedExtractionStatus)}
 
+        {isExtracted && certInfo && (
+          <CertificateExtractionCard data={certInfo} />
+        )}
+
         {showConfirmForm && (
           <>
             {needsManualInput && (
-              <Text style={[styles.stepDescription, { color: theme.colors.warning, marginTop: 8 }]}>
+              <Text style={[styles.manualInputHint]}>
                 No pudimos extraer los datos con confianza suficiente. Por favor ingrésalos manualmente.
               </Text>
             )}
@@ -535,7 +513,7 @@ export default function PowerspikeForm() {
     );
   };
 
-  const renderStep3 = () => {
+  const renderStep3 = (sectionY: number) => {
     const isUploaded = advStatus === 'id_uploaded';
     const isProcessing = isUploaded || advStatus === 'id_extraction_pending' || idExtractionStatus === 'pending';
     const isExtracted = advStatus === 'id_extracted' || idExtractionStatus === 'extracted';
@@ -559,12 +537,22 @@ export default function PowerspikeForm() {
       }
     };
 
+    const idInfo = effectiveStatus?.extractedIdInfo;
+
     return (
-      <View>
-        <Text style={styles.stepTitle}>Identificación oficial</Text>
-        <Text style={styles.stepDescription}>
-          Sube una foto de tu identificación oficial vigente.
-        </Text>
+      <View
+        key="step3"
+        onLayout={() => { sectionRefs.current[3] = sectionY; }}
+      >
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionBadge}>
+            <Text style={styles.sectionBadgeText}>3</Text>
+          </View>
+          <View style={styles.sectionHeaderText}>
+            <Text style={styles.sectionTitle}>Identificación oficial</Text>
+            <Text style={styles.sectionSubtitle}>Sube una foto de tu identificación oficial vigente</Text>
+          </View>
+        </View>
 
         <Text style={styles.fieldLabel}>Tipo de documento</Text>
         <View style={styles.chipsContainer}>
@@ -632,9 +620,7 @@ export default function PowerspikeForm() {
             ) : (
               <View style={styles.filePlaceholder}>
                 <Upload size={20} color={theme.colors.textMuted} />
-                <Text style={styles.filePlaceholderText}>
-                  Toca para seleccionar archivo
-                </Text>
+                <Text style={styles.filePlaceholderText}>Toca para seleccionar archivo</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -650,6 +636,10 @@ export default function PowerspikeForm() {
         )}
 
         {renderExtractionBadge(displayedExtractionStatus)}
+
+        {isExtracted && idInfo && (
+          <IdExtractionCard data={idInfo} />
+        )}
 
         {canUploadIdDocument && (
           <PrimaryButton
@@ -673,78 +663,88 @@ export default function PowerspikeForm() {
     );
   };
 
-  const renderStep4 = () => (
-    <View>
-      <Text style={styles.stepTitle}>Revisión y envío</Text>
-      <Text style={styles.stepDescription}>
-        Revisa tu información antes de enviar la solicitud.
-      </Text>
+  const certInfo = effectiveStatus?.extractedCertificateInfo;
+  const idInfo = effectiveStatus?.extractedIdInfo;
 
-      <BaseCard style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Resumen</Text>
+  const renderStep4 = (sectionY: number) => (
+    <View
+      key="step4"
+      onLayout={() => { sectionRefs.current[4] = sectionY; }}
+    >
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionBadge}>
+          <Text style={styles.sectionBadgeText}>4</Text>
+        </View>
+        <View style={styles.sectionHeaderText}>
+          <Text style={styles.sectionTitle}>Revisión y envío</Text>
+          <Text style={styles.sectionSubtitle}>Verifica tu información antes de enviar la solicitud</Text>
+        </View>
+      </View>
 
-        <View style={styles.summarySection}>
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Resumen de tu solicitud</Text>
+
+        <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Especialidades</Text>
           <Text style={styles.summaryValue}>
-            {specialtyKeys.length > 0
-              ? specialtyKeys.join(', ')
-              : 'No seleccionadas'}
+            {specialtyKeys.length > 0 ? specialtyKeys.join(', ') : 'No seleccionadas'}
           </Text>
         </View>
+        <View style={styles.summaryDivider} />
 
-        <View style={styles.summarySection}>
+        <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Experiencia</Text>
           <Text style={styles.summaryValue}>{yearsOfExperience || 'No especificada'} años</Text>
         </View>
+        <View style={styles.summaryDivider} />
 
-        <View style={styles.summarySection}>
+        <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Biografía</Text>
           <Text style={styles.summaryValue}>{shortBio || 'No especificada'}</Text>
         </View>
+        <View style={styles.summaryDivider} />
 
-        <View style={styles.summarySection}>
-          <Text style={styles.summaryLabel}>Identificación</Text>
-          <Text style={styles.summaryValue}>
-            {idDocumentNumber.trim()
-              ? idDocumentNumber.trim()
-              : idExtractionStatus === 'extracted'
-                ? 'Extraída automáticamente del documento'
-                : 'Se extraerá de tu documento'}
-          </Text>
-        </View>
-
-        <View style={styles.summarySection}>
+        <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Certificado</Text>
           <Text style={styles.summaryValue}>
-            {certExtractionStatus === 'extracted'
-              ? 'Verificado'
+            {certExtractionStatus === 'extracted' && certInfo
+              ? certInfo.name
               : certExtractionStatus === 'failed'
-                ? 'Error en extracción (se enviará para revisión manual)'
+                ? 'Error en extracción (revisión manual)'
                 : 'No subido'}
           </Text>
         </View>
+        <View style={styles.summaryDivider} />
 
-        <View style={styles.summarySection}>
-          <Text style={styles.summaryLabel}>Identificación oficial</Text>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Identificación</Text>
           <Text style={styles.summaryValue}>
-            {idExtractionStatus === 'extracted'
-              ? 'Verificada'
+            {idExtractionStatus === 'extracted' && idInfo
+              ? `${idInfo.fullName} (${idInfo.documentType})`
               : idExtractionStatus === 'failed'
-                ? 'Error en extracción (se enviará para revisión manual)'
+                ? 'Error en extracción (revisión manual)'
                 : 'No subida'}
           </Text>
         </View>
-      </BaseCard>
+      </View>
+
+      {certInfo && (
+        <CertificateExtractionCard data={certInfo} />
+      )}
+
+      {idInfo && (
+        <IdExtractionCard data={idInfo} />
+      )}
 
       {idExtractionStatus === 'failed' && (
-        <BaseCard style={styles.warningCard}>
+        <View style={styles.warningCard}>
           <View style={styles.warningRow}>
             <AlertTriangle size={18} color={theme.colors.warning} />
             <Text style={styles.warningText}>
               No se pudo extraer la información de tu identificación. Tu solicitud se enviará para revisión humana manual.
             </Text>
           </View>
-        </BaseCard>
+        </View>
       )}
 
       <PrimaryButton
@@ -759,36 +759,51 @@ export default function PowerspikeForm() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {renderStepIndicator()}
-      <View style={styles.pageContainer} onLayout={(e) => setPageWidth(e.nativeEvent.layout.width)}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          scrollEnabled
-          onMomentumScrollEnd={(e) => {
-            if (pageWidth > 0) {
-              const step = (Math.round(e.nativeEvent.contentOffset.x / pageWidth) + 1) as StepKey;
-              if (step !== currentStep) setCurrentStep(step);
-            }
-          }}
+      <CompactStepper
+        steps={STEP_LABELS}
+        currentStep={currentStep}
+        onStepPress={(step) => goToStep(step as StepKey)}
+        canNavigate={(step) => canNavigate(step as StepKey)}
+      />
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View
+          onLayout={(e) => { sectionRefs.current[1] = e.nativeEvent.layout.y; }}
         >
-          <ScrollView style={{ width: pageWidth || 400 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {renderStep1()}
-          </ScrollView>
-          <ScrollView style={{ width: pageWidth || 400 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {renderStep2()}
-          </ScrollView>
-          <ScrollView style={{ width: pageWidth || 400 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {renderStep3()}
-          </ScrollView>
-          <ScrollView style={{ width: pageWidth || 400 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {renderStep4()}
-          </ScrollView>
-        </ScrollView>
-      </View>
+          {renderStep1(0)}
+        </View>
+
+        <View style={styles.stepSeparator} />
+
+        <View
+          onLayout={(e) => { sectionRefs.current[2] = e.nativeEvent.layout.y; }}
+        >
+          {renderStep2(0)}
+        </View>
+
+        <View style={styles.stepSeparator} />
+
+        <View
+          onLayout={(e) => { sectionRefs.current[3] = e.nativeEvent.layout.y; }}
+        >
+          {renderStep3(0)}
+        </View>
+
+        <View style={styles.stepSeparator} />
+
+        <View
+          onLayout={(e) => { sectionRefs.current[4] = e.nativeEvent.layout.y; }}
+        >
+          {renderStep4(0)}
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -798,63 +813,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  stepIndicator: {
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  stepIndicatorContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  stepItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stepLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  stepLabelActive: {
-    color: theme.colors.textPrimary,
-    fontWeight: '700',
-  },
-  stepLabelFuture: {
-    opacity: 0.4,
-  },
-  stepConnector: {
-    width: 20,
-    height: 2,
-    backgroundColor: theme.colors.border,
-    marginLeft: 8,
-    marginRight: 4,
-  },
-  stepConnectorDone: {
-    backgroundColor: theme.colors.success,
+  scrollContainer: {
+    flex: 1,
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 40,
   },
-  pageContainer: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  sectionBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionBadgeText: {
+    color: theme.colors.background,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sectionHeaderText: {
     flex: 1,
   },
-  stepTitle: {
+  sectionTitle: {
     color: theme.colors.textPrimary,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
-    marginBottom: 8,
-    marginTop: 20,
+    lineHeight: 26,
   },
-  stepDescription: {
+  sectionSubtitle: {
     color: theme.colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 24,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  stepSeparator: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    marginVertical: 28,
   },
   fieldLabel: {
     color: theme.colors.textPrimary,
@@ -873,12 +876,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   fileSection: {
-    marginTop: 16,
+    marginTop: 8,
   },
   filePicker: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
+    borderRadius: 12,
     padding: 16,
     backgroundColor: theme.colors.surface,
     borderStyle: 'dashed',
@@ -931,7 +934,19 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: 14,
   },
+  manualInputHint: {
+    color: theme.colors.warning,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
   summaryCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     marginBottom: 16,
   },
   summaryTitle: {
@@ -940,8 +955,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
   },
-  summarySection: {
-    marginBottom: 12,
+  summaryRow: {
+    paddingVertical: 8,
   },
   summaryLabel: {
     color: theme.colors.textSecondary,
@@ -951,10 +966,18 @@ const styles = StyleSheet.create({
   summaryValue: {
     color: theme.colors.textPrimary,
     fontSize: 15,
+    fontWeight: '500',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
   },
   warningCard: {
     backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1,
     borderColor: theme.colors.warning,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 16,
   },
   warningRow: {

@@ -3,7 +3,6 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { BarChart3, TrendingUp } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
-import { Chip } from '@/components/ui/Chip';
 import { theme } from '@/theme';
 import {
   TrainingV2FieldPreview,
@@ -16,53 +15,82 @@ import {
   TrainingV2ErrorState,
   TrainingV2SkeletonList,
 } from './TrainingV2States';
-import { exercisesV2 } from './training-v2.mock';
-import type { TrainingV2State } from './training-v2.types';
+import { useExerciseProgress } from '@/features/training/hooks/use-exercise-progress';
 import type { WorkoutStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'ExerciseProgress'>;
 
-const PERIODS = ['4 semanas', '8 semanas', '12 semanas'];
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
-const progressSeries = [
-  { date: '1 may', volume: '2.8k kg', bestSet: '60 kg x 8', progress: 0.62 },
-  { date: '8 may', volume: '3.1k kg', bestSet: '62.5 kg x 8', progress: 0.7 },
-  { date: '15 may', volume: '3.4k kg', bestSet: '65 kg x 6', progress: 0.78 },
-  { date: '22 may', volume: '3.8k kg', bestSet: '67.5 kg x 5', progress: 0.86 },
-];
+function computeVolume(weight: number, reps: number): number {
+  return weight * reps;
+}
 
 export default function ExerciseProgressV2Screen({ navigation, route }: Props) {
-  const visualState: TrainingV2State = 'success';
-  const initialExerciseId = route.params?.exerciseId ?? exercisesV2[0]?.id;
-  const [selectedExerciseId, setSelectedExerciseId] = React.useState(initialExerciseId);
-  const [period, setPeriod] = React.useState(PERIODS[0]);
-  const selectedExercise = exercisesV2.find((exercise) => exercise.id === selectedExerciseId);
-  const hasEnoughProgress = selectedExerciseId !== 'ex-plank';
+  const exerciseId = route.params?.exerciseId;
   const returnTo = route.params?.returnTo;
+  const { data, isLoading, isError, refetch } = useExerciseProgress(exerciseId);
 
   function renderContent() {
-    if (visualState === 'loading') return <TrainingV2SkeletonList rows={3} />;
+    if (isLoading) {
+      return <TrainingV2SkeletonList rows={3} />;
+    }
 
-    if (visualState === 'error') {
+    if (isError) {
       return (
         <TrainingV2ErrorState
           title="No pudimos cargar tu progreso"
           description="Intenta de nuevo para revisar la evolucion por ejercicio."
-          onAction={() => undefined}
+          onAction={() => refetch()}
         />
       );
     }
 
-    if (!selectedExercise || !hasEnoughProgress) {
+    if (!data || !data.sufficientData || data.records.length < 2) {
       return (
         <TrainingV2EmptyState
           title="Progreso insuficiente"
           description="Completa al menos dos sesiones con este ejercicio para ver tendencias claras."
           actionLabel="Ver historial"
-          onAction={() => navigation.navigate('WorkoutHistory', returnTo ? { returnTo } : undefined)}
+          onAction={() =>
+            navigation.navigate('WorkoutHistory', returnTo ? { returnTo } : undefined)
+          }
         />
       );
     }
+
+    const records = data.records;
+    const bestRecord = records.reduce((best, r) =>
+      r.weightUsed > best.weightUsed ? r : best,
+    );
+    const totalVolume = records.reduce(
+      (sum, r) => sum + computeVolume(r.weightUsed, r.repsPerformed),
+      0,
+    );
+    const firstVolume = computeVolume(records[0].weightUsed, records[0].repsPerformed);
+    const lastVolume = computeVolume(
+      records[records.length - 1].weightUsed,
+      records[records.length - 1].repsPerformed,
+    );
+    const volumeChange =
+      firstVolume > 0
+        ? `${((lastVolume - firstVolume) / firstVolume) * 100 > 0 ? '+' : ''}${Math.round(((lastVolume - firstVolume) / firstVolume) * 100)}%`
+        : '--';
+    const maxWeight = bestRecord.weightUsed;
+    const maxVolume = records.reduce(
+      (max, r) => Math.max(max, computeVolume(r.weightUsed, r.repsPerformed)),
+      0,
+    );
 
     return (
       <>
@@ -72,36 +100,67 @@ export default function ExerciseProgressV2Screen({ navigation, route }: Props) {
               <BarChart3 size={22} color={theme.colors.primary} />
             </View>
             <View style={styles.heroCopy}>
-              <Text style={styles.heroTitle}>{selectedExercise.name}</Text>
+              <Text style={styles.heroTitle}>{data.exerciseName}</Text>
               <Text style={styles.heroText}>
-                {selectedExercise.primaryMuscle} - {selectedExercise.equipment}
+                {records.length} sesiones con datos utiles
               </Text>
             </View>
           </View>
-          <TrainingV2ProgressBar progress={0.86} label="Tendencia positiva en volumen" />
+          <TrainingV2ProgressBar
+            progress={volumeChange !== '--' ? 0.86 : 0}
+            label={
+              volumeChange !== '--'
+                ? `Tendencia ${volumeChange} en volumen`
+                : 'Datos insuficientes para tendencia'
+            }
+          />
         </BaseCard>
 
         <View style={styles.metricGrid}>
-          <TrainingV2FieldPreview label="Mejor set" value="67.5 kg x 5" helper="Ultimas 4 semanas" />
-          <TrainingV2FieldPreview label="Volumen" value="+18%" helper="Comparado con inicio" />
-          <TrainingV2FieldPreview label="Sesiones" value="4" helper="Con datos utiles" />
+          <TrainingV2FieldPreview
+            label="Mejor set"
+            value={`${bestRecord.weightUsed} kg`}
+            helper="Peso maximo registrado"
+          />
+          <TrainingV2FieldPreview
+            label="Volumen"
+            value={volumeChange}
+            helper="Comparado con inicio"
+          />
+          <TrainingV2FieldPreview
+            label="Sesiones"
+            value={`${records.length}`}
+            helper="Con datos utiles"
+          />
         </View>
 
         <TrainingV2SectionHeader title="Evolucion" />
         <BaseCard style={styles.seriesCard}>
-          {progressSeries.map((point) => (
-            <View key={point.date} style={styles.seriesRow}>
-              <View style={styles.seriesDate}>
-                <TrendingUp size={16} color={theme.colors.primary} />
-                <Text style={styles.seriesDateText}>{point.date}</Text>
+          {records.map((record) => {
+            const volume = computeVolume(record.weightUsed, record.repsPerformed);
+            const progress = maxVolume > 0 ? volume / maxVolume : 0;
+
+            return (
+              <View key={record.sessionId} style={styles.seriesRow}>
+                <View style={styles.seriesDate}>
+                  <TrendingUp size={16} color={theme.colors.primary} />
+                  <Text style={styles.seriesDateText}>
+                    {formatDate(record.date)}
+                  </Text>
+                </View>
+                <View style={styles.seriesCopy}>
+                  <Text style={styles.seriesTitle}>
+                    {record.weightUsed} kg x {record.repsPerformed} reps
+                  </Text>
+                  <Text style={styles.seriesMeta}>
+                    Volumen: {volume.toLocaleString()} kg - {record.setsCompleted}/
+                    {record.totalSets} series
+                  </Text>
+                  <TrainingV2ProgressBar progress={progress} />
+                </View>
               </View>
-              <View style={styles.seriesCopy}>
-                <Text style={styles.seriesTitle}>{point.bestSet}</Text>
-                <Text style={styles.seriesMeta}>{point.volume}</Text>
-                <TrainingV2ProgressBar progress={point.progress} />
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </BaseCard>
       </>
     );
@@ -111,40 +170,15 @@ export default function ExerciseProgressV2Screen({ navigation, route }: Props) {
     <TrainingV2Screen
       title="Progreso"
       titleColor={theme.colors.textPrimary}
-      subtitle="Evolucion por ejercicio y periodo."
+      subtitle="Evolucion por ejercicio y tendencias."
       onBack={navigation.goBack}
     >
-      <View style={styles.chipRow}>
-        {exercisesV2.map((exercise) => (
-          <Chip
-            key={exercise.id}
-            label={exercise.name}
-            selected={selectedExerciseId === exercise.id}
-            onPress={() => setSelectedExerciseId(exercise.id)}
-          />
-        ))}
-      </View>
-      <View style={styles.chipRow}>
-        {PERIODS.map((item) => (
-          <Chip
-            key={item}
-            label={item}
-            selected={period === item}
-            onPress={() => setPeriod(item)}
-          />
-        ))}
-      </View>
       {renderContent()}
     </TrainingV2Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
   heroCard: {
     gap: theme.spacing.md,
     backgroundColor: theme.colors.surfaceElevated,

@@ -26,6 +26,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { Chip } from '@/components/ui/Chip';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
@@ -697,7 +698,7 @@ function TimePickerSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-          <View style={styles.sheetHandle} />
+          <DragIndicator position="inside" />
           <View style={styles.sheetHeader}>
             <View>
               <Text style={styles.sheetTitle}>Hora del recordatorio</Text>
@@ -782,7 +783,7 @@ function UnsavedChangesSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onKeepEditing}>
       <Pressable style={styles.sheetBackdrop} onPress={onKeepEditing}>
         <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
-          <View style={styles.sheetHandle} />
+          <DragIndicator position="inside" />
           <Text style={styles.sheetTitle}>Tienes cambios sin guardar</Text>
           <Text style={styles.sheetSubtitle}>
             Guarda tus recordatorios antes de salir o descarta los cambios.
@@ -1125,13 +1126,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
-  },
+
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',

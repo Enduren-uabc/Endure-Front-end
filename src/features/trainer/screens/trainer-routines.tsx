@@ -13,6 +13,7 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { AlertCircle, Dumbbell, Search, UserRound, X } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import {
@@ -145,7 +146,7 @@ export default function TrainerRoutinesScreen() {
       <Modal visible={selectedRoutine !== null} animationType="slide" transparent>
         <View style={styles.sheetOverlay}>
           <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
+            <DragIndicator position="inside" />
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={styles.sheetTitle}>Asignar a cliente</Text>
@@ -264,13 +265,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
-  },
+
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',

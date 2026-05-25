@@ -16,39 +16,29 @@ import {
   TrainingV2ErrorState,
   TrainingV2SkeletonList,
 } from './TrainingV2States';
-import type { TrainingV2State } from './training-v2.types';
+import { usePersonalRecords } from '@/features/training/hooks/use-personal-records';
+import { useWorkoutStats } from '@/features/training/hooks/use-workout-stats';
 import type { WorkoutStackParamList } from '@/navigation/types';
 import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'Achievements'>;
 
-const achievements = [
-  {
-    id: 'squat-pr',
-    title: 'PR en sentadilla',
-    value: '67.5 kg x 5',
-    date: '22 may',
-    helper: 'Mejor set registrado',
-  },
-  {
-    id: 'volume-week',
-    title: 'Semana mas fuerte',
-    value: '12.4k kg',
-    date: 'Esta semana',
-    helper: 'Volumen total',
-  },
-  {
-    id: 'streak',
-    title: 'Racha constante',
-    value: '14 dias',
-    date: 'Record personal',
-    helper: 'Entrenamiento y movilidad',
-  },
-];
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'short',
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 export default function AchievementsV2Screen({ navigation, route }: Props) {
-  const visualState: TrainingV2State = 'success';
   const returnTo = route.params?.returnTo;
+  const { data: prData, isLoading: prLoading, isError: prError, refetch: refetchPrs } = usePersonalRecords();
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useWorkoutStats();
 
   const handleBack = React.useCallback(() => {
     const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
@@ -61,20 +51,31 @@ export default function AchievementsV2Screen({ navigation, route }: Props) {
     navigation.goBack();
   }, [navigation, returnTo]);
 
-  function renderContent() {
-    if (visualState === 'loading') return <TrainingV2SkeletonList rows={3} />;
+  const isLoading = prLoading || statsLoading;
+  const isError = prError || statsError;
 
-    if (visualState === 'error') {
+  function renderContent() {
+    if (isLoading) {
+      return <TrainingV2SkeletonList rows={3} />;
+    }
+
+    if (isError) {
       return (
         <TrainingV2ErrorState
           title="No pudimos cargar tus logros"
           description="Intenta de nuevo para revisar tus records personales."
-          onAction={() => undefined}
+          onAction={() => {
+            refetchPrs();
+          }}
         />
       );
     }
 
-    if (achievements.length === 0) {
+    const records = prData?.records ?? [];
+    const currentStreak = stats?.currentStreak ?? 0;
+    const longestStreak = stats?.longestStreak ?? 0;
+
+    if (records.length === 0 && currentStreak === 0) {
       return (
         <TrainingV2EmptyState
           title="Aun no hay logros"
@@ -91,35 +92,49 @@ export default function AchievementsV2Screen({ navigation, route }: Props) {
           <View style={styles.heroIcon}>
             <Trophy size={28} color="#F97316" />
           </View>
-          <Text style={styles.heroTitle}>3 logros activos</Text>
-          <Text style={styles.heroText}>
-            Tus mejores marcas se actualizan visualmente con datos locales hasta conectar el
-            contrato real de progreso.
+          <Text style={styles.heroTitle}>
+            {records.length > 0
+              ? `${records.length} records personales`
+              : 'Sin records aun'}
           </Text>
-          <TrainingV2ProgressBar progress={0.72} label="Meta de consistencia semanal" />
+          <Text style={styles.heroText}>
+            {currentStreak > 0
+              ? `Racha actual de ${currentStreak} dias · Mejor racha: ${longestStreak}d`
+              : 'Completa sesiones para establecer nuevas marcas.'}
+          </Text>
+          <TrainingV2ProgressBar
+            progress={longestStreak > 0 ? Math.min(longestStreak / 30, 1) : 0}
+            label={`Mejor racha: ${longestStreak} dias`}
+          />
         </BaseCard>
 
-        <TrainingV2SectionHeader title="Records personales" />
-        <View style={styles.list}>
-          {achievements.map((achievement) => (
-            <BaseCard key={achievement.id} style={styles.achievementCard}>
-              <View style={styles.achievementIcon}>
-                <Medal size={22} color="#F97316" />
-              </View>
-              <View style={styles.achievementCopy}>
-                <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                <Text style={styles.achievementValue}>{achievement.value}</Text>
-                <Text style={styles.achievementHelper}>{achievement.helper}</Text>
-              </View>
-              <TrainingV2Tag label={achievement.date} tone="primary" />
-            </BaseCard>
-          ))}
-        </View>
+        {records.length > 0 ? (
+          <>
+            <TrainingV2SectionHeader title="Records personales" />
+            <View style={styles.list}>
+              {records.slice(0, 10).map((record) => (
+                <BaseCard key={record.exerciseId} style={styles.achievementCard}>
+                  <View style={styles.achievementIcon}>
+                    <Medal size={22} color="#F97316" />
+                  </View>
+                  <View style={styles.achievementCopy}>
+                    <Text style={styles.achievementTitle}>{record.exerciseName}</Text>
+                    <Text style={styles.achievementValue}>
+                      {record.weight} kg x {record.reps} reps
+                    </Text>
+                    <Text style={styles.achievementHelper}>Mejor set registrado</Text>
+                  </View>
+                  <TrainingV2Tag label={formatDate(record.date)} tone="primary" />
+                </BaseCard>
+              ))}
+            </View>
+          </>
+        ) : null}
 
         <BaseCard style={styles.noteCard}>
           <Sparkles size={18} color={theme.colors.primary} />
           <Text style={styles.noteText}>
-            El naranja se reserva para PRs y logros, siguiendo `screens/design.md`.
+            Tus mejores marcas se calculan automaticamente de tus sesiones finalizadas.
           </Text>
         </BaseCard>
       </>

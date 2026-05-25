@@ -33,6 +33,7 @@ export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
   const [query, setQuery] = React.useState('');
   const [selectedLabel, setSelectedLabel] = React.useState('Todos');
   const routineId = route.params?.routineId ?? '';
+  const selectedDay = route.params?.selectedDay;
 
   const selectedCategory = selectedLabel === 'Todos' ? undefined : categoryFromLabel(selectedLabel);
 
@@ -46,7 +47,7 @@ export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
       title="Catalogo de ejercicios"
       titleColor={theme.colors.textPrimary}
       subtitle="Busca ejercicios y agregalos a una rutina."
-      onBack={navigation.goBack}
+      showDragIndicator
     >
       <TrainingV2SearchField
         value={query}
@@ -92,6 +93,7 @@ export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
               onPress={() =>
                 navigation.navigate('ExerciseDetail', {
                   routineId,
+                  selectedDay,
                   exercise: {
                     id: exercise.id,
                     name: exercise.name,
@@ -131,6 +133,7 @@ export default function ExerciseCatalogV2Screen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+
   exerciseList: {
     gap: theme.spacing.md,
   },

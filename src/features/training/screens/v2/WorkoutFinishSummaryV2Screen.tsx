@@ -63,6 +63,11 @@ export default function WorkoutFinishSummaryV2Screen({ navigation, route }: Prop
             style={styles.footerButton}
           />
           <PrimaryButton
+            label="Compartir en redes"
+            onPress={() => navigation.navigate('CreateWorkoutPost', { sessionId: route.params.sessionId })}
+            style={styles.footerButton}
+          />
+          <SecondaryButton
             label="Listo"
             onPress={() => navigation.navigate('WorkoutStart')}
             style={styles.footerButton}

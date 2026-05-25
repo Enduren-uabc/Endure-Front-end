@@ -2,6 +2,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import type {
   WorkoutStackParamList,
   TrainingStackParamList,
+  SocialStackParamList,
   CoachStackParamList,
   TrainerLinkStackParamList,
   SettingsStackParamList,
@@ -11,6 +12,7 @@ export type UserTabsParamList = {
   Home: undefined;
   Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
   Profile: undefined;
+  Social: NavigatorScreenParams<SocialStackParamList> | undefined;
 };
 
 export type UserDrawerParamList = {

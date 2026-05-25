@@ -1,7 +1,10 @@
 import React from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,6 +26,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import {
@@ -269,52 +273,63 @@ function EditTrainerProfileSheet({
 }) {
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.sheetOverlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.sheetOverlay}
+      >
         <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
+          <DragIndicator position="inside" />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Editar perfil profesional</Text>
             <Pressable onPress={onClose} disabled={isSaving} style={styles.closeButton}>
               <X size={22} color={theme.colors.textSecondary} />
             </Pressable>
           </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Nombre visible</Text>
-            <TextInput
-              value={name}
-              onChangeText={onChangeName}
-              editable={!isSaving}
-              placeholder="Nombre profesional"
-              placeholderTextColor={theme.colors.textMuted}
-              selectionColor={theme.colors.primary}
-              style={styles.input}
-            />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Bio profesional</Text>
-            <TextInput
-              value={bio}
-              onChangeText={onChangeBio}
-              editable={!isSaving}
-              placeholder="Resume tu enfoque de entrenamiento"
-              placeholderTextColor={theme.colors.textMuted}
-              selectionColor={theme.colors.primary}
-              multiline
-              maxLength={220}
-              style={[styles.input, styles.textArea]}
-            />
-            <Text style={styles.counter}>{bio.length}/220</Text>
-          </View>
-          {error ? <Text style={styles.formError}>{error}</Text> : null}
-          <PrimaryButton
-            label={isSaving ? 'Guardando' : 'Guardar cambios'}
-            onPress={onSave}
-            loading={isSaving}
-            disabled={isSaving}
-          />
-          <SecondaryButton label="Cancelar" onPress={onClose} disabled={isSaving} />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nombre visible</Text>
+              <TextInput
+                value={name}
+                onChangeText={onChangeName}
+                editable={!isSaving}
+                placeholder="Nombre profesional"
+                placeholderTextColor={theme.colors.textMuted}
+                selectionColor={theme.colors.primary}
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Bio profesional</Text>
+              <TextInput
+                value={bio}
+                onChangeText={onChangeBio}
+                editable={!isSaving}
+                placeholder="Resume tu enfoque de entrenamiento"
+                placeholderTextColor={theme.colors.textMuted}
+                selectionColor={theme.colors.primary}
+                multiline
+                maxLength={220}
+                style={[styles.input, styles.textArea]}
+              />
+              <Text style={styles.counter}>{bio.length}/220</Text>
+            </View>
+            {error ? <Text style={styles.formError}>{error}</Text> : null}
+            <View style={styles.sheetActions}>
+              <PrimaryButton
+                label={isSaving ? 'Guardando' : 'Guardar cambios'}
+                onPress={onSave}
+                loading={isSaving}
+                disabled={isSaving}
+              />
+              <SecondaryButton label="Cancelar" onPress={onClose} disabled={isSaving} />
+            </View>
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -540,13 +555,15 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
+    maxHeight: '90%',
   },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
+  sheetContent: {
+    gap: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+  },
+  sheetActions: {
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
   },
   sheetHeader: {
     flexDirection: 'row',

@@ -1,9 +1,11 @@
 import React from 'react';
 import {
   FlatList,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,13 +14,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Plus, Search, X } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { GalleryHorizontal, Plus, Search, Trash2, UserCircle, X } from 'lucide-react-native';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import type { SocialStackParamList } from '@/navigation/types';
 import { PostCard } from '../components/PostCard';
+import ForkWorkoutModal from '../components/ForkWorkoutModal';
 import { SocialEmptyState, SocialErrorState, SocialLoadingState } from '../components/SocialState';
 import {
   useCreatePublication,
@@ -26,12 +31,13 @@ import {
   useFeed,
   useInteractions,
   useProfileSearch,
+  useUploadMedia,
 } from '../hooks/use-social';
 import type { FeedFilter, Publication } from '../types/social.types';
 
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 
-function FeedPost({ publication, currentUserId }: { publication: Publication; currentUserId: string }) {
+function FeedPost({ publication, currentUserId, onFork }: { publication: Publication; currentUserId: string; onFork?: (pub: Publication) => void }) {
   const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
   const interactions = useInteractions(publication.id);
   const deletePublication = useDeletePublication();
@@ -47,6 +53,8 @@ function FeedPost({ publication, currentUserId }: { publication: Publication; cu
           title: post.title,
           content: post.content,
           authorUserId: post.authorUserId,
+          workoutSessionId: post.workoutSessionId ?? undefined,
+          exerciseSummary: post.exerciseSummary ?? undefined,
         })
       }
       onOpenProfile={(userId) =>
@@ -55,6 +63,7 @@ function FeedPost({ publication, currentUserId }: { publication: Publication; cu
       onLike={() => interactions.like.mutate(undefined, { onSuccess: () => setLiked(true) })}
       onUnlike={() => interactions.unlike.mutate(undefined, { onSuccess: () => setLiked(false) })}
       onDelete={() => deletePublication.mutate(publication.id)}
+      onFork={publication.workoutSessionId ? onFork : undefined}
       liked={liked}
       canDelete={publication.authorUserId === currentUserId}
       likeLoading={reactionPending}
@@ -65,22 +74,54 @@ function FeedPost({ publication, currentUserId }: { publication: Publication; cu
 
 export default function FeedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
-  const [filter] = React.useState<FeedFilter>('all');
+  const [filter, setFilter] = React.useState<FeedFilter>('all');
   const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
   const feed = useFeed(filter);
   const createPublication = useCreatePublication();
+  const uploadMedia = useUploadMedia();
   const [showCreateModal, setShowCreateModal] = React.useState(false);
+  const [forkPublication, setForkPublication] = React.useState<Publication | null>(null);
   const [title, setTitle] = React.useState('');
   const [content, setContent] = React.useState('');
-  const [mediaUrl, setMediaUrl] = React.useState('');
+  const [uploadedMedia, setUploadedMedia] = React.useState<{ id: string; url: string }[]>([]);
   const [searchQuery, setSearchQuery] = React.useState('');
   const search = useProfileSearch(searchQuery);
   const publications = feed.data?.pages.flatMap((page) => page.items) ?? [];
 
+  const pickImages = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 10 - uploadedMedia.length,
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    for (const asset of result.assets) {
+      try {
+        const uploaded = await uploadMedia.mutateAsync({
+          uri: asset.uri,
+          name: asset.fileName ?? `photo_${Date.now()}.jpg`,
+          type: asset.mimeType ?? 'image/jpeg',
+        });
+        setUploadedMedia((prev) => [...prev, { id: uploaded.id, url: uploaded.url }]);
+      } catch {
+        // Silently skip failed uploads
+      }
+    }
+  };
+
+  const removeMedia = (index: number) => {
+    setUploadedMedia((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const submitPublication = () => {
     const normalizedTitle = title.trim();
     const normalizedContent = content.trim();
-    const normalizedMediaUrl = mediaUrl.trim();
 
     if (normalizedTitle.length === 0 || normalizedContent.length === 0) return;
 
@@ -88,13 +129,13 @@ export default function FeedScreen() {
       {
         title: normalizedTitle,
         content: normalizedContent,
-        mediaUrls: normalizedMediaUrl.length > 0 ? [normalizedMediaUrl] : [],
+        mediaIds: uploadedMedia.map((m) => m.id),
       },
       {
         onSuccess: () => {
           setTitle('');
           setContent('');
-          setMediaUrl('');
+          setUploadedMedia([]);
           setShowCreateModal(false);
         },
       },
@@ -124,6 +165,14 @@ export default function FeedScreen() {
             <Text style={styles.kicker}>Comunidad</Text>
             <Text style={styles.title}>Feed social</Text>
           </View>
+          <Pressable
+            style={styles.headerAction}
+            onPress={() => navigation.navigate('OwnProfile')}
+            accessibilityRole="button"
+            accessibilityLabel="Mi perfil"
+          >
+            <UserCircle color={theme.colors.textPrimary} size={24} />
+          </Pressable>
           <Pressable
             style={styles.headerAction}
             onPress={() => setShowCreateModal(true)}
@@ -166,10 +215,33 @@ export default function FeedScreen() {
         ) : null}
       </View>
 
+      <View style={styles.tabsRow}>
+        <Pressable
+          style={[styles.tab, filter === 'all' && styles.tabActive]}
+          onPress={() => setFilter('all')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'all' }}
+        >
+          <Text style={[styles.tabText, filter === 'all' && styles.tabTextActive]}>
+            Todos
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, filter === 'following' && styles.tabActive]}
+          onPress={() => setFilter('following')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'following' }}
+        >
+          <Text style={[styles.tabText, filter === 'following' && styles.tabTextActive]}>
+            Siguiendo
+          </Text>
+        </Pressable>
+      </View>
+
       <FlatList
         data={publications}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <FeedPost publication={item} currentUserId={currentUserId} />}
+        renderItem={({ item }) => <FeedPost publication={item} currentUserId={currentUserId} onFork={setForkPublication} />}
         contentContainerStyle={publications.length === 0 ? styles.emptyList : styles.list}
         refreshControl={
           <RefreshControl
@@ -183,10 +255,17 @@ export default function FeedScreen() {
         }}
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
-          <SocialEmptyState
-            title="Todavía no hay publicaciones"
-            message="Cuando la comunidad comparta avances, aparecerán aquí."
-          />
+          filter === 'following' ? (
+            <SocialEmptyState
+              title="Aún no sigues a nadie"
+              message="Explora perfiles para descubrir contenido."
+            />
+          ) : (
+            <SocialEmptyState
+              title="Todavía no hay publicaciones"
+              message="Cuando la comunidad comparta avances, aparecerán aquí."
+            />
+          )
         }
       />
 
@@ -194,9 +273,17 @@ export default function FeedScreen() {
         <Plus color={theme.colors.background} size={26} />
       </Pressable>
 
+      <ForkWorkoutModal
+        visible={forkPublication !== null}
+        onClose={() => setForkPublication(null)}
+        publication={forkPublication}
+        currentUserId={currentUserId}
+      />
+
       <Modal visible={showCreateModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
+            <DragIndicator position="above" />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Crear publicación</Text>
               <Pressable onPress={() => setShowCreateModal(false)}>
@@ -220,15 +307,30 @@ export default function FeedScreen() {
               editable={!createPublication.isPending}
               multiline
             />
-            <TextInput
-              value={mediaUrl}
-              onChangeText={setMediaUrl}
-              placeholder="URL de imagen opcional"
-              placeholderTextColor={theme.colors.textMuted}
-              style={styles.modalInput}
-              editable={!createPublication.isPending}
-              autoCapitalize="none"
-            />
+            {uploadedMedia.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mediaStrip}>
+                {uploadedMedia.map((m, i) => (
+                  <View key={m.id} style={styles.mediaThumbWrap}>
+                    <Image source={{ uri: m.url }} style={styles.mediaThumb} resizeMode="cover" />
+                    <Pressable style={styles.mediaRemove} onPress={() => removeMedia(i)}>
+                      <Trash2 size={14} color={theme.colors.background} />
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
+            {uploadedMedia.length < 10 ? (
+              <Pressable
+                style={styles.addMediaBtn}
+                onPress={pickImages}
+                disabled={uploadMedia.isPending}
+              >
+                <GalleryHorizontal size={20} color={theme.colors.primary} />
+                <Text style={styles.addMediaText}>
+                  {uploadMedia.isPending ? 'Subiendo...' : 'Agregar fotos'}
+                </Text>
+              </Pressable>
+            ) : null}
             <PrimaryButton
               label="Publicar"
               onPress={submitPublication}
@@ -337,6 +439,32 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     padding: theme.spacing.md,
   },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+  },
+  tab: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  tabActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  tabText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: theme.colors.background,
+  },
   list: {
     paddingBottom: theme.spacing.xxl,
   },
@@ -387,5 +515,46 @@ const styles = StyleSheet.create({
   modalTextArea: {
     minHeight: 110,
     textAlignVertical: 'top',
+  },
+  addMediaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    minHeight: 48,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    borderStyle: 'dashed',
+    backgroundColor: `${theme.colors.primary}08`,
+  },
+  addMediaText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: '700',
+  },
+  mediaStrip: {
+    gap: theme.spacing.sm,
+  },
+  mediaThumbWrap: {
+    position: 'relative',
+  },
+  mediaThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  mediaRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

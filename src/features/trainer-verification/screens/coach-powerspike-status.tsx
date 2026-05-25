@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Refres
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { type NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Award, Clock, XCircle, AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react-native';
+import { Award, Clock, XCircle, AlertTriangle, RefreshCw } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { BaseCard } from '@/components/ui/BaseCard';
+import { CertificateExtractionCard, IdExtractionCard } from '@/features/trainer-verification/components/DocumentExtractionCard';
 import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import type { CoachStackParamList } from '@/navigation/types';
 import { theme } from '@/theme';
@@ -39,42 +40,59 @@ export default function PowerspikeStatus() {
 
   const advStatus = statusData.advancedStatus;
   const riskAlerts = statusData.riskAlerts;
+  const certInfo = statusData.extractedCertificateInfo;
+  const idInfo = statusData.extractedIdInfo;
+  const hasExtractedDocs = Boolean(certInfo || idInfo);
 
-  const renderExtractionInfo = () => {
-    if (!statusData.extractedCertificateInfo && !statusData.extractedIdInfo) return null;
+  const renderDocumentInfo = () => {
+    if (!hasExtractedDocs) return null;
 
     return (
-      <BaseCard style={styles.infoCard}>
-        <Text style={styles.cardTitle}>Documentos procesados</Text>
-        {statusData.extractedCertificateInfo && (
-          <View style={styles.docRow}>
-            <Text style={styles.docLabel}>Certificado:</Text>
-            <Text style={styles.docValue}>{statusData.extractedCertificateInfo.name}</Text>
-          </View>
-        )}
-        {statusData.extractedIdInfo && (
-          <View style={styles.docRow}>
-            <Text style={styles.docLabel}>Identificación:</Text>
-            <Text style={styles.docValue}>{statusData.extractedIdInfo.documentType}</Text>
-          </View>
-        )}
+      <>
+        <Text style={styles.sectionTitle}>Documentos procesados</Text>
+        {certInfo && <CertificateExtractionCard data={certInfo} />}
+        {idInfo && <IdExtractionCard data={idInfo} />}
+
         {riskAlerts && riskAlerts.length > 0 && (
-          <View style={styles.alertsContainer}>
-            <Text style={styles.alertsTitle}>Alertas detectadas:</Text>
+          <BaseCard style={styles.alertsCard}>
+            <View style={styles.alertsHeader}>
+              <AlertTriangle size={18} color={theme.colors.warning} />
+              <Text style={styles.alertsTitle}>Alertas detectadas ({riskAlerts.length})</Text>
+            </View>
             {riskAlerts.map((alert, idx) => (
               <View key={idx} style={styles.alertRow}>
-                <AlertTriangle size={14} color={theme.colors.warning} />
+                <Text style={styles.alertSeverity}>{alert.severity}</Text>
                 <Text style={styles.alertText}>{alert.message}</Text>
               </View>
             ))}
-          </View>
+          </BaseCard>
         )}
-      </BaseCard>
+
+        {statusData.riskScore !== undefined && (
+          <BaseCard style={styles.riskCard}>
+            <Text style={styles.riskTitle}>Evaluación de riesgo</Text>
+            <View style={styles.riskRow}>
+              <View style={styles.riskBadge}>
+                <Text style={[styles.riskBadgeText, {
+                  color: statusData.riskLevel === 'low' ? theme.colors.success
+                    : statusData.riskLevel === 'medium' ? theme.colors.warning
+                    : theme.colors.error,
+                }]}>
+                  {statusData.riskLevel === 'low' ? 'Bajo'
+                    : statusData.riskLevel === 'medium' ? 'Medio'
+                    : 'Alto'}
+                </Text>
+              </View>
+              <Text style={styles.riskScore}>Puntuación: {Math.round(statusData.riskScore)}/100</Text>
+            </View>
+          </BaseCard>
+        )}
+      </>
     );
   };
 
-  const renderPendingReview = () => (
-    <SafeAreaView style={styles.container}>
+  const statusViews = {
+    manual_review_pending: () => (
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={theme.colors.primary} />}
@@ -88,13 +106,10 @@ export default function PowerspikeStatus() {
             Tu solicitud está siendo revisada por nuestro equipo. Normalmente procesamos las solicitudes en un plazo de 24 a 72 horas.
           </Text>
         </View>
-        {renderExtractionInfo()}
+        {renderDocumentInfo()}
       </ScrollView>
-    </SafeAreaView>
-  );
-
-  const renderInProgress = () => (
-    <SafeAreaView style={styles.container}>
+    ),
+    manual_review_in_progress: () => (
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={theme.colors.primary} />}
@@ -108,40 +123,38 @@ export default function PowerspikeStatus() {
             Un administrador está revisando tu solicitud en este momento. Te notificaremos cuando tenga una decisión.
           </Text>
         </View>
+        {renderDocumentInfo()}
       </ScrollView>
-    </SafeAreaView>
-  );
-
-  const renderCorrectionRequired = () => (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.statusSection}>
-          <View style={styles.iconWrapperRejected}>
-            <XCircle size={48} color={theme.colors.warning} />
+    ),
+    correction_required: () => (
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.statusSection}>
+            <View style={styles.iconWrapperRejected}>
+              <XCircle size={48} color={theme.colors.warning} />
+            </View>
+            <Text style={styles.statusTitleWarning}>Corrección requerida</Text>
+            <Text style={styles.statusSubtitle}>
+              Necesitamos que corrijas algunos datos antes de continuar con la revisión.
+            </Text>
           </View>
-          <Text style={styles.statusTitleWarning}>Corrección requerida</Text>
-          <Text style={styles.statusSubtitle}>
-            Necesitamos que corrijas algunos datos antes de continuar con la revisión.
-          </Text>
+          <BaseCard style={styles.infoCard}>
+            <Text style={styles.cardTitle}>Mensaje del revisor</Text>
+            <Text style={styles.correctionMessage}>
+              {statusData.rejectionReason || 'Por favor revisa los documentos que subiste e intenta de nuevo.'}
+            </Text>
+          </BaseCard>
+          {renderDocumentInfo()}
+        </ScrollView>
+        <View style={styles.footer}>
+          <PrimaryButton
+            label="Corregir y reenviar"
+            onPress={() => navigation.navigate('PowerspikeForm')}
+          />
         </View>
-        <BaseCard style={styles.infoCard}>
-          <Text style={styles.cardTitle}>Mensaje del revisor</Text>
-          <Text style={styles.correctionMessage}>
-            {statusData.rejectionReason || 'Por favor revisa los documentos que subiste e intenta de nuevo.'}
-          </Text>
-        </BaseCard>
-      </ScrollView>
-      <View style={styles.footer}>
-        <PrimaryButton
-          label="Corregir y reenviar"
-          onPress={() => navigation.navigate('PowerspikeForm')}
-        />
-      </View>
-    </SafeAreaView>
-  );
-
-  const renderApproved = () => (
-    <SafeAreaView style={styles.container}>
+      </SafeAreaView>
+    ),
+    approved: () => (
       <ScrollView contentContainerStyle={styles.approvedScroll} bounces={false}>
         <View style={styles.approvedIconWrapper}>
           <Award size={80} color={theme.colors.success} />
@@ -150,18 +163,10 @@ export default function PowerspikeStatus() {
         <Text style={styles.approvedSubtitle}>
           Ya eres parte de la red de entrenadores profesionales de Endure.
         </Text>
-        <BaseCard style={styles.infoCard}>
-          <Text style={styles.approvedCardText}>
-            Tienes acceso total a las herramientas de coach.
-            Pronto podrás gestionar clientes y rutinas personalizadas desde tu panel.
-          </Text>
-        </BaseCard>
+        {renderDocumentInfo()}
       </ScrollView>
-    </SafeAreaView>
-  );
-
-  const renderRejected = () => (
-    <SafeAreaView style={styles.container}>
+    ),
+    rejected: () => (
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.statusSection}>
           <View style={styles.iconWrapperRejected}>
@@ -172,12 +177,10 @@ export default function PowerspikeStatus() {
             {statusData.rejectionReason || 'Tu solicitud no pudo ser aprobada en esta ocasión.'}
           </Text>
         </View>
+        {renderDocumentInfo()}
       </ScrollView>
-    </SafeAreaView>
-  );
-
-  const renderBlocked = () => (
-    <SafeAreaView style={styles.container}>
+    ),
+    blocked_for_risk: () => (
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.statusSection}>
           <View style={styles.iconWrapperRejected}>
@@ -188,26 +191,13 @@ export default function PowerspikeStatus() {
             No podemos procesar tu solicitud en este momento. Si crees que esto es un error, contacta a soporte.
           </Text>
         </View>
+        {renderDocumentInfo()}
       </ScrollView>
-    </SafeAreaView>
-  );
+    ),
+  };
 
-  switch (advStatus) {
-    case 'manual_review_pending':
-      return renderPendingReview();
-    case 'manual_review_in_progress':
-      return renderInProgress();
-    case 'correction_required':
-      return renderCorrectionRequired();
-    case 'approved':
-      return renderApproved();
-    case 'rejected':
-      return renderRejected();
-    case 'blocked_for_risk':
-      return renderBlocked();
-    default:
-      return renderPendingReview();
-  }
+  const view = statusViews[advStatus as keyof typeof statusViews] || statusViews.manual_review_pending;
+  return view();
 }
 
 const styles = StyleSheet.create({
@@ -285,6 +275,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 20,
   },
+  sectionTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
   infoCard: {
     marginBottom: 16,
   },
@@ -294,48 +290,71 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
   },
-  docRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  docLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: 15,
-    marginRight: 8,
-  },
-  docValue: {
+  correctionMessage: {
     color: theme.colors.textPrimary,
     fontSize: 15,
-    fontWeight: '500',
-    flex: 1,
+    lineHeight: 22,
   },
-  alertsContainer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+  alertsCard: {
+    marginBottom: 16,
+    borderColor: theme.colors.warning,
+  },
+  alertsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   alertsTitle: {
     color: theme.colors.warning,
     fontSize: 15,
     fontWeight: '600',
-    marginBottom: 8,
   },
   alertRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  alertSeverity: {
+    color: theme.colors.warning,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    minWidth: 40,
   },
   alertText: {
     color: theme.colors.textSecondary,
     fontSize: 14,
     flex: 1,
   },
-  correctionMessage: {
+  riskCard: {
+    marginBottom: 16,
+  },
+  riskTitle: {
     color: theme.colors.textPrimary,
     fontSize: 15,
-    lineHeight: 22,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  riskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  riskBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  riskBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  riskScore: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
   },
   footer: {
     padding: 20,
@@ -369,11 +388,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
-  },
-  approvedCardText: {
-    color: theme.colors.textPrimary,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 24,
   },
 });

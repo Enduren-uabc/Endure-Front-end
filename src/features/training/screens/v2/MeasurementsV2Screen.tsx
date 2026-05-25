@@ -11,6 +11,7 @@ import type { NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Plus, Ruler, Scale, X } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
@@ -164,7 +165,7 @@ export default function MeasurementsV2Screen({ navigation, route }: Props) {
       <Modal visible={sheetOpen} animationType="slide" transparent>
         <View style={styles.sheetOverlay}>
           <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
+            <DragIndicator position="inside" />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Agregar medicion</Text>
               <Pressable onPress={() => setSheetOpen(false)} disabled={isSaving} style={styles.closeButton}>
@@ -285,13 +286,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
-  },
+
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',

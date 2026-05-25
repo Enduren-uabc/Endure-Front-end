@@ -141,6 +141,13 @@ export function useInteractions(publicationId: string) {
   return { like, unlike, comment };
 }
 
+export function useUploadMedia() {
+  return useMutation({
+    mutationFn: (file: { uri: string; name: string; type: string }) =>
+      socialService.uploadMedia(file),
+  });
+}
+
 export function useDeleteComment(publicationId: string) {
   const queryClient = useQueryClient();
 
@@ -177,6 +184,19 @@ export function useUnfollowProfile(userId: string) {
       await queryClient.invalidateQueries({ queryKey: socialQueryKeys.followers(userId) });
       await queryClient.invalidateQueries({ queryKey: socialQueryKeys.following(userId) });
       await queryClient.invalidateQueries({ queryKey: socialQueryKeys.feed('following') });
+    },
+  });
+}
+
+export function useUploadAvatar(userId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: { uri: string; name: string; type: string }) =>
+      socialService.uploadAvatar(file),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: socialQueryKeys.profile(userId) });
+      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
     },
   });
 }

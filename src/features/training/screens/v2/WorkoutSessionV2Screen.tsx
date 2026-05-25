@@ -1,11 +1,10 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertCircle, Check, Pause, TimerReset, X, Zap } from 'lucide-react-native';
+import { AlertCircle, Pause, Play, TimerReset, X, Zap } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
-import { TextInput } from '@/components/ui/TextInput';
 import { theme } from '@/theme';
 import {
   TrainingV2FieldPreview,
@@ -14,16 +13,20 @@ import {
   TrainingV2SheetPreview,
   TrainingV2Tag,
 } from './TrainingV2Primitives';
+import { ExerciseSetList } from '../../components/ExerciseSetList';
 import {
   useWorkoutSessionDetail,
   useRegisterWorkoutSet,
+  useCompleteWorkoutSet,
+  useAddWorkoutSet,
+  useRemoveWorkoutSet,
   useAdvanceWorkoutExercise,
   useFinishWorkoutSession,
   useDiscardWorkoutSession,
 } from '@/features/training/hooks/use-workout-session';
 import { useTrainingStrategies } from '@/features/training/hooks/use-training-strategies';
-import { useRoutineDetail } from '@/features/training/hooks/use-routines';
 import { calculateNextSet } from '@/features/training/hooks/use-training-strategy';
+import { useRoutineDetail } from '@/features/training/hooks/use-routines';
 import type { WorkoutStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<WorkoutStackParamList, 'WorkoutSession'>;
@@ -52,6 +55,9 @@ const STRATEGY_LABELS: Record<string, string> = {
 export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
   const { data: session, isLoading, isError, refetch } = useWorkoutSessionDetail(route.params.sessionId);
   const registerSet = useRegisterWorkoutSet();
+  const completeSet = useCompleteWorkoutSet();
+  const addSet = useAddWorkoutSet();
+  const removeSet = useRemoveWorkoutSet();
   const advanceExercise = useAdvanceWorkoutExercise();
   const finishSessionMut = useFinishWorkoutSession();
   const discardSession = useDiscardWorkoutSession();
@@ -60,21 +66,19 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
 
   const strategyKey = routine?.trainingStrategyKey ?? null;
   const strategy = strategies?.find((s) => s.key === strategyKey) ?? null;
-  const rules = strategy?.rules ?? null;
 
-  const [reps, setReps] = React.useState('');
-  const [weight, setWeight] = React.useState('');
-  const [setCompleted, setSetCompleted] = React.useState(false);
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
   const [restTimeLeft, setRestTimeLeft] = React.useState(0);
   const restTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentExerciseIdx = session?.currentExerciseIndex ?? 0;
   const currentExercise = session?.exercises?.[currentExerciseIdx];
-  const currentSet = currentExercise?.workoutSets?.find((s) => !s.completed)
-    ?? currentExercise?.targetSets?.[0];
-  const currentSetNumber = currentSet?.setNumber ?? 1;
-  const totalSetsInExercise = currentExercise?.workoutSets?.length ?? currentExercise?.targetSets?.length ?? 0;
+  const allWorkoutSets = currentExercise?.workoutSets ?? [];
+  const completedCount = allWorkoutSets.filter((s) => s.completed).length;
+  const totalSets = allWorkoutSets.length;
+  const allCompleted = totalSets > 0 && completedCount === totalSets;
+  const isLastExercise = currentExerciseIdx + 1 >= (session?.exercises?.length ?? 0);
+
   const completedSetsCount = session?.exercises?.reduce(
     (sum, ex) => sum + (ex.workoutSets?.filter((s) => s.completed).length ?? 0), 0
   ) ?? 0;
@@ -82,22 +86,25 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
     (sum, ex) => sum + (ex.workoutSets?.length ?? ex.targetSets?.length ?? 0), 0
   ) ?? 0;
 
-  const completedSets = currentExercise?.workoutSets?.filter((s) => s.completed) ?? [];
-  const nextSuggested = calculateNextSet(
-    rules,
-    completedSets.map((s) => ({
+  const targetReps = currentExercise?.targetSets?.[0]?.reps ?? 8;
+  const targetWeight = currentExercise?.targetSets?.[0]?.weight ?? 0;
+  const completedSetsData = allWorkoutSets
+    .filter((s) => s.completed)
+    .map((s) => ({
       setNumber: s.setNumber,
-      reps: s.repsPerformed ?? s.targetReps ?? 8,
-      weight: s.weightUsed ?? s.targetWeight ?? 0,
-    })),
-    currentSet?.targetWeight ?? currentSet?.weight ?? 0,
-    currentSet?.targetReps ?? currentSet?.reps ?? 8,
+      reps: s.repsPerformed ?? s.targetReps ?? targetReps,
+      weight: s.weightUsed ?? s.targetWeight ?? targetWeight,
+    }));
+
+  const nextSuggested = calculateNextSet(
+    strategy?.rules ?? null,
+    completedSetsData,
+    targetWeight,
+    targetReps,
   );
 
-  const suggestedReps = setCompleted ? '' : String(nextSuggested.reps);
-  const suggestedWeight = setCompleted ? '' : String(nextSuggested.weight);
-
-  const isValid = Number(reps) > 0 && Number(weight) >= 0;
+  const suggestedReps = nextSuggested.reps;
+  const suggestedWeight = nextSuggested.weight;
 
   const restDuration = getRestDuration(strategyKey);
   const strategyLabel = strategyKey ? STRATEGY_LABELS[strategyKey] ?? strategyKey : null;
@@ -126,55 +133,32 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
   }
 
   React.useEffect(() => {
+    if (allCompleted) {
+      startRestTimer();
+    }
     return () => {
       if (restTimerRef.current) clearInterval(restTimerRef.current);
     };
-  }, []);
-
-  const handleCompleteSet = React.useCallback(() => {
-    if (!session || !currentExercise) return;
-
-    if (setCompleted) {
-      stopRestTimer();
-      finishSessionMut.mutate({ sessionId: session.id }, {
-        onSuccess: () => {
-          navigation.replace('WorkoutFinishSummary', { sessionId: session.id });
-        },
-      });
-      return;
-    }
-
-    registerSet.mutate(
-      {
-        sessionId: session.id,
-        exerciseIndex: currentExerciseIdx,
-        setNumber: currentSetNumber,
-        repsPerformed: Number(reps),
-        weightUsed: Number(weight),
-      },
-      {
-        onSuccess: () => {
-          setSetCompleted(true);
-          startRestTimer();
-        },
-      },
-    );
-  }, [session, currentExercise, currentExerciseIdx, currentSetNumber, reps, weight, setCompleted, registerSet, finishSessionMut, navigation]);
+  }, [allCompleted]);
 
   const handleAdvance = React.useCallback(() => {
     if (!session) return;
     stopRestTimer();
     advanceExercise.mutate(
       { sessionId: session.id, allowIncomplete: true },
-      {
-        onSuccess: () => {
-          setSetCompleted(false);
-          setReps(suggestedReps);
-          setWeight(suggestedWeight);
-        },
-      },
+      { onSuccess: () => refetch() },
     );
-  }, [session, advanceExercise, suggestedReps, suggestedWeight]);
+  }, [session, advanceExercise, refetch]);
+
+  const handleFinish = React.useCallback(() => {
+    if (!session) return;
+    stopRestTimer();
+    finishSessionMut.mutate({ sessionId: session.id }, {
+      onSuccess: () => {
+        navigation.replace('WorkoutFinishSummary', { sessionId: session.id });
+      },
+    });
+  }, [session, finishSessionMut, navigation]);
 
   const handleDiscard = React.useCallback(() => {
     if (!session) return;
@@ -186,13 +170,42 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
     });
   }, [session, discardSession, navigation]);
 
-  const handleManualRestart = React.useCallback(() => {
-    if (restTimeLeft > 0) {
-      stopRestTimer();
-    } else {
-      startRestTimer();
-    }
-  }, [restTimeLeft]);
+  const handleRegisterSet = React.useCallback((args: {
+    sessionId: string;
+    exerciseIndex: number;
+    setNumber: number;
+    repsPerformed: number;
+    weightUsed: number;
+  }) => {
+    registerSet.mutate(args);
+  }, [registerSet]);
+
+  const handleCompleteSet = React.useCallback((args: {
+    sessionId: string;
+    exerciseIndex: number;
+    setNumber: number;
+  }) => {
+    completeSet.mutate(args);
+  }, [completeSet]);
+
+  const handleAddSet = React.useCallback((args: {
+    sessionId: string;
+    exerciseIndex: number;
+    reps: number;
+    weight: number;
+  }) => {
+    addSet.mutate(args);
+  }, [addSet]);
+
+  const handleRemoveSet = React.useCallback((args: {
+    sessionId: string;
+    exerciseIndex: number;
+    setNumber: number;
+  }) => {
+    removeSet.mutate(args);
+  }, [removeSet]);
+
+  const isPending = registerSet.isPending || completeSet.isPending || addSet.isPending || removeSet.isPending;
 
   if (isLoading) {
     return (
@@ -231,48 +244,26 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
       backgroundColor="#000000"
       footer={
         <View style={styles.footerActions}>
-          {setCompleted ? (
-            <>
-              {restTimeLeft > 0 ? (
-                <TouchableOpacity
-                  onPress={handleManualRestart}
-                  style={styles.restTimerButton}
-                  activeOpacity={0.78}
-                >
-                  <Text style={styles.restTimerCountdown}>{formatTime(restTimeLeft)}</Text>
-                  <Text style={styles.restTimerLabel}>Toca para saltar descanso</Text>
-                </TouchableOpacity>
-              ) : (
-                <SecondaryButton
-                  label="Reiniciar descanso"
-                  onPress={handleManualRestart}
-                  style={styles.footerButton}
-                />
-              )}
-              <PrimaryButton
-                label="Siguiente"
-                onPress={handleAdvance}
-                loading={advanceExercise.isPending}
-                style={styles.footerButton}
-              />
-            </>
-          ) : (
-            <>
-              <SecondaryButton
-                label="Salir"
-                onPress={() => setShowExitConfirm(true)}
-                style={styles.footerButton}
-              />
-              <PrimaryButton
-                label="Completar serie"
-                onPress={handleCompleteSet}
-                disabled={!isValid || registerSet.isPending}
-                loading={registerSet.isPending}
-                icon={<Check size={18} color={theme.colors.background} />}
-                style={styles.footerButton}
-              />
-            </>
-          )}
+          <SecondaryButton
+            label="Salir"
+            onPress={() => setShowExitConfirm(true)}
+            style={styles.footerButton}
+          />
+          {allCompleted && !isLastExercise ? (
+            <PrimaryButton
+              label="Siguiente ejercicio"
+              onPress={handleAdvance}
+              loading={advanceExercise.isPending}
+              style={styles.footerButton}
+            />
+          ) : allCompleted && isLastExercise ? (
+            <PrimaryButton
+              label="Finalizar sesion"
+              onPress={handleFinish}
+              loading={finishSessionMut.isPending}
+              style={styles.footerButton}
+            />
+          ) : null}
         </View>
       }
     >
@@ -286,7 +277,7 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
           </View>
           {strategyLabel ? (
             <View style={styles.strategyPill}>
-              <Zap size={14} color={theme.colors.primary} />
+              <Zap size={14} color={theme.colors.warning} />
               <Text style={styles.strategyPillText}>{strategyLabel}</Text>
             </View>
           ) : null}
@@ -304,58 +295,71 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
 
       {currentExercise ? (
         <BaseCard style={styles.exerciseCard}>
-          <Text style={styles.exerciseCounter}>
-            Serie {currentSetNumber} de {totalSetsInExercise}
-          </Text>
           <Text style={styles.exerciseTitle}>{currentExercise.exerciseName}</Text>
           <View style={styles.tagRow}>
-            <TrainingV2Tag label={`${'targetReps' in (currentSet ?? {}) ? (currentSet as any).targetReps : (currentSet as any).reps ?? 0} reps objetivo`} tone="primary" />
-            <TrainingV2Tag label={`${'targetWeight' in (currentSet ?? {}) ? (currentSet as any).targetWeight : (currentSet as any).weight ?? 0} kg objetivo`} />
+            {currentExercise.targetSets?.[0] ? (
+              <>
+                <TrainingV2Tag
+                  label={`${currentExercise.targetSets[0].reps} reps objetivo`}
+                  tone="primary"
+                />
+                <TrainingV2Tag
+                  label={`${currentExercise.targetSets[0].weight} kg objetivo`}
+                />
+              </>
+            ) : null}
           </View>
+          <Text style={styles.exerciseProgress}>
+            {completedCount} de {totalSets} series completadas
+          </Text>
         </BaseCard>
       ) : null}
 
-      {!setCompleted ? (
-        <View style={styles.inputGrid}>
-          <TextInput
-            label="Reps reales"
-            value={reps}
-            onChangeText={setReps}
-            placeholder={suggestedReps || String('targetReps' in (currentSet ?? {}) ? (currentSet as any).targetReps ?? 8 : (currentSet as any).reps ?? 8)}
-            keyboardType="numeric"
-            inputMode="numeric"
-            error={Number(reps) <= 0 && reps.length > 0 ? 'Ingresa reps validas.' : undefined}
-          />
-          <TextInput
-            label="Peso usado"
-            value={weight}
-            onChangeText={setWeight}
-            placeholder={suggestedWeight || String('targetWeight' in (currentSet ?? {}) ? (currentSet as any).targetWeight ?? 0 : (currentSet as any).weight ?? 0)}
-            keyboardType="numeric"
-            inputMode="decimal"
-            error={Number(weight) < 0 ? 'El peso no puede ser negativo.' : undefined}
-          />
-        </View>
+      {currentExercise ? (
+        <ExerciseSetList
+          workoutSets={currentExercise.workoutSets}
+          targetSets={currentExercise.targetSets}
+          exerciseIndex={currentExerciseIdx}
+          onRegisterSet={handleRegisterSet}
+          onCompleteSet={handleCompleteSet}
+          onAddSet={handleAddSet}
+          onRemoveSet={handleRemoveSet}
+          sessionId={session.id}
+          isPending={isPending}
+          suggestedReps={suggestedReps}
+          suggestedWeight={suggestedWeight}
+        />
       ) : null}
 
-      {setCompleted && nextSuggested && (
-        <BaseCard style={styles.suggestionCard}>
-          <Zap size={16} color={theme.colors.primary} />
-          <Text style={styles.suggestionText}>
-            Siguiente serie sugerida: <Text style={styles.suggestionBold}>{nextSuggested.reps} reps</Text> con <Text style={styles.suggestionBold}>{nextSuggested.weight} kg</Text>
-          </Text>
+      {allCompleted && restTimeLeft > 0 && (
+        <BaseCard style={styles.restCard}>
+          <TouchableOpacity
+            onPress={stopRestTimer}
+            style={styles.restContent}
+            activeOpacity={0.78}
+          >
+            <Play size={18} color={theme.colors.primary} />
+            <View>
+              <Text style={styles.restTimer}>{formatTime(restTimeLeft)}</Text>
+              <Text style={styles.restLabel}>Descanso — toca para saltar</Text>
+            </View>
+          </TouchableOpacity>
         </BaseCard>
       )}
 
       <View style={styles.metaGrid}>
         <TrainingV2FieldPreview
           label="Siguiente"
-          value={currentExerciseIdx + 1 < (session.exercises?.length ?? 0)
+          value={!isLastExercise && session.exercises
             ? session.exercises[currentExerciseIdx + 1].exerciseName
             : 'Ultimo ejercicio'}
-          helper={currentExerciseIdx + 1 < (session.exercises?.length ?? 0) ? 'Siguiente' : 'Finalizar'}
+          helper={!isLastExercise ? 'Siguiente' : 'Finalizar'}
         />
-        <TrainingV2FieldPreview label="Descanso" value={`${restDuration}s`} helper={strategyLabel ? `Segun estrategia ${strategyLabel}` : 'Entre series'} />
+        <TrainingV2FieldPreview
+          label="Descanso"
+          value={`${restDuration}s`}
+          helper={strategyLabel ? `Segun ${strategyLabel}` : 'Entre series'}
+        />
       </View>
 
       <BaseCard style={styles.progressCard}>
@@ -369,32 +373,6 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
         />
       </BaseCard>
 
-      {setCompleted ? (
-        <TrainingV2SheetPreview
-          title={restTimeLeft > 0 ? `Descanso ${formatTime(restTimeLeft)}` : 'Serie completada'}
-          description={`Registraste ${reps} reps con ${weight} kg. Puedes avanzar al siguiente ejercicio o finalizar.`}
-        >
-          <View style={styles.restTimerActions}>
-            {restTimeLeft > 0 ? (
-              <TouchableOpacity
-                onPress={handleManualRestart}
-                style={styles.restTimerBigButton}
-                activeOpacity={0.78}
-              >
-                <Text style={styles.restTimerBigText}>{formatTime(restTimeLeft)}</Text>
-                <Text style={styles.restTimerBigLabel}>Saltar descanso</Text>
-              </TouchableOpacity>
-            ) : null}
-            <PrimaryButton
-              label="Siguiente ejercicio"
-              onPress={handleAdvance}
-              loading={advanceExercise.isPending}
-            />
-            <SecondaryButton label="Finalizar sesion" onPress={handleCompleteSet} />
-          </View>
-        </TrainingV2SheetPreview>
-      ) : null}
-
       {showExitConfirm ? (
         <TrainingV2SheetPreview
           title="Abandonar entrenamiento"
@@ -406,10 +384,9 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
               onPress={() => setShowExitConfirm(false)}
               style={styles.footerButton}
             />
-            <PrimaryButton
+            <SecondaryButton
               label="Descartar sesion"
               onPress={handleDiscard}
-              loading={discardSession.isPending}
               style={styles.footerButton}
             />
           </View>
@@ -496,14 +473,6 @@ const styles = StyleSheet.create({
   exerciseCard: {
     backgroundColor: '#050505',
     gap: theme.spacing.sm,
-    minHeight: 190,
-    justifyContent: 'center',
-  },
-  exerciseCounter: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '800',
   },
   exerciseTitle: {
     color: theme.colors.textPrimary,
@@ -516,28 +485,31 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
     flexWrap: 'wrap',
   },
-  inputGrid: {
-    gap: theme.spacing.md,
-  },
-  suggestionCard: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    alignItems: 'center',
-    backgroundColor: theme.colors.primaryMuted,
-    borderColor: theme.colors.primary,
-    borderWidth: 1,
-    borderRadius: theme.radius.md,
-    padding: theme.spacing.md,
-  },
-  suggestionText: {
-    flex: 1,
-    color: theme.colors.textSecondary,
+  exerciseProgress: {
+    color: theme.colors.textMuted,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
   },
-  suggestionBold: {
+  restCard: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
+    borderWidth: 1,
+  },
+  restContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  restTimer: {
     color: theme.colors.primary,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: '800',
+  },
+  restLabel: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
   },
   metaGrid: {
     flexDirection: 'row',
@@ -557,48 +529,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.bodyStrong.fontSize,
     lineHeight: theme.typography.bodyStrong.lineHeight,
     fontWeight: theme.typography.bodyStrong.fontWeight,
-  },
-  restTimerActions: {
-    gap: theme.spacing.md,
-  },
-  restTimerButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primaryMuted,
-    borderRadius: theme.radius.md,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    flex: 1,
-  },
-  restTimerCountdown: {
-    color: theme.colors.primary,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '800',
-  },
-  restTimerLabel: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.caption.fontSize,
-    lineHeight: theme.typography.caption.lineHeight,
-  },
-  restTimerBigButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primaryMuted,
-    borderRadius: theme.radius.lg,
-    paddingVertical: theme.spacing.xl,
-  },
-  restTimerBigText: {
-    color: theme.colors.primary,
-    fontSize: 48,
-    lineHeight: 56,
-    fontWeight: '800',
-  },
-  restTimerBigLabel: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
-    marginTop: theme.spacing.xs,
   },
   exitActions: {
     flexDirection: 'row',

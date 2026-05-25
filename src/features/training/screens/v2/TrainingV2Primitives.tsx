@@ -1,6 +1,8 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   ImageBackground,
+  Pressable,
   ScrollView,
   StyleProp,
   StyleSheet,
@@ -11,9 +13,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronRight, Image as ImageIcon, Search, Dumbbell } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Dumbbell, Search } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { theme } from '@/theme';
 import type { MetricV2, RoutineV2 } from './training-v2.types';
 
@@ -26,6 +29,7 @@ interface ScreenProps {
   titleColor?: string;
   contentStyle?: StyleProp<ViewStyle>;
   onBack?: () => void;
+  showDragIndicator?: boolean;
 }
 
 export function TrainingV2Screen({
@@ -37,6 +41,7 @@ export function TrainingV2Screen({
   titleColor = theme.colors.primary,
   contentStyle,
   onBack,
+  showDragIndicator = false,
 }: ScreenProps) {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor }]}>
@@ -44,6 +49,7 @@ export function TrainingV2Screen({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, contentStyle]}
       >
+        {showDragIndicator ? <DragIndicator position="above" /> : null}
         <View style={styles.header}>
           <View style={styles.headerTop}>
             {onBack ? (
@@ -289,7 +295,7 @@ export function TrainingV2SheetPreview({
 }) {
   return (
     <View style={styles.sheetPreview}>
-      <View style={styles.sheetHandle} />
+      <DragIndicator position="inside" />
       <Text style={styles.sheetTitle}>{title}</Text>
       {description ? <Text style={styles.sheetDescription}>{description}</Text> : null}
       {children}
@@ -580,14 +586,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     gap: theme.spacing.sm,
   },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
-    marginBottom: theme.spacing.xs,
-  },
+
   sheetTitle: {
     color: theme.colors.textPrimary,
     fontSize: theme.typography.heading3.fontSize,

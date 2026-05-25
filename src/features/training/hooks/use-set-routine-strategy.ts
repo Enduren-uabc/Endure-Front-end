@@ -17,9 +17,9 @@ export function useSetRoutineStrategy() {
         API_ENDPOINTS.routines.trainingStrategy(payload.routineId),
         { strategyKey: payload.strategyKey },
       ),
-    onSuccess: (_, payload) => {
+    onSuccess: (data, payload) => {
+      queryClient.setQueryData(['routine', payload.routineId], data);
       queryClient.invalidateQueries({ queryKey: ['routines'] });
-      queryClient.invalidateQueries({ queryKey: ['routine', payload.routineId] });
     },
   });
 }

@@ -1,5 +1,6 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { ExerciseConfig } from '@/features/training/types/routine';
+import type { ExerciseSummary } from '@/features/social/types/social.types';
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -28,6 +29,7 @@ export type WorkoutStackParamList = {
   WorkoutStart: undefined;
   WorkoutSession: { sessionId: string };
   WorkoutFinishSummary: { sessionId: string };
+  CreateWorkoutPost: { sessionId: string };
   WorkoutHistory: { returnTo?: 'Profile' } | undefined;
   WorkoutSessionDetail: { sessionId: string; returnTo?: 'Profile' };
   ExerciseProgress: { exerciseId?: string; returnTo?: 'Profile' } | undefined;
@@ -37,16 +39,19 @@ export type WorkoutStackParamList = {
 
 export type SocialStackParamList = {
   SocialFeed: undefined;
+  OwnProfile: undefined;
   PublicProfile: { userId: string };
-  PostDetail: { postId: string; title?: string; content?: string; authorUserId?: string };
+  PostDetail: { postId: string; title?: string; content?: string; authorUserId?: string; workoutSessionId?: string; exerciseSummary?: ExerciseSummary };
 };
 
 export type TrainingStackParamList = {
   RoutinesList: undefined;
   RoutineDetail: { id: string };
+  RoutineEdit: { id: string };
   RoutineBuilder: { id: string };
-  ExerciseCatalog: { routineId?: string } | undefined;
-  ExerciseDetail: { routineId: string; exercise: ExerciseConfig };
+  ExerciseCatalog: { routineId?: string; selectedDay?: string } | undefined;
+  ExerciseDetail: { routineId: string; exercise: ExerciseConfig; selectedDay?: string };
+  ManualExercise: { routineId: string; selectedDay?: string };
 };
 
 export type CoachStackParamList = {

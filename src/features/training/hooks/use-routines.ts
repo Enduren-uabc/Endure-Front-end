@@ -40,9 +40,9 @@ export function useActivateRoutine() {
   return useMutation<Routine, Error, string>({
     mutationFn: (id) =>
       apiClient.patch<Routine>(API_ENDPOINTS.routines.activate(id)),
-    onSuccess: (_, id) => {
+    onSuccess: (data, id) => {
+      queryClient.setQueryData(['routine', id], data);
       queryClient.invalidateQueries({ queryKey: ["routines"] });
-      queryClient.invalidateQueries({ queryKey: ["routine", id] });
     },
   });
 }
@@ -53,9 +53,9 @@ export function useDeactivateRoutine() {
   return useMutation<Routine, Error, string>({
     mutationFn: (id) =>
       apiClient.patch<Routine>(API_ENDPOINTS.routines.deactivate(id)),
-    onSuccess: (_, id) => {
+    onSuccess: (data, id) => {
+      queryClient.setQueryData(['routine', id], data);
       queryClient.invalidateQueries({ queryKey: ["routines"] });
-      queryClient.invalidateQueries({ queryKey: ["routine", id] });
     },
   });
 }
@@ -66,6 +66,19 @@ export function useDeleteRoutine() {
   return useMutation<void, Error, string>({
     mutationFn: (id) => apiClient.del<void>(API_ENDPOINTS.routines.delete(id)),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["routines"] });
+    },
+  });
+}
+
+export function useUpdateRoutineName() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Routine, Error, { id: string; name: string }>({
+    mutationFn: ({ id, name }) =>
+      apiClient.patch<Routine>(API_ENDPOINTS.routines.name(id), { name }),
+    onSuccess: (data, { id }) => {
+      queryClient.setQueryData(['routine', id], data);
       queryClient.invalidateQueries({ queryKey: ["routines"] });
     },
   });

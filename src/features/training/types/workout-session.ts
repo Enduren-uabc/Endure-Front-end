@@ -65,3 +65,34 @@ export interface WorkoutSessionStats {
   pendingSets: number;
   totalSets: number;
 }
+
+export interface PersonalRecordEntry {
+  exerciseName: string;
+  exerciseId: string;
+  weight: number;
+  reps: number;
+  date: string;
+  sessionId: string;
+}
+
+export interface PersonalRecordsResponse {
+  records: PersonalRecordEntry[];
+  totalCount: number;
+}
+
+export interface ExerciseProgressRecord {
+  sessionId: string;
+  date: string;
+  weightUsed: number;
+  repsPerformed: number;
+  setsCompleted: number;
+  totalSets: number;
+}
+
+export interface ExerciseProgressResponse {
+  sufficientData: boolean;
+  exerciseId: string;
+  exerciseName: string;
+  records: ExerciseProgressRecord[];
+  message: string | null;
+}

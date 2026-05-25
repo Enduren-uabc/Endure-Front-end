@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Dimensions,
   Image,
   Pressable,
   ScrollView,
@@ -7,10 +8,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Heart, MessageCircle, Trash2, UserCircle } from 'lucide-react-native';
-import { BaseCard } from '@/components/ui/BaseCard';
+import { Dumbbell, GitFork, MessageCircle, Trash2 } from 'lucide-react-native';
 import { theme } from '@/theme';
 import type { Publication } from '../types/social.types';
+import { PostHeader } from './PostHeader';
+import { WorkoutSummaryGraphic } from './WorkoutSummaryGraphic';
+
+const { width } = Dimensions.get('window');
 
 interface PostCardProps {
   publication: Publication;
@@ -19,19 +23,11 @@ interface PostCardProps {
   onLike: (publicationId: string) => void;
   onUnlike?: (publicationId: string) => void;
   onDelete?: (publicationId: string) => void;
+  onFork?: (publication: Publication) => void;
   liked?: boolean;
   likeLoading?: boolean;
   deleteLoading?: boolean;
   canDelete?: boolean;
-}
-
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
 }
 
 export function PostCard({
@@ -41,6 +37,7 @@ export function PostCard({
   onLike,
   onUnlike,
   onDelete,
+  onFork,
   liked,
   likeLoading,
   deleteLoading,
@@ -54,172 +51,201 @@ export function PostCard({
     onLike(publication.id);
   };
 
+  const mediaItems = publication.media.length > 0
+    ? publication.media
+    : publication.mediaUrls.map((url, idx) => ({ id: `url-${idx}`, url }));
+  const hasMedia = mediaItems.length > 0;
+  const hasSummary = !!publication.exerciseSummary;
+
   return (
-    <BaseCard style={styles.card}>
-      <Pressable
-        style={styles.authorRow}
-        onPress={() => onOpenProfile(publication.authorUserId)}
-        accessibilityRole="button"
-        accessibilityLabel="Ver perfil del autor"
-      >
-        <View style={styles.avatarPlaceholder}>
-          <UserCircle color={theme.colors.primary} size={24} />
-        </View>
-        <View style={styles.authorCopy}>
-          <Text style={styles.author}>Autor social</Text>
-          <Text style={styles.meta}>{formatDate(publication.createdAt)}</Text>
-        </View>
-      </Pressable>
+    <View style={styles.card}>
+      {/* 1. Header estilo Instagram */}
+      <PostHeader
+        displayName={publication.authorDisplayName}
+        avatarUrl={publication.authorAvatarUrl}
+        createdAt={new Date(publication.createdAt)}
+        onOpenProfile={() => onOpenProfile(publication.authorUserId)}
+      />
 
-      <Pressable onPress={() => onOpenPost(publication)} accessibilityRole="button">
-        <Text style={styles.title}>{publication.title}</Text>
-        <Text style={styles.content}>{publication.content}</Text>
-      </Pressable>
-
-      {publication.mediaUrls.length > 0 ? (
+      {/* 2. Media / Workout Summary Carrusel */}
+      <View style={styles.mediaContainer}>
         <ScrollView
           horizontal
+          pagingEnabled
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.mediaStrip}
+          style={styles.carousel}
         >
-          {publication.mediaUrls.map((url) => (
-            <Image key={url} source={{ uri: url }} style={styles.media} resizeMode="cover" />
+          {/* Si tiene resumen, mostrarlo como la primera "foto" si no hay fotos, o como parte del carrusel */}
+          {hasSummary && (
+            <Pressable onPress={() => onOpenPost(publication)}>
+              <WorkoutSummaryGraphic summary={publication.exerciseSummary!} />
+            </Pressable>
+          )}
+
+          {mediaItems.map((m) => (
+            <Pressable key={m.id} onPress={() => onOpenPost(publication)}>
+              <Image
+                source={{ uri: m.url }}
+                style={styles.mediaImage}
+                resizeMode="cover"
+              />
+            </Pressable>
           ))}
         </ScrollView>
-      ) : null}
-
-      <View style={styles.actions}>
-        <Pressable
-          style={[styles.actionButton, likeLoading && styles.actionDisabled]}
-          onPress={handleReaction}
-          disabled={likeLoading}
-          accessibilityRole="button"
-          accessibilityLabel={liked ? 'Quitar reacción' : 'Reaccionar a la publicación'}
-        >
-          <Heart
-            color={theme.colors.primary}
-            fill={liked ? theme.colors.primary : 'transparent'}
-            size={18}
-          />
-          <Text style={styles.actionText}>
-            {likeLoading ? 'Enviando' : liked ? 'Quitar like' : 'Me gusta'}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => onOpenPost(publication)}
-          accessibilityRole="button"
-          accessibilityLabel="Ver comentarios"
-        >
-          <MessageCircle color={theme.colors.textSecondary} size={18} />
-          <Text style={styles.actionText}>Comentar</Text>
-        </Pressable>
-        {canDelete && onDelete ? (
-          <Pressable
-            style={[styles.actionButton, styles.deleteButton, deleteLoading && styles.actionDisabled]}
-            onPress={() => onDelete(publication.id)}
-            disabled={deleteLoading}
-            accessibilityRole="button"
-            accessibilityLabel="Eliminar publicación"
-          >
-            <Trash2 color={theme.colors.error} size={18} />
-            <Text style={[styles.actionText, styles.deleteText]}>
-              {deleteLoading ? 'Eliminando' : 'Eliminar'}
+        
+        {(hasMedia && hasSummary) || mediaItems.length > 1 ? (
+          <View style={styles.paginationTag}>
+            <Text style={styles.paginationText}>
+              1 / {(mediaItems.length + (hasSummary ? 1 : 0))}
             </Text>
-          </Pressable>
+          </View>
         ) : null}
       </View>
-    </BaseCard>
+
+      {/* 3. Actions Row */}
+      <View style={styles.actionsContainer}>
+        <View style={styles.leftActions}>
+          <Pressable
+            onPress={handleReaction}
+            disabled={likeLoading}
+            style={styles.actionIcon}
+          >
+            <Dumbbell
+              color={liked ? theme.colors.primary : theme.colors.textPrimary}
+              fill={liked ? theme.colors.primary : 'transparent'}
+              size={26}
+              strokeWidth={liked ? 2.5 : 1.5}
+            />
+          </Pressable>
+          
+          <Pressable
+            onPress={() => onOpenPost(publication)}
+            style={styles.actionIcon}
+          >
+            <MessageCircle color={theme.colors.textPrimary} size={26} strokeWidth={1.5} />
+          </Pressable>
+
+          {publication.workoutSessionId && onFork && (
+            <Pressable
+              onPress={() => onFork(publication)}
+              style={styles.actionIcon}
+            >
+              <GitFork color={theme.colors.textPrimary} size={26} strokeWidth={1.5} />
+            </Pressable>
+          )}
+        </View>
+
+        {canDelete && onDelete && (
+          <Pressable
+            onPress={() => onDelete(publication.id)}
+            disabled={deleteLoading}
+            style={styles.actionIcon}
+          >
+            <Trash2 color={theme.colors.error} size={22} strokeWidth={1.5} />
+          </Pressable>
+        )}
+      </View>
+
+      {/* 4. Caption Area */}
+      <View style={styles.captionContainer}>
+        {publication.title ? (
+          <Text style={styles.titleText}>{publication.title}</Text>
+        ) : null}
+        
+        {publication.content ? (
+          <Text style={styles.contentText} numberOfLines={3}>
+            <Text style={styles.authorBold}>
+              {publication.authorDisplayName || 'usuario'}{' '}
+            </Text>
+            {publication.content}
+          </Text>
+        ) : null}
+        
+        <Pressable onPress={() => onOpenPost(publication)}>
+          <Text style={styles.viewComments}>Ver comentarios...</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.separator} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: theme.spacing.md,
-    marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+    marginBottom: theme.spacing.lg,
   },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
+  mediaContainer: {
+    position: 'relative',
+    width: width,
+    aspectRatio: 1,
   },
-  avatarPlaceholder: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  authorCopy: {
+  carousel: {
     flex: 1,
   },
-  author: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.bodyStrong.fontSize,
-    lineHeight: theme.typography.bodyStrong.lineHeight,
-    fontWeight: theme.typography.bodyStrong.fontWeight,
-  },
-  meta: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-  },
-  title: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.heading3.fontSize,
-    lineHeight: theme.typography.heading3.lineHeight,
-    fontWeight: theme.typography.heading3.fontWeight,
-    marginBottom: theme.spacing.xs,
-  },
-  content: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
-  },
-  mediaStrip: {
-    gap: theme.spacing.sm,
-  },
-  media: {
-    width: 220,
-    height: 150,
-    borderRadius: theme.radius.lg,
+  mediaImage: {
+    width: width,
+    height: width, // 1:1 Aspect Ratio
     backgroundColor: theme.colors.surfaceElevated,
   },
-  actions: {
+  paginationTag: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    right: theme.spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  paginationText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  actionsContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.borderSoft,
-    paddingTop: theme.spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
-  deleteButton: {
-    borderColor: `${theme.colors.error}66`,
-    borderWidth: 1,
-  },
-  actionButton: {
+  leftActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.xs,
-    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.lg,
+  },
+  actionIcon: {
+    padding: 2,
+  },
+  captionContainer: {
     paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surfaceElevated,
+    paddingBottom: theme.spacing.sm,
   },
-  actionDisabled: {
-    opacity: 0.6,
+  titleText: {
+    color: theme.colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
   },
-  actionText: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '600',
+  authorBold: {
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
   },
-  deleteText: {
-    color: theme.colors.error,
+  contentText: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  viewComments: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    marginTop: 6,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.borderSoft,
+    marginTop: theme.spacing.md,
+    opacity: 0.3,
   },
 });

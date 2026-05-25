@@ -17,6 +17,7 @@ import type {
   ReactionApi,
   UpdateOwnProfileRequestApi,
 } from '../types/social-api.types';
+import type { PublicationMedia } from '../types/social.types';
 import type { FeedFilter } from '../types/social.types';
 import {
   mapCommentFromApi,
@@ -99,6 +100,20 @@ export const socialService = {
     return mapProfileFromApi(data);
   },
 
+  async uploadAvatar(file: { uri: string; name: string; type: string }) {
+    const formData = new FormData();
+    formData.append('avatar', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as unknown as Blob);
+    const data = await apiClient.postMultipart<ProfileApi>(
+      API_ENDPOINTS.socialProfiles.avatar,
+      formData,
+    );
+    return mapProfileFromApi(data);
+  },
+
   async followProfile(userId: string) {
     return apiClient.post<FollowProfileApi>(API_ENDPOINTS.socialProfiles.follow(userId));
   },
@@ -137,5 +152,21 @@ export const socialService = {
 
   async deleteComment(commentId: string) {
     return apiClient.del<DeleteCommentApi>(API_ENDPOINTS.publications.comment(commentId));
+  },
+
+  async uploadMedia(file: { uri: string; name: string; type: string }): Promise<{ id: string; url: string; fileName: string; fileSize: number; mimeType: string }> {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as unknown as Blob);
+    return apiClient.postMultipart<{
+      id: string;
+      url: string;
+      fileName: string;
+      fileSize: number;
+      mimeType: string;
+    }>(API_ENDPOINTS.publications.uploadMedia, formData);
   },
 };

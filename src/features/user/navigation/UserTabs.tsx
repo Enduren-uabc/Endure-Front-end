@@ -1,8 +1,9 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Dumbbell, Home, UserRound } from 'lucide-react-native';
+import { Dumbbell, Home, UserRound, Users } from 'lucide-react-native';
 import HomeTrainingV2Screen from '@/features/home/screens/v2/HomeTrainingV2Screen';
 import TrainingStack from '@/navigation/TrainingStack';
+import SocialStack from '@/navigation/SocialStack';
 import ClientProfileScreen from '@/features/profile/screens/ClientProfileScreen';
 import { theme } from '@/theme';
 import type { UserTabsParamList } from '../types/user-navigation.types';
@@ -59,6 +60,14 @@ export default function UserTabs() {
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => <UserRound size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="Social"
+        component={SocialStack}
+        options={{
+          title: 'Comunidad',
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}
       />
     </Tabs.Navigator>

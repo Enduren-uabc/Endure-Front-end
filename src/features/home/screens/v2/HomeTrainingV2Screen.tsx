@@ -35,7 +35,7 @@ export default function HomeTrainingV2Screen() {
   const role = useSessionStore((state) => state.role);
 
   const activeRoutine = routines?.find((r) => r.isActive) ?? null;
-  const historySessions = historyData ?? [];
+  const historySessions = historyData?.sessions ?? [];
   const totalExerciseCount = activeRoutine
     ? activeRoutine.days.reduce((sum, d) => sum + d.exercises.length, 0)
     : 0;

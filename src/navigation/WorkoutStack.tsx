@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import WorkoutStartV2Screen from '@/features/training/screens/v2/WorkoutStartV2Screen';
 import WorkoutSessionV2Screen from '@/features/training/screens/v2/WorkoutSessionV2Screen';
 import WorkoutFinishSummaryV2Screen from '@/features/training/screens/v2/WorkoutFinishSummaryV2Screen';
+import CreateWorkoutPostScreen from '@/features/workout-post/screens/CreateWorkoutPostScreen';
 import WorkoutHistoryV2Screen from '@/features/training/screens/v2/WorkoutHistoryV2Screen';
 import WorkoutSessionDetailV2Screen from '@/features/training/screens/v2/WorkoutSessionDetailV2Screen';
 import ExerciseProgressV2Screen from '@/features/training/screens/v2/ExerciseProgressV2Screen';
@@ -27,6 +28,7 @@ export default function WorkoutStack() {
         name="WorkoutFinishSummary"
         component={WorkoutFinishSummaryV2Screen}
       />
+      <Stack.Screen name="CreateWorkoutPost" component={CreateWorkoutPostScreen} />
       <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryV2Screen} />
       <Stack.Screen name="WorkoutSessionDetail" component={WorkoutSessionDetailV2Screen} />
       <Stack.Screen name="ExerciseProgress" component={ExerciseProgressV2Screen} />

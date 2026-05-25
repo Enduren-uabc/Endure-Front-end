@@ -45,14 +45,28 @@ export interface MyStatusResponse {
   certificateExtractionStatus?: ExtractionStatus;
   idExtractionStatus?: ExtractionStatus;
   extractedCertificateInfo?: {
+    fullName: string;
     name: string;
     institution: string;
+    certifyingInstitution?: string;
+    issueDate?: string;
+    expirationDate?: string;
+    folioNumber?: string;
+    qrUrl?: string;
     ocrConfidence: number;
+    curp?: string;
+    competencyStandardCode?: string;
+    competencyStandardName?: string;
   };
   extractedIdInfo?: {
     fullName: string;
     documentType: string;
+    issuingCountry?: string;
+    birthDate?: string;
+    expirationDate?: string;
+    documentIdentifier?: string;
     ocrConfidence: number;
+    curp?: string;
   };
   riskLevel?: string;
   riskScore?: number;

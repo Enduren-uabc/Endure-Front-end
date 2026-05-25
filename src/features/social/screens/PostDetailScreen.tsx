@@ -1,14 +1,16 @@
 import React from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Trash2 } from 'lucide-react-native';
+import { GitFork, Trash2 } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { theme } from '@/theme';
 import { useSessionStore } from '@/features/auth/stores/session-store';
+import { ExerciseSummaryCard } from '../components/ExerciseSummaryCard';
+import ForkWorkoutModal from '../components/ForkWorkoutModal';
 import { SocialEmptyState, SocialErrorState, SocialLoadingState } from '../components/SocialState';
 import { useComments, useDeleteComment, useInteractions } from '../hooks/use-social';
-import type { Comment } from '../types/social.types';
+import type { Comment, ExerciseSummary, Publication } from '../types/social.types';
 
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -17,6 +19,8 @@ interface PostDetailScreenProps {
   title?: string;
   content?: string;
   authorUserId?: string;
+  workoutSessionId?: string;
+  exerciseSummary?: ExerciseSummary;
 }
 
 function CommentRow({ comment, currentUserId }: { comment: Comment; currentUserId: string }) {
@@ -45,11 +49,12 @@ function CommentRow({ comment, currentUserId }: { comment: Comment; currentUserI
   );
 }
 
-export default function PostDetailScreen({ postId, title, content, authorUserId }: PostDetailScreenProps) {
+export default function PostDetailScreen({ postId, title, content, authorUserId, workoutSessionId, exerciseSummary }: PostDetailScreenProps) {
   const comments = useComments(postId);
   const interactions = useInteractions(postId);
   const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
   const [draft, setDraft] = React.useState('');
+  const [showForkModal, setShowForkModal] = React.useState(false);
 
   const submitComment = () => {
     const normalized = draft.trim();
@@ -84,6 +89,37 @@ export default function PostDetailScreen({ postId, title, content, authorUserId 
             <Text style={styles.title}>{title ?? 'Detalle del post'}</Text>
             {content ? <Text style={styles.content}>{content}</Text> : null}
             {authorUserId ? <Text style={styles.meta}>Autor {authorUserId.slice(0, 8)}</Text> : null}
+            {workoutSessionId && authorUserId !== currentUserId ? (
+              <Pressable
+                style={styles.forkButton}
+                onPress={() => setShowForkModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Forkear este entrenamiento"
+              >
+                <GitFork color={theme.colors.textSecondary} size={18} />
+                <Text style={styles.forkButtonText}>Importar entrenamiento</Text>
+              </Pressable>
+            ) : null}
+            {exerciseSummary ? (
+              <ExerciseSummaryCard summary={exerciseSummary} expanded />
+            ) : null}
+            <ForkWorkoutModal
+              visible={showForkModal}
+              onClose={() => setShowForkModal(false)}
+              publication={{
+                id: postId,
+                authorUserId: authorUserId ?? '',
+                title: title ?? '',
+                content: content ?? '',
+                mediaUrls: [],
+                media: [],
+                workoutSessionId: workoutSessionId ?? null,
+                exerciseSummary: exerciseSummary ?? null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }}
+              currentUserId={currentUserId}
+            />
             <View style={styles.commentBox}>
               <TextInput
                 value={draft}
@@ -167,6 +203,22 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
     textAlignVertical: 'top',
+  },
+  forkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  forkButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
   },
   sectionTitle: {
     color: theme.colors.textPrimary,

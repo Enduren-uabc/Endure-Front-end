@@ -1,19 +1,26 @@
 import React from 'react';
 import {
+  ActionSheetIOS,
   FlatList,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Edit3, UserCircle, X } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera, Edit3, Image as ImageIcon, UserCircle, X } from 'lucide-react-native';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
@@ -30,6 +37,7 @@ import {
   useProfile,
   useUnfollowProfile,
   useUpdateOwnProfile,
+  useUploadAvatar,
   useUserPublications,
 } from '../hooks/use-social';
 import type { Profile, Publication } from '../types/social.types';
@@ -53,6 +61,8 @@ function ProfilePost({ publication }: { publication: Publication }) {
           title: post.title,
           content: post.content,
           authorUserId: post.authorUserId,
+          workoutSessionId: post.workoutSessionId ?? undefined,
+          exerciseSummary: post.exerciseSummary ?? undefined,
         })
       }
       onOpenProfile={() => undefined}
@@ -123,6 +133,7 @@ export default function ProfileScreen({ userId }: { userId: string }) {
   const follow = useFollowProfile(userId);
   const unfollow = useUnfollowProfile(userId);
   const updateOwnProfile = useUpdateOwnProfile(userId);
+  const uploadAvatar = useUploadAvatar(userId);
   const followers = useFollowers(userId);
   const following = useFollowing(userId);
   const items = publications.data?.pages.flatMap((page) => page.items) ?? [];
@@ -131,12 +142,10 @@ export default function ProfileScreen({ userId }: { userId: string }) {
   const [showFollowers, setShowFollowers] = React.useState(false);
   const [showFollowing, setShowFollowing] = React.useState(false);
   const [bio, setBio] = React.useState('');
-  const [avatarUrl, setAvatarUrl] = React.useState('');
 
   React.useEffect(() => {
     if (!profile.data) return;
     setBio(profile.data.bio ?? '');
-    setAvatarUrl(profile.data.avatarUrl ?? '');
   }, [profile.data]);
 
   const handleFollowToggle = () => {
@@ -147,12 +156,83 @@ export default function ProfileScreen({ userId }: { userId: string }) {
     follow.mutate(undefined, { onSuccess: () => setIsFollowing(true) });
   };
 
+  const pickAvatar = React.useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    uploadAvatar.mutate(
+      {
+        uri: asset.uri,
+        name: asset.fileName ?? 'avatar.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      },
+      {
+        onSuccess: () => {
+          // No cerramos el modal para que el usuario vea su nueva foto antes de confirmar
+          // setShowEdit(false) 
+        }
+      },
+    );
+  }, [uploadAvatar]);
+
+  const pickAvatarFromCamera = React.useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    uploadAvatar.mutate(
+      {
+        uri: asset.uri,
+        name: asset.fileName ?? 'camera.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      },
+      {
+        onSuccess: () => {
+          // No cerramos el modal para que el usuario vea su nueva foto antes de confirmar
+          // setShowEdit(false)
+        }
+      },
+    );
+  }, [uploadAvatar]);
+
+  const showAvatarPicker = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancelar', 'Tomar foto', 'Elegir de galeria'],
+          cancelButtonIndex: 0,
+        },
+        (index) => {
+          if (index === 1) pickAvatarFromCamera();
+          if (index === 2) pickAvatar();
+        },
+      );
+    } else {
+      pickAvatar();
+    }
+  };
+
   const saveProfile = () => {
     updateOwnProfile.mutate(
-      {
-        bio: bio.trim().length > 0 ? bio.trim() : null,
-        avatarUrl: avatarUrl.trim().length > 0 ? avatarUrl.trim() : null,
-      },
+      { bio: bio.trim().length > 0 ? bio.trim() : null },
       { onSuccess: () => setShowEdit(false) },
     );
   };
@@ -164,13 +244,15 @@ export default function ProfileScreen({ userId }: { userId: string }) {
       <SafeAreaView style={styles.container}>
         <SocialErrorState
           title="No pudimos cargar el perfil"
-          message="El perfil no está disponible o hubo un problema de conexión."
+          message="El perfil no esta disponible o hubo un problema de conexion."
           actionLabel="Reintentar"
           onAction={() => void profile.refetch()}
         />
       </SafeAreaView>
     );
   }
+
+  const profileData = profile.data;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -180,22 +262,36 @@ export default function ProfileScreen({ userId }: { userId: string }) {
         renderItem={({ item }) => <ProfilePost publication={item} />}
         ListHeaderComponent={
           <View style={styles.profileHeader}>
-            {profile.data.avatarUrl ? (
-              <Image source={{ uri: profile.data.avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarFallback}>
-                <UserCircle color={theme.colors.primary} size={42} />
-              </View>
-            )}
-            <Text style={styles.name}>{profile.data.displayName}</Text>
-            <Text style={styles.handle}>@{profile.data.handle}</Text>
-            <Text style={styles.bio}>{profile.data.bio ?? 'Este usuario aún no agregó una biografía.'}</Text>
+            <Pressable onPress={isOwnProfile ? showAvatarPicker : undefined} style={styles.avatarWrap}>
+              {profileData.avatarUrl ? (
+                <Image source={{ uri: profileData.avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <UserCircle color={theme.colors.primary} size={48} />
+                </View>
+              )}
+              {isOwnProfile ? (
+                <View style={styles.avatarOverlay}>
+                  <Camera size={20} color={theme.colors.background} />
+                </View>
+              ) : null}
+            </Pressable>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{profileData.displayName}</Text>
+            </View>
+            <Text style={styles.handle}>@{profileData.handle}</Text>
+            <Text style={styles.bio}>
+              {profileData.bio ?? 'Sin biografia aun.'}
+            </Text>
             <View style={styles.statsRow}>
-              <Pressable onPress={() => setShowFollowers(true)}>
-                <Text style={styles.stat}>{profile.data.followersCount} seguidores</Text>
+              <Pressable onPress={() => setShowFollowers(true)} style={styles.statItem}>
+                <Text style={styles.statCount}>{profileData.followersCount}</Text>
+                <Text style={styles.statLabel}>seguidores</Text>
               </Pressable>
-              <Pressable onPress={() => setShowFollowing(true)}>
-                <Text style={styles.stat}>{profile.data.followingCount} siguiendo</Text>
+              <View style={styles.statDot} />
+              <Pressable onPress={() => setShowFollowing(true)} style={styles.statItem}>
+                <Text style={styles.statCount}>{profileData.followingCount}</Text>
+                <Text style={styles.statLabel}>siguiendo</Text>
               </Pressable>
             </View>
             <View style={styles.actions}>
@@ -210,7 +306,7 @@ export default function ProfileScreen({ userId }: { userId: string }) {
                 />
               )}
             </View>
-            <Text style={styles.sectionTitle}>Publicaciones visibles</Text>
+            <Text style={styles.sectionTitle}>Publicaciones</Text>
           </View>
         }
         contentContainerStyle={items.length === 0 ? styles.emptyList : styles.list}
@@ -232,8 +328,12 @@ export default function ProfileScreen({ userId }: { userId: string }) {
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
           <SocialEmptyState
-            title="Sin publicaciones visibles"
-            message="Cuando este perfil comparta contenido público, aparecerá aquí."
+            title="Sin publicaciones"
+            message={
+              isOwnProfile
+                ? 'Comparte tu primer entrenamiento para verlo aqui.'
+                : 'Este perfil aun no ha compartido contenido.'
+            }
           />
         }
       />
@@ -253,48 +353,75 @@ export default function ProfileScreen({ userId }: { userId: string }) {
         onClose={() => setShowFollowing(false)}
       />
       <Modal visible={showEdit} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={styles.editTitleRow}>
-                <Edit3 color={theme.colors.primary} size={20} />
-                <Text style={styles.modalTitle}>Editar perfil</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <View style={styles.editTitleRow}>
+                  <Edit3 color={theme.colors.primary} size={20} />
+                  <Text style={styles.modalTitle}>Editar perfil</Text>
+                </View>
+                <Pressable onPress={() => setShowEdit(false)} hitSlop={12}>
+                  <X color={theme.colors.textSecondary} size={22} />
+                </Pressable>
               </View>
-              <Pressable onPress={() => setShowEdit(false)}>
-                <X color={theme.colors.textSecondary} size={22} />
-              </Pressable>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.editAvatarSection}>
+                  <Pressable onPress={showAvatarPicker} style={styles.editAvatarBtn}>
+                    {profileData.avatarUrl ? (
+                      <Image source={{ uri: profileData.avatarUrl }} style={styles.editAvatar} />
+                    ) : (
+                      <View style={styles.editAvatarEmpty}>
+                        <ImageIcon size={28} color={theme.colors.textMuted} />
+                      </View>
+                    )}
+                    <View style={styles.editAvatarOverlay}>
+                      <Camera size={20} color={theme.colors.background} />
+                    </View>
+                  </Pressable>
+                  <Pressable onPress={showAvatarPicker} hitSlop={8}>
+                    <Text style={styles.editAvatarLabel}>Cambiar foto</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Biografía</Text>
+                  <TextInput
+                    value={bio}
+                    onChangeText={setBio}
+                    placeholder="Cuéntale al mundo sobre tu entrenamiento..."
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={[styles.modalInput, styles.modalTextArea]}
+                    multiline
+                    editable={!updateOwnProfile.isPending}
+                    maxLength={160}
+                    selectionColor={theme.colors.primary}
+                  />
+                  <Text style={styles.counter}>{bio.length}/160</Text>
+                </View>
+                <View style={styles.modalActions}>
+                  <PrimaryButton
+                    label="Guardar cambios"
+                    onPress={saveProfile}
+                    loading={updateOwnProfile.isPending}
+                    disabled={updateOwnProfile.isPending}
+                  />
+                  <SecondaryButton
+                    label="Cancelar"
+                    onPress={() => setShowEdit(false)}
+                    disabled={updateOwnProfile.isPending}
+                  />
+                </View>
+              </ScrollView>
             </View>
-            <TextInput
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Bio"
-              placeholderTextColor={theme.colors.textMuted}
-              style={[styles.modalInput, styles.modalTextArea]}
-              multiline
-              editable={!updateOwnProfile.isPending}
-            />
-            <TextInput
-              value={avatarUrl}
-              onChangeText={setAvatarUrl}
-              placeholder="URL de avatar"
-              placeholderTextColor={theme.colors.textMuted}
-              style={styles.modalInput}
-              autoCapitalize="none"
-              editable={!updateOwnProfile.isPending}
-            />
-            <PrimaryButton
-              label="Guardar cambios"
-              onPress={saveProfile}
-              loading={updateOwnProfile.isPending}
-              disabled={updateOwnProfile.isPending}
-            />
-            <SecondaryButton
-              label="Cancelar"
-              onPress={() => setShowEdit(false)}
-              disabled={updateOwnProfile.isPending}
-            />
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -308,52 +435,98 @@ const styles = StyleSheet.create({
   profileHeader: {
     padding: theme.spacing.lg,
     gap: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  avatarWrap: {
+    position: 'relative',
+    marginBottom: theme.spacing.sm,
   },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
   },
   avatarFallback: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.surfaceElevated,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.colors.border,
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.background,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   name: {
     color: theme.colors.textPrimary,
-    fontSize: theme.typography.heading1.fontSize,
-    lineHeight: theme.typography.heading1.lineHeight,
-    fontWeight: theme.typography.heading1.fontWeight,
+    fontSize: theme.typography.heading2.fontSize,
+    lineHeight: theme.typography.heading2.lineHeight,
+    fontWeight: theme.typography.heading2.fontWeight,
   },
   handle: {
     color: theme.colors.primary,
-    fontSize: theme.typography.bodyStrong.fontSize,
-    lineHeight: theme.typography.bodyStrong.lineHeight,
-    fontWeight: theme.typography.bodyStrong.fontWeight,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    fontWeight: '600',
   },
   bio: {
     color: theme.colors.textSecondary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
+    paddingHorizontal: theme.spacing.xl,
   },
   statsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: theme.spacing.md,
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.md,
   },
-  stat: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    textDecorationLine: 'underline',
+  statItem: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  statCount: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: '800',
+  },
+  statLabel: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: theme.colors.textMuted,
   },
   actions: {
+    width: '100%',
     gap: theme.spacing.sm,
     marginTop: theme.spacing.md,
   },
@@ -362,7 +535,8 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.heading3.fontSize,
     lineHeight: theme.typography.heading3.lineHeight,
     fontWeight: theme.typography.heading3.fontWeight,
-    marginTop: theme.spacing.lg,
+    marginTop: theme.spacing.xl,
+    alignSelf: 'flex-start',
   },
   list: {
     paddingBottom: theme.spacing.xxl,
@@ -402,6 +576,50 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: theme.typography.body.fontSize,
   },
+  editAvatarSection: {
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    paddingVertical: theme.spacing.md,
+  },
+  editAvatarBtn: {
+    position: 'relative',
+  },
+  editAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  editAvatarEmpty: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  editAvatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.background,
+  },
+  editAvatarLabel: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: '700',
+  },
   profileListRow: {
     paddingVertical: theme.spacing.sm,
     borderBottomColor: theme.colors.borderSoft,
@@ -427,5 +645,28 @@ const styles = StyleSheet.create({
   modalTextArea: {
     minHeight: 110,
     textAlignVertical: 'top',
+  },
+  modalScrollContent: {
+    gap: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+  },
+  modalActions: {
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  inputGroup: {
+    gap: theme.spacing.xs,
+  },
+  inputLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  counter: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.caption.fontSize,
+    textAlign: 'right',
+    marginTop: 4,
   },
 });

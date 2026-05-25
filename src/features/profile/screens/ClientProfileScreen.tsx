@@ -30,6 +30,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import {
@@ -364,7 +365,7 @@ function EditProfileSheet({
         style={styles.sheetOverlay}
       >
         <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
+          <DragIndicator position="inside" />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Editar perfil</Text>
             <View style={styles.sheetActions}>
@@ -640,13 +641,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     paddingBottom: theme.spacing.md,
   },
-  sheetHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.border,
-    alignSelf: 'center',
-  },
+
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',

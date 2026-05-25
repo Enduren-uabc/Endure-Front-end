@@ -1,9 +1,53 @@
+export interface WorkoutSetSummaryApi {
+  setNumber: number;
+  repsPerformed: number | null;
+  weightUsed: number | null;
+  targetReps: number | null;
+  targetWeight: number | null;
+  completed: boolean;
+}
+
+export interface ExerciseSummaryItemApi {
+  exerciseId: string;
+  exerciseName: string;
+  completedSets: number;
+  totalSets: number;
+  volume: number;
+  workoutSets: WorkoutSetSummaryApi[];
+}
+
+export interface ExerciseSummaryApi {
+  totalExercises: number;
+  totalCompletedSets: number;
+  totalSets: number;
+  totalVolume: number;
+  durationMinutes: number;
+  routineName: string;
+  dayOfWeek: string;
+  exercises: ExerciseSummaryItemApi[];
+}
+
+export interface PublicationMediaApi {
+  id: string;
+  url: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
 export interface PublicationApi {
   id: string;
   authorUserId: string;
+  authorDisplayName?: string;
+  authorAvatarUrl?: string;
   title: string;
   content: string;
   mediaUrls: string[];
+  media: PublicationMediaApi[];
+  workoutSessionId: string | null;
+  exerciseSummary: ExerciseSummaryApi | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,6 +63,12 @@ export interface PublicationPageApi {
 export interface CreatePublicationRequestApi {
   title: string;
   content: string;
+  mediaUrls?: string[];
+  mediaIds?: string[];
+}
+
+export interface CreateWorkoutPublicationRequestApi {
+  caption?: string;
   mediaUrls?: string[];
 }
 
@@ -78,8 +128,15 @@ export interface DeleteCommentApi {
 }
 
 export interface UpdateOwnProfileRequestApi {
+  displayName?: string | null;
   bio?: string | null;
   avatarUrl?: string | null;
+}
+
+export interface ForkResponseApi {
+  routineId: string;
+  dayOfWeek: string;
+  exercisesAdded: number;
 }
 
 export interface FollowProfileApi {
