@@ -1,12 +1,13 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Dumbbell, Home, Play, Users, UsersRound } from 'lucide-react-native';
+import { Dumbbell, Home, Play, UserRound, Users, UsersRound } from 'lucide-react-native';
 import HomeTrainingV2Screen from '@/features/home/screens/v2/HomeTrainingV2Screen';
 import TrainingStack from '@/navigation/TrainingStack';
 import WorkoutStack from '@/navigation/WorkoutStack';
 import SocialStack from '@/navigation/SocialStack';
 import ClientsStack from './ClientsStack';
+import UnifiedProfileScreen from '@/features/profile/screens/UnifiedProfileScreen';
 import { useReceivedLinkRequests } from '@/features/trainer-link/hooks/use-trainer-link';
 import { theme } from '@/theme';
 import type { TrainerTabsParamList } from '../types/trainer-navigation.types';
@@ -119,6 +120,14 @@ export default function TrainerTabs() {
         options={{
           title: 'Comunidad',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="Profile"
+        component={UnifiedProfileScreen}
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => <UserRound size={size} color={color} />,
         }}
       />
     </Tabs.Navigator>

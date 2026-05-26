@@ -48,6 +48,8 @@ export interface Publication {
   media: PublicationMedia[];
   workoutSessionId: string | null;
   exerciseSummary: ExerciseSummary | null;
+  reactionCount: number;
+  recentReactorNames: string[];
   createdAt: Date;
   updatedAt: Date;
 }

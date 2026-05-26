@@ -128,6 +128,8 @@ export function mapPublicationFromApi(apiPublication: PublicationApi): Publicati
     media: (apiPublication.media ?? []).map(mapPublicationMediaFromApi),
     workoutSessionId: apiPublication.workoutSessionId,
     exerciseSummary: mapExerciseSummaryFromApi(apiPublication.exerciseSummary),
+    reactionCount: apiPublication.reactionCount ?? 0,
+    recentReactorNames: apiPublication.recentReactorNames ?? [],
     createdAt: new Date(apiPublication.createdAt),
     updatedAt: new Date(apiPublication.updatedAt),
   };

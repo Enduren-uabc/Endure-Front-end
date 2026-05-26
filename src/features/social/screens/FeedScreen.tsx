@@ -167,7 +167,7 @@ export default function FeedScreen() {
           </View>
           <Pressable
             style={styles.headerAction}
-            onPress={() => navigation.navigate('OwnProfile')}
+            onPress={() => navigation.getParent()?.navigate('Profile')}
             accessibilityRole="button"
             accessibilityLabel="Mi perfil"
           >

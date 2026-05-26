@@ -146,17 +146,23 @@ export function PostCard({
         )}
       </View>
 
-      {/* 4. Caption Area */}
+      {/* 4. Likes row */}
+      {publication.reactionCount > 0 ? (
+        <View style={styles.likesContainer}>
+          <Text style={styles.likesText}>
+            {publication.recentReactorNames.length === 1
+              ? `A ${publication.recentReactorNames[0]} le gusta esto`
+              : publication.recentReactorNames.length === 2
+                ? `A ${publication.recentReactorNames[0]} y ${publication.recentReactorNames[1]} les gusta esto`
+                : `A ${publication.recentReactorNames[0]}, ${publication.recentReactorNames[1]} y ${publication.reactionCount - 2} personas más les gusta esto`}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* 5. Caption Area */}
       <View style={styles.captionContainer}>
-        {publication.title ? (
-          <Text style={styles.titleText}>{publication.title}</Text>
-        ) : null}
-        
         {publication.content ? (
           <Text style={styles.contentText} numberOfLines={3}>
-            <Text style={styles.authorBold}>
-              {publication.authorDisplayName || 'usuario'}{' '}
-            </Text>
             {publication.content}
           </Text>
         ) : null}
@@ -222,15 +228,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
   },
-  titleText: {
-    color: theme.colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 4,
+  likesContainer: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.xs,
+    paddingBottom: 2,
   },
-  authorBold: {
-    fontWeight: '800',
-    color: theme.colors.textPrimary,
+  likesText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   contentText: {
     color: theme.colors.textPrimary,

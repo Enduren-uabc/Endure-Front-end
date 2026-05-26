@@ -48,6 +48,8 @@ export interface PublicationApi {
   media: PublicationMediaApi[];
   workoutSessionId: string | null;
   exerciseSummary: ExerciseSummaryApi | null;
+  reactionCount: number;
+  recentReactorNames: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -131,6 +133,7 @@ export interface UpdateOwnProfileRequestApi {
   displayName?: string | null;
   bio?: string | null;
   avatarUrl?: string | null;
+  handle?: string | null;
 }
 
 export interface ForkResponseApi {

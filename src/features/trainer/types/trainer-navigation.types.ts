@@ -14,6 +14,7 @@ export type TrainerTabsParamList = {
   Routines: NavigatorScreenParams<TrainingStackParamList> | undefined;
   Clients: NavigatorScreenParams<ClientsStackParamList> | undefined;
   Social: NavigatorScreenParams<SocialStackParamList> | undefined;
+  Profile: undefined;
 };
 
 export type TrainerDrawerParamList = {

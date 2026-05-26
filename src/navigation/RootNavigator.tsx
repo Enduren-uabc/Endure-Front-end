@@ -70,7 +70,7 @@ const linking: LinkingOptions<RootStackParamList> = {
               Social: {
                 screens: {
                   SocialFeed: 'social',
-                  OwnProfile: 'social/me',
+
                   PublicProfile: 'social/profile/:userId',
                   PostDetail: 'social/post/:postId',
                 },

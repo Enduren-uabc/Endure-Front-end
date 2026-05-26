@@ -39,7 +39,6 @@ export type WorkoutStackParamList = {
 
 export type SocialStackParamList = {
   SocialFeed: undefined;
-  OwnProfile: undefined;
   PublicProfile: { userId: string };
   PostDetail: { postId: string; title?: string; content?: string; authorUserId?: string; workoutSessionId?: string; exerciseSummary?: ExerciseSummary };
 };
