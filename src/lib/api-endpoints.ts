@@ -36,6 +36,8 @@ export const API_ENDPOINTS = {
     deactivate: (id: string) => `/routines/${id}/deactivate`,
     delete: (id: string) => `/routines/${id}`,
     sync: (id: string) => `/routines/${id}/sync`,
+    removeDay: (routineId: string, dayOfWeek: string) =>
+      `/routines/${routineId}/days/${dayOfWeek}`,
     forkWorkout: (routineId: string, dayOfWeek: string) =>
       `/routines/${routineId}/days/${dayOfWeek}/fork`,
     trainingStrategy: (id: string) => `/routines/${id}/training-strategy`,

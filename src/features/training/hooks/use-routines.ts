@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert } from "react-native";
 import { apiClient } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/lib/api-endpoints";
 import type { Routine, DayOfWeek } from "../types/routine";
@@ -95,4 +96,22 @@ export function useCreateRoutine() {
       },
     },
   );
+}
+
+export function useRemoveRoutineDay(routineId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<Routine, Error, { dayOfWeek: string }>({
+    mutationFn: ({ dayOfWeek }) =>
+      apiClient.del<Routine>(
+        API_ENDPOINTS.routines.removeDay(routineId, dayOfWeek),
+      ),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['routine', routineId], data);
+      queryClient.invalidateQueries({ queryKey: ["routines"] });
+    },
+    onError: (error) => {
+      Alert.alert('Error', error.message || 'No se pudo eliminar el día.');
+    },
+  });
 }
