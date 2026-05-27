@@ -1,5 +1,6 @@
 import type {
   CommentApi,
+  CommentPreviewApi,
   ExerciseSummaryApi,
   ProfileApi,
   PublicationApi,
@@ -10,6 +11,7 @@ import type {
 } from '../types/social-api.types';
 import type {
   Comment,
+  CommentPreview,
   ExerciseSummary,
   Profile,
   Publication,
@@ -116,6 +118,17 @@ function mapPublicationMediaFromApi(api: PublicationMediaApi): PublicationMedia 
   };
 }
 
+function mapCommentPreviewFromApi(api: CommentPreviewApi): CommentPreview {
+  return {
+    id: api.id,
+    publicationId: api.publicationId,
+    authorUserId: api.authorUserId,
+    authorDisplayName: api.authorDisplayName,
+    content: api.content,
+    createdAt: new Date(api.createdAt),
+  };
+}
+
 export function mapPublicationFromApi(apiPublication: PublicationApi): Publication {
   return {
     id: apiPublication.id,
@@ -130,6 +143,9 @@ export function mapPublicationFromApi(apiPublication: PublicationApi): Publicati
     exerciseSummary: mapExerciseSummaryFromApi(apiPublication.exerciseSummary),
     reactionCount: apiPublication.reactionCount ?? 0,
     recentReactorNames: apiPublication.recentReactorNames ?? [],
+    commentCount: apiPublication.commentCount ?? 0,
+    recentComments: (apiPublication.recentComments ?? []).map(mapCommentPreviewFromApi),
+    likedByMe: apiPublication.likedByMe ?? false,
     createdAt: new Date(apiPublication.createdAt),
     updatedAt: new Date(apiPublication.updatedAt),
   };

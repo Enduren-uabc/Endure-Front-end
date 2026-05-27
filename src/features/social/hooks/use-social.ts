@@ -120,6 +120,7 @@ export function useInteractions(publicationId: string) {
   const invalidateFeed = async () => {
     await queryClient.invalidateQueries({ queryKey: ['social-feed'] });
     await queryClient.invalidateQueries({ queryKey: socialQueryKeys.comments(publicationId) });
+    await queryClient.invalidateQueries({ queryKey: ['social-profile-publications'] });
   };
 
   const like = useMutation({

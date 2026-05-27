@@ -37,6 +37,15 @@ export interface PublicationMediaApi {
   createdAt: string;
 }
 
+export interface CommentPreviewApi {
+  id: string;
+  publicationId: string;
+  authorUserId: string;
+  authorDisplayName?: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface PublicationApi {
   id: string;
   authorUserId: string;
@@ -50,6 +59,9 @@ export interface PublicationApi {
   exerciseSummary: ExerciseSummaryApi | null;
   reactionCount: number;
   recentReactorNames: string[];
+  commentCount: number;
+  recentComments: CommentPreviewApi[];
+  likedByMe: boolean;
   createdAt: string;
   updatedAt: string;
 }

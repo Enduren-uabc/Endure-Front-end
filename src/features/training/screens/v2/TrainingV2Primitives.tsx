@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  ImageBackground,
   Pressable,
   ScrollView,
   StyleProp,
@@ -13,7 +12,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChevronRight, Dumbbell, Search } from 'lucide-react-native';
+import { ArrowLeft, ChevronRight, Search } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { Chip } from '@/components/ui/Chip';
 import { DragIndicator } from '@/components/ui/DragIndicator';
@@ -203,6 +202,12 @@ export function TrainingV2Tag({ label, tone = 'default' }: { label: string; tone
   );
 }
 
+const DAY_ABBR = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const;
+
+function isDayActive(routineDays: string[], abbr: string): boolean {
+  return routineDays.some((d) => d.slice(0, 3).toLowerCase() === abbr.slice(0, 3).toLowerCase());
+}
+
 export function TrainingV2RoutineCard({
   routine,
   compact = false,
@@ -215,31 +220,26 @@ export function TrainingV2RoutineCard({
   return (
     <TouchableOpacity activeOpacity={0.84} onPress={onPress} style={compact ? styles.compactRoutineTouchable : undefined}>
       <BaseCard style={[styles.routineCard, compact ? styles.compactRoutineCard : null]}>
-        <View style={[styles.routineImageWrap, compact ? styles.compactRoutineImageWrap : null]}>
-          {routine.imageUri ? (
-            <ImageBackground
-              source={{ uri: routine.imageUri }}
-              style={styles.routineImage}
-              imageStyle={styles.routineImage}
-            >
-              <View style={styles.imageOverlay} />
-            </ImageBackground>
-          ) : (
-            <View style={styles.noImageContainer}>
-              <Dumbbell size={32} color={theme.colors.border} />
-            </View>
-          )}
+        <View style={styles.dayRow}>
+          {DAY_ABBR.map((day) => {
+            const active = isDayActive(routine.days, day);
+            return (
+              <View key={day} style={[styles.dayDot, active && styles.dayDotActive]} />
+            );
+          })}
         </View>
-        <View style={styles.routineBody}>
+        <View style={styles.routineBodyCompact}>
           <View style={styles.routineTitleRow}>
-            <Text style={styles.routineTitle}>{routine.name}</Text>
-            <ChevronRight size={20} color={theme.colors.textMuted} />
+            <Text style={styles.routineTitle} numberOfLines={1}>{routine.name}</Text>
+            <ChevronRight size={16} color={theme.colors.textMuted} />
           </View>
-          <Text style={styles.routineDescription}>{routine.description}</Text>
+          {!compact && routine.description ? (
+            <Text style={styles.routineDescription} numberOfLines={1}>{routine.description}</Text>
+          ) : null}
           <View style={styles.tagRow}>
             <TrainingV2Tag label={`${routine.durationMinutes} min`} />
             <TrainingV2Tag label={routine.level} />
-            <TrainingV2Tag label={`${routine.exerciseCount} ejercicios`} />
+            {!compact ? <TrainingV2Tag label={`${routine.exerciseCount} ej`} /> : null}
             {routine.isMine ? <TrainingV2Tag label="Mia" tone="primary" /> : null}
           </View>
         </View>
@@ -470,49 +470,33 @@ const styles = StyleSheet.create({
     color: theme.colors.success,
   },
   compactRoutineTouchable: {
-    width: 220,
+    width: 200,
   },
   routineCard: {
     padding: 0,
     overflow: 'hidden',
   },
   compactRoutineCard: {
-    minHeight: 260,
+    minHeight: 120,
   },
-  routineImageWrap: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: theme.colors.surfaceElevated,
+  dayRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
   },
-  compactRoutineImageWrap: {
-    aspectRatio: 16 / 10,
+  dayDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.surfacePressed,
   },
-  routineImage: {
-    width: '100%',
-    height: '100%',
-    borderTopLeftRadius: theme.radius.lg,
-    borderTopRightRadius: theme.radius.lg,
+  dayDotActive: {
+    backgroundColor: theme.colors.primary,
   },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-  },
-  noImageContainer: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceElevated,
-  },
-  imagePlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    opacity: 0.24,
-  },
-  routineBody: {
-    padding: theme.spacing.lg,
-    gap: theme.spacing.sm,
+  routineBodyCompact: {
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
   },
   routineTitleRow: {
     flexDirection: 'row',
@@ -523,14 +507,14 @@ const styles = StyleSheet.create({
   routineTitle: {
     flex: 1,
     color: theme.colors.textPrimary,
-    fontSize: theme.typography.heading3.fontSize,
-    lineHeight: theme.typography.heading3.lineHeight,
-    fontWeight: theme.typography.heading3.fontWeight,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
   },
   routineDescription: {
     color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
   },
   fieldPreview: {
     flex: 1,

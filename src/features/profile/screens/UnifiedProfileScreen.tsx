@@ -50,6 +50,11 @@ import {
   TrainingV2SkeletonList,
 } from '@/features/training/screens/v2/TrainingV2States';
 import { PostCard } from '@/features/social/components/PostCard';
+import {
+  useDeletePublication,
+  useInteractions,
+} from '@/features/social/hooks/use-social';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import type { UserDrawerParamList, UserTabsParamList } from '@/features/user/types/user-navigation.types';
 import type { SocialStackParamList } from '@/navigation/types';
@@ -65,6 +70,43 @@ type ProfileDrawerNavigation = NavigationProp<UserDrawerParamList>;
 type TabKey = 'publications' | 'training';
 
 type SheetAction = 'routines' | 'history' | 'achievements' | 'measurements';
+
+const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+function ProfilePost({ publication, navigation }: { publication: Publication; navigation: ProfileNavigation }) {
+  const interactions = useInteractions(publication.id);
+  const deletePublication = useDeletePublication();
+  const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
+  const [liked, setLiked] = React.useState(publication.likedByMe);
+  const reactionPending = interactions.like.isPending || interactions.unlike.isPending;
+
+  return (
+    <PostCard
+      publication={publication}
+      onOpenPost={(pub) =>
+        navigation.navigate('Social', {
+          screen: 'PostDetail',
+          params: {
+            postId: pub.id,
+            title: pub.title,
+            content: pub.content,
+            authorUserId: pub.authorUserId,
+            workoutSessionId: pub.workoutSessionId ?? undefined,
+            exerciseSummary: pub.exerciseSummary ?? undefined,
+          },
+        })
+      }
+      onOpenProfile={() => {}}
+      onLike={() => interactions.like.mutate(undefined, { onSuccess: () => setLiked(true) })}
+      onUnlike={() => interactions.unlike.mutate(undefined, { onSuccess: () => setLiked(false) })}
+      onDelete={() => deletePublication.mutate(publication.id)}
+      liked={liked}
+      canDelete={publication.authorUserId === currentUserId}
+      likeLoading={reactionPending}
+      deleteLoading={deletePublication.isPending}
+    />
+  );
+}
 
 export default function UnifiedProfileScreen() {
   const navigation = useNavigation<ProfileNavigation>();
@@ -159,27 +201,7 @@ export default function UnifiedProfileScreen() {
         data={activeTab === 'publications' ? profile.allPublications : []}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <PostCard
-            publication={item}
-            onOpenPost={(pub) =>
-              navigation.navigate('Social', {
-                screen: 'PostDetail',
-                params: {
-                  postId: pub.id,
-                  title: pub.title,
-                  content: pub.content,
-                  authorUserId: pub.authorUserId,
-                  workoutSessionId: pub.workoutSessionId ?? undefined,
-                  exerciseSummary: pub.exerciseSummary ?? undefined,
-                },
-              })
-            }
-            onOpenProfile={() => {}}
-            onLike={() => {}}
-            onUnlike={() => {}}
-            onDelete={() => {}}
-            canDelete={false}
-          />
+          <ProfilePost publication={item} navigation={navigation} />
         )}
         ListHeaderComponent={
           <View>
