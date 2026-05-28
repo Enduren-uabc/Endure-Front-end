@@ -46,7 +46,6 @@ export type SocialStackParamList = {
 export type TrainingStackParamList = {
   RoutinesList: undefined;
   RoutineDetail: { id: string };
-  RoutineEdit: { id: string };
   RoutineBuilder: { id: string };
   ExerciseCatalog: { routineId?: string; selectedDay?: string } | undefined;
   ExerciseDetail: { routineId: string; exercise: ExerciseConfig; selectedDay?: string };

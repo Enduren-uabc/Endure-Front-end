@@ -1,11 +1,13 @@
 import React from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
-import { AlertCircle, Clock3, Dumbbell, Pencil, Play, Plus, Rows3, Star, Trash2 } from 'lucide-react-native';
+import { AlertCircle, Check, Clock3, Dumbbell, Pencil, Play, Plus, Rows3, Star, Trash2 } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { TextInput } from '@/components/ui/TextInput';
+import { DragIndicator } from '@/components/ui/DragIndicator';
 import { theme } from '@/theme';
 import {
   TrainingV2FieldPreview,
@@ -14,8 +16,21 @@ import {
   TrainingV2Tag,
 } from './TrainingV2Primitives';
 import { TrainingV2EmptyState } from './TrainingV2States';
-import { useRoutineDetail, useRemoveRoutineDay } from '@/features/training/hooks/use-routines';
+import {
+  useRoutineDetail,
+  useRemoveRoutineDay,
+  useRoutines,
+  useUpdateRoutineName,
+  useActivateRoutine,
+  useDeactivateRoutine,
+} from '@/features/training/hooks/use-routines';
 import { useSyncRoutine } from '@/features/training/hooks/use-sync-routine';
+import { useTrainingStrategies } from '@/features/training/hooks/use-training-strategies';
+import { useSetRoutineStrategy } from '@/features/training/hooks/use-set-routine-strategy';
+import { TrainingStrategySelector } from '@/features/training/components/TrainingStrategySelector';
+import { apiClient } from '@/lib/api-client';
+import { API_ENDPOINTS } from '@/lib/api-endpoints';
+import { SwipeableExerciseCard } from '@/features/training/components/SwipeableExerciseCard';
 import { DAY_OF_WEEK_LABELS, DAY_OF_WEEK_ORDER } from '@/features/training/types/routine';
 import type { ExerciseConfig } from '@/features/training/types/routine';
 import type { DayOfWeek } from '@/features/training/types/routine';
@@ -39,11 +54,27 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
   const syncRoutineMutation = useSyncRoutine();
   const removeDayMutation = useRemoveRoutineDay(route.params.id);
 
+  const { data: allRoutines } = useRoutines();
+  const { data: strategies } = useTrainingStrategies();
+  const updateNameMutation = useUpdateRoutineName();
+  const activateMutation = useActivateRoutine();
+  const deactivateMutation = useDeactivateRoutine();
+  const setStrategyMutation = useSetRoutineStrategy();
+
   const [selectedDay, setSelectedDay] = React.useState<DayOfWeek | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [showAddDayModal, setShowAddDayModal] = React.useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
   const [isAddingDay, setIsAddingDay] = React.useState(false);
+
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  const [editName, setEditName] = React.useState('');
+  const [editIsActive, setEditIsActive] = React.useState(false);
+  const [editStrategyKey, setEditStrategyKey] = React.useState<string | null>(null);
+  const [newActiveRoutineId, setNewActiveRoutineId] = React.useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = React.useState(false);
+  const [editSaveError, setEditSaveError] = React.useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (routine && !selectedDay) {
@@ -62,6 +93,64 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
 
   const routineDays = routine?.days.map((d) => d.dayOfWeek) ?? [];
   const missingDays = ALL_DAYS.filter((day) => !routineDays.includes(day));
+
+  const otherRoutines = React.useMemo(
+    () => (allRoutines ?? []).filter((r) => r.id !== route.params.id),
+    [allRoutines, route.params.id],
+  );
+
+  const openEditSheet = () => {
+    if (!routine) return;
+    setEditName(routine.name);
+    setEditIsActive(routine.isActive ?? false);
+    setEditStrategyKey(routine.trainingStrategyKey ?? null);
+    setNewActiveRoutineId(null);
+    setEditSaveError(null);
+    setShowEditModal(true);
+  };
+
+  const nameChanged = routine && editName !== routine.name;
+  const activeChanged = routine && editIsActive !== (routine.isActive ?? false);
+  const strategyChanged = routine && editStrategyKey !== (routine.trainingStrategyKey ?? null);
+  const deactivating = activeChanged && !editIsActive;
+  const canSaveEdit =
+    editName.trim().length > 0 &&
+    (!deactivating || newActiveRoutineId !== null) &&
+    (nameChanged || activeChanged || strategyChanged);
+
+  const handleSaveEdit = async () => {
+    if (!routine || !canSaveEdit) return;
+    setIsSavingEdit(true);
+    setEditSaveError(null);
+
+    const mutations: Promise<unknown>[] = [];
+    if (nameChanged) {
+      mutations.push(updateNameMutation.mutateAsync({ id: routine.id, name: editName.trim() }));
+    }
+    if (activeChanged) {
+      if (editIsActive) {
+        mutations.push(activateMutation.mutateAsync(routine.id));
+      } else if (newActiveRoutineId) {
+        mutations.push(deactivateMutation.mutateAsync(routine.id));
+        mutations.push(activateMutation.mutateAsync(newActiveRoutineId));
+      }
+    }
+    if (strategyChanged) {
+      mutations.push(
+        setStrategyMutation.mutateAsync({ routineId: routine.id, strategyKey: editStrategyKey }),
+      );
+    }
+
+    try {
+      await Promise.all(mutations);
+      await refetch();
+      setShowEditModal(false);
+    } catch (err) {
+      setEditSaveError(err instanceof Error ? err.message : 'Error al guardar los cambios');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const handleAddDay = async (dayOfWeek: DayOfWeek) => {
     if (!routine) return;
@@ -99,6 +188,32 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
     );
   };
 
+  const handleDeleteExercise = (exerciseId: string, exerciseName: string) => {
+    if (!routine || !selectedDay) return;
+
+    Alert.alert(
+      '¿Eliminar ejercicio?',
+      `¿Estás seguro de que deseas eliminar "${exerciseName}" de esta rutina?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiClient.del(
+                API_ENDPOINTS.routines.removeExercise(routine.id, selectedDay, exerciseId)
+              );
+              refetch();
+            } catch {
+              Alert.alert('Error', 'No se pudo eliminar el ejercicio. Intenta de nuevo.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <TrainingV2Screen title="Detalle de rutina" titleColor={theme.colors.textPrimary} onBack={navigation.goBack}>
@@ -127,63 +242,42 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
   const exerciseCount = allExercises.length;
   const totalSets = totalSetsCount(allExercises);
   const selectedDayExercises = routine.days.find((d) => d.dayOfWeek === selectedDay)?.exercises ?? [];
+  const currentStrategyName = strategies?.find((s) => s.key === routine.trainingStrategyKey)?.name ?? 'Personalizada';
 
   return (
     <View style={styles.screenRoot}>
       <TrainingV2Screen
-        title="Detalle de rutina"
+        title="Rutina"
         titleColor={theme.colors.textPrimary}
-        subtitle={`${routine.dayOfWeeks.length} dias - ${routine.name}`}
         onBack={navigation.goBack}
         footer={
-          <View style={styles.footerActions}>
-            <SecondaryButton
-              label="Editar"
-              onPress={() => navigation.navigate('RoutineEdit', { id: routine.id })}
-              style={styles.footerButton}
-            />
-            <PrimaryButton
-              label="Empezar"
-              onPress={openWorkoutStart}
-              icon={<Play size={18} color={theme.colors.background} />}
-              style={styles.footerButton}
-            />
-          </View>
+          <PrimaryButton
+            label="Empezar entrenamiento"
+            onPress={openWorkoutStart}
+            icon={<Play size={18} color={theme.colors.background} />}
+          />
         }
       >
-        <View style={styles.heroWrap}>
-          <View style={styles.heroGradient}>
-            <View style={styles.heroContent}>
-              <TrainingV2Tag label={routine.isActive ? 'Activa' : 'Inactiva'} tone={routine.isActive ? 'success' : 'default'} />
-              <Text style={styles.heroTitle}>{routine.name}</Text>
-              {routine.description ? (
-                <Text style={styles.heroDescription}>{routine.description}</Text>
-              ) : null}
+        <View style={styles.headerContainerCentred}>
+          {routine.isActive ? (
+            <View style={styles.activeStarContainer}>
+              <Star size={26} color="#FACC15" fill="#FACC15" />
             </View>
-          </View>
+          ) : null}
+          <Text style={styles.centredTitle}>{routine.name}</Text>
+          {routine.description ? (
+            <Text style={styles.centredDescription}>{routine.description}</Text>
+          ) : null}
+          <TouchableOpacity onPress={openEditSheet} style={styles.editSettingsBtn} activeOpacity={0.78}>
+            <Pencil size={13} color={theme.colors.primary} />
+            <Text style={styles.editSettingsBtnText}>Ajustes de rutina</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.metaGrid}>
-          <TrainingV2FieldPreview label="Dias" value={`${routine.dayOfWeeks.length}`} helper={routine.dayOfWeeks.map((d) => DAY_OF_WEEK_LABELS[d] ?? d.slice(0, 3)).join(' / ')} />
-          <TrainingV2FieldPreview label="Ejercicios" value={`${exerciseCount}`} helper="Totales" />
-          <TrainingV2FieldPreview label="Series" value={`${totalSets}`} helper="Configurables" />
+          <TrainingV2FieldPreview label="Tipo" value={currentStrategyName} helper="Planificación" />
+          <TrainingV2FieldPreview label="Volumen" value={`${totalSets} series`} helper="Carga de series" />
         </View>
-
-        <BaseCard style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <View style={styles.summaryIcon}>
-              <Star size={20} color={theme.colors.primary} />
-            </View>
-            <View style={styles.summaryTextWrap}>
-              <Text style={styles.summaryTitle}>Rutina {routine.isActive ? 'activa' : 'inactiva'}</Text>
-              <Text style={styles.summaryText}>
-                {routine.isActive
-                  ? 'Esta es tu rutina activa. Puedes empezar un entrenamiento cuando quieras.'
-                  : 'Activa esta rutina desde la lista para poder entrenar con ella.'}
-              </Text>
-            </View>
-          </View>
-        </BaseCard>
 
         <TrainingV2SectionHeader
           title="Ejercicios"
@@ -249,32 +343,17 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
         ) : (
           <View style={styles.exerciseList}>
             {selectedDayExercises.map((exercise) => (
-              <TouchableOpacity
+              <SwipeableExerciseCard
                 key={exercise.id}
-                activeOpacity={0.84}
+                exercise={exercise}
                 onPress={() =>
                   navigation.navigate('ExerciseDetail', {
                     routineId: routine.id,
                     exercise,
                   })
                 }
-              >
-                <BaseCard style={styles.exerciseCard}>
-                  <View style={styles.exerciseIcon}>
-                    <Dumbbell size={20} color={theme.colors.primary} />
-                  </View>
-                  <View style={styles.exerciseBody}>
-                    <Text style={styles.exerciseName}>{exercise.order + 1}. {exercise.name}</Text>
-                    <Text style={styles.exerciseMeta}>
-                      {setsCount(exercise)} series
-                    </Text>
-                  </View>
-                  <View style={styles.exerciseStats}>
-                    <Rows3 size={16} color={theme.colors.textMuted} />
-                    <Text style={styles.exerciseStatsText}>{setsCount(exercise)}</Text>
-                  </View>
-                </BaseCard>
-              </TouchableOpacity>
+                onDelete={() => handleDeleteExercise(exercise.id, exercise.name)}
+              />
             ))}
           </View>
         )}
@@ -369,6 +448,119 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
                 loading={removeDayMutation.isPending}
                 disabled={removeDayMutation.isPending}
                 style={styles.confirmBtn}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowEditModal(false)}>
+          <Pressable style={styles.editSheet}>
+            <DragIndicator position="inside" />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Editar rutina</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <Text style={styles.closeBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
+              <View style={styles.editField}>
+                <TextInput
+                  label="Nombre de la rutina"
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Ej: Push Pull Legs"
+                  maxLength={50}
+                  autoCapitalize="sentences"
+                />
+              </View>
+
+              <BaseCard style={styles.statusCard}>
+                <View style={styles.statusRow}>
+                  <View style={styles.statusInfo}>
+                    <Text style={styles.statusLabel}>Rutina activa</Text>
+                    <Text style={styles.statusDescription}>
+                      {editIsActive
+                        ? 'Esta es la rutina que se usara para entrenar.'
+                        : 'Activala para poder entrenar con ella.'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={editIsActive}
+                    onValueChange={(val) => {
+                      if (!val && otherRoutines.length === 0) {
+                        setInfoMessage('No puedes desactivar la rutina activa sin tener otra rutina. Crea una nueva rutina primero.');
+                        setTimeout(() => setInfoMessage(null), 3500);
+                        return;
+                      }
+                      setEditIsActive(val);
+                      if (!val) setNewActiveRoutineId(null);
+                    }}
+                    trackColor={{ false: theme.colors.surfaceElevated, true: theme.colors.primaryMuted }}
+                    thumbColor={editIsActive ? theme.colors.primary : theme.colors.textMuted}
+                  />
+                </View>
+              </BaseCard>
+
+              {deactivating && (
+                <View style={styles.otherRoutines}>
+                  <Text style={styles.otherRoutinesTitle}>Selecciona la rutina que sera activa</Text>
+                  {otherRoutines.length === 0 ? (
+                    <Text style={styles.otherRoutinesEmpty}>No tienes otras rutinas.</Text>
+                  ) : (
+                    otherRoutines.map((r) => (
+                      <TouchableOpacity
+                        key={r.id}
+                        activeOpacity={0.7}
+                        style={[styles.otherRoutineItem, newActiveRoutineId === r.id && styles.otherRoutineItemSelected]}
+                        onPress={() => setNewActiveRoutineId(r.id)}
+                      >
+                        <View style={styles.otherRoutineInfo}>
+                          <Text style={styles.otherRoutineName}>{r.name}</Text>
+                          <Text style={styles.otherRoutineMeta}>{r.dayOfWeeks.length} dias</Text>
+                        </View>
+                        {newActiveRoutineId === r.id ? (
+                          <View style={styles.radioSelected}><Check size={16} color={theme.colors.background} /></View>
+                        ) : (
+                          <View style={styles.radio} />
+                        )}
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+              )}
+
+              {infoMessage ? (
+                <BaseCard style={styles.infoCard}>
+                  <AlertCircle size={18} color={theme.colors.warning} />
+                  <Text style={styles.infoText}>{infoMessage}</Text>
+                </BaseCard>
+              ) : null}
+
+              <View style={styles.editField}>
+                <TrainingStrategySelector
+                  strategies={strategies ?? []}
+                  selectedKey={editStrategyKey}
+                  onSelect={setEditStrategyKey}
+                />
+              </View>
+
+              {editSaveError ? (
+                <BaseCard style={styles.errorCard}>
+                  <AlertCircle size={18} color={theme.colors.error} />
+                  <Text style={styles.errorText}>{editSaveError}</Text>
+                </BaseCard>
+              ) : null}
+            </ScrollView>
+
+            <View style={styles.sheetFooter}>
+              <PrimaryButton
+                label="Guardar cambios"
+                onPress={handleSaveEdit}
+                loading={isSavingEdit}
+                disabled={!canSaveEdit || isSavingEdit}
               />
             </View>
           </Pressable>
@@ -634,5 +826,211 @@ const styles = StyleSheet.create({
   },
   confirmBtn: {
     flex: 1,
+  },
+  editSheet: {
+    width: '100%',
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl + 20,
+    maxHeight: '85%',
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
+  },
+  sheetTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading3.fontSize,
+    lineHeight: theme.typography.heading3.lineHeight,
+    fontWeight: theme.typography.heading3.fontWeight,
+  },
+  closeBtnText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    fontWeight: '600',
+  },
+  sheetContent: {
+    gap: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+  },
+  editField: {
+    width: '100%',
+  },
+  sheetFooter: {
+    marginTop: theme.spacing.md,
+  },
+  statusCard: {
+    gap: theme.spacing.md,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.lg,
+  },
+  statusInfo: {
+    flex: 1,
+    gap: theme.spacing.xxs,
+  },
+  statusLabel: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  statusDescription: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  otherRoutines: {
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  otherRoutinesTitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontWeight: '600',
+  },
+  otherRoutinesEmpty: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    fontStyle: 'italic',
+  },
+  otherRoutineItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  otherRoutineItemSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryMuted,
+  },
+  otherRoutineInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  otherRoutineName: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.bodyStrong.fontSize,
+    lineHeight: theme.typography.bodyStrong.lineHeight,
+    fontWeight: theme.typography.bodyStrong.fontWeight,
+  },
+  otherRoutineMeta: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+  },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  radioSelected: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.warning,
+    borderWidth: 1,
+  },
+  infoText: {
+    flex: 1,
+    color: theme.colors.warning,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.error,
+    borderWidth: 1,
+  },
+  errorText: {
+    flex: 1,
+    color: theme.colors.error,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  headerContainerCentred: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  activeStarContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(250, 204, 21, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  centredTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  centredSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: theme.typography.body.lineHeight,
+    textAlign: 'center',
+  },
+  centredDescription: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    textAlign: 'center',
+    marginTop: theme.spacing.xxs,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  editSettingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.xs - 2,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginTop: theme.spacing.xs,
+  },
+  editSettingsBtnText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

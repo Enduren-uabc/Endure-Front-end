@@ -23,8 +23,9 @@ export function useForkWorkout() {
         sourceWorkoutSessionId,
         exercises,
       ),
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['routines'] });
+      await queryClient.invalidateQueries({ queryKey: ['routine', variables.routineId] });
     },
   });
 }
