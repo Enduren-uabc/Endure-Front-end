@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
   onboarding: {
     profile: '/onboarding/profile',
     status: '/onboarding/status',
+    social: '/onboarding/social',
   },
   profile: {
     get: '/profile',

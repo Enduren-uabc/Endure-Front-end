@@ -94,6 +94,9 @@ export function useCompleteWorkoutSet() {
     onSuccess: (session) => {
       cacheSession(queryClient, session);
     },
+    onError: (error) => {
+      console.error('[useCompleteWorkoutSet] Error al completar/descompletar set:', error);
+    },
   });
 }
 

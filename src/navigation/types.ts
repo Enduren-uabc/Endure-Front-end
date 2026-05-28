@@ -22,6 +22,7 @@ export type OnboardingStackParamList = {
   Goal: undefined;
   BasicData: undefined;
   Level: undefined;
+  SocialSetup: undefined;
   Summary: undefined;
 };
 

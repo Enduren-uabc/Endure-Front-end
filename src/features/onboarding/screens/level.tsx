@@ -11,6 +11,8 @@ import {
   type OnboardingLevelFormData,
 } from '@/features/onboarding/validations/onboarding';
 import { useOnboardingStore } from '@/features/onboarding/stores/onboarding-store';
+import { OnboardingStepIndicator } from '@/features/onboarding/components/OnboardingStepIndicator';
+import { useFlowConfig } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { Chip } from '@/components/ui/Chip';
@@ -70,6 +72,8 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Level'>;
 
 export default function OnboardingLevelScreen({ navigation }: Props) {
   const draft = useOnboardingStore();
+  const { data: flowConfig } = useFlowConfig();
+  const showSocial = flowConfig?.powerspike === true;
 
   const {
     control,
@@ -98,7 +102,11 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
     } else if (selectedStrategy) {
       draft.setTrainingStrategyKey(selectedStrategy);
     }
-    navigation.navigate('Summary');
+    if (showSocial) {
+      navigation.navigate('SocialSetup');
+    } else {
+      navigation.navigate('Summary');
+    }
   };
 
   const handleLevelChange = (level: string, onChange: (v: string) => void) => {
@@ -114,17 +122,7 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <View style={styles.stepRow}>
-            <View style={styles.stepPill}>
-              <Text style={styles.stepText}>Paso 3 de 4</Text>
-            </View>
-            <View style={styles.progressRow}>
-              <View style={[styles.progressDot, styles.progressActive]} />
-              <View style={[styles.progressDot, styles.progressActive]} />
-              <View style={[styles.progressDot, styles.progressActive]} />
-              <View style={styles.progressDot} />
-            </View>
-          </View>
+          <OnboardingStepIndicator currentStep={3} showSocial={showSocial} />
           <Text style={styles.title}>¿Cuál es tu nivel?</Text>
           <Text style={styles.subtitle}>
             Ajustaremos la dificultad de las rutinas sugeridas.
@@ -254,43 +252,6 @@ const styles = StyleSheet.create({
   header: {
     gap: theme.spacing.sm,
     marginBottom: theme.spacing.lg,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.sm,
-  },
-  stepPill: {
-    backgroundColor: theme.colors.primaryMuted,
-    borderColor: theme.colors.primary,
-    borderWidth: 1,
-    borderRadius: theme.radius.full,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-  },
-  stepText: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-  },
-  progressDot: {
-    width: 18,
-    height: 4,
-    borderRadius: theme.radius.full,
-  },
-  progressActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  progressInactive: {
-    backgroundColor: theme.colors.border,
   },
   title: {
     color: theme.colors.textPrimary,

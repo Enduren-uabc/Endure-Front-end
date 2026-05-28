@@ -191,22 +191,31 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
     });
   }, [session, discardSession, navigation]);
 
-  const handleRegisterSet = React.useCallback((args: {
+  const handleRegisterSet = React.useCallback(async (args: {
     sessionId: string;
     exerciseIndex: number;
     setNumber: number;
     repsPerformed: number;
     weightUsed: number;
   }) => {
-    registerSet.mutate(args);
+    try {
+      await registerSet.mutateAsync(args);
+    } catch (err) {
+      console.error('Error al registrar set:', err);
+    }
   }, [registerSet]);
 
-  const handleCompleteSet = React.useCallback((args: {
+  const handleCompleteSet = React.useCallback(async (args: {
     sessionId: string;
     exerciseIndex: number;
     setNumber: number;
   }) => {
-    completeSet.mutate(args);
+    try {
+      await completeSet.mutateAsync(args);
+    } catch (err) {
+      console.error('Error al completar/descompletar set:', err);
+      throw err;
+    }
   }, [completeSet]);
 
   const handleAddSet = React.useCallback((args: {
@@ -726,7 +735,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   exerciseTabCompleted: {
-    borderColor: theme.colors.success,
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderColor: 'rgba(34, 197, 94, 0.35)',
   },
   exerciseTabText: {
     color: theme.colors.textSecondary,

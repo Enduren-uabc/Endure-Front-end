@@ -1,157 +1,11 @@
-import React from 'react';
-import { Animated, Pressable, StyleSheet, Text, TextInput as RNTextInput, TouchableOpacity, View } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
-import { Check, Plus, Trash2 } from 'lucide-react-native';
-import { BaseCard } from '@/components/ui/BaseCard';
+import React, { useRef } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Plus } from 'lucide-react-native';
 import { TextInput } from '@/components/ui/TextInput';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { WorkoutSet, WorkoutExerciseTargetSet } from '../types/workout-session';
-
-interface SwipeableSetRowProps {
-  set: WorkoutSet;
-  target: { reps: number; weight: number };
-  localValues: Record<number, { reps: string; weight: string }>;
-  handleUpdateLocalValue: (setNumber: number, field: 'reps' | 'weight', val: string) => void;
-  handleQuickComplete: (set: WorkoutSet) => void;
-  onRemoveSet: (args: { sessionId: string; exerciseIndex: number; setNumber: number }) => void;
-  sessionId: string;
-  exerciseIndex: number;
-  isPending: boolean;
-}
-
-function SwipeableSetRow({
-  set,
-  target,
-  localValues,
-  handleUpdateLocalValue,
-  handleQuickComplete,
-  onRemoveSet,
-  sessionId,
-  exerciseIndex,
-  isPending,
-}: SwipeableSetRowProps) {
-  const swipeableRef = React.useRef<Swipeable>(null);
-
-  const renderRightActions = (
-    _progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>
-  ) => {
-    const scale = dragX.interpolate({
-      inputRange: [-62, 0],
-      outputRange: [1, 0],
-      extrapolate: 'clamp',
-    });
-
-    return (
-      <TouchableOpacity
-        style={styles.deleteButton}
-        activeOpacity={0.8}
-        onPress={() => {
-          swipeableRef.current?.close();
-          onRemoveSet({
-            sessionId,
-            exerciseIndex,
-            setNumber: set.setNumber,
-          });
-        }}
-      >
-        <Animated.View style={{ transform: [{ scale }] }}>
-          <Trash2 size={16} color={theme.colors.background} />
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
-
-  const rowContent = (
-    <View style={[styles.setRow, set.completed && styles.setRowCompleted]}>
-      <Pressable
-        style={[
-          styles.checkbox,
-          set.completed && styles.checkboxDone,
-        ]}
-        onPress={() => handleQuickComplete(set)}
-        disabled={isPending || set.completed}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel={`Completar serie ${set.setNumber}`}
-      >
-        {set.completed ? (
-          <Check size={14} color={theme.colors.background} />
-        ) : null}
-      </Pressable>
-
-      <View style={styles.setInfoInline}>
-        <Text style={[styles.setNumber, set.completed && styles.setNumberMuted]}>
-          Serie {set.setNumber}
-        </Text>
-        <Text style={styles.setTargetInline}>
-          Obj: {target.reps}×{target.weight}kg
-        </Text>
-      </View>
-
-      <View style={styles.inlineInputsContainer}>
-        {set.completed ? (
-          <View style={styles.completedValuesContainer}>
-            <Text style={styles.valueDone}>
-              {set.repsPerformed ?? target.reps} reps
-            </Text>
-            <Text style={styles.valueDot}>·</Text>
-            <Text style={styles.valueDone}>
-              {set.weightUsed ?? target.weight} kg
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.inputsRow}>
-            <View style={styles.inputWrapper}>
-              <RNTextInput
-                style={styles.inlineInput}
-                value={localValues[set.setNumber]?.weight ?? ''}
-                onChangeText={(val) => handleUpdateLocalValue(set.setNumber, 'weight', val)}
-                keyboardType="numeric"
-                inputMode="decimal"
-                placeholder={String(target.weight)}
-                placeholderTextColor={theme.colors.textMuted}
-                editable={!isPending}
-              />
-              <Text style={styles.inputSuffix}>kg</Text>
-            </View>
-
-            <View style={styles.inputWrapper}>
-              <RNTextInput
-                style={styles.inlineInput}
-                value={localValues[set.setNumber]?.reps ?? ''}
-                onChangeText={(val) => handleUpdateLocalValue(set.setNumber, 'reps', val)}
-                keyboardType="numeric"
-                inputMode="numeric"
-                placeholder={String(target.reps)}
-                placeholderTextColor={theme.colors.textMuted}
-                editable={!isPending}
-              />
-              <Text style={styles.inputSuffix}>reps</Text>
-            </View>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-
-  if (set.completed) {
-    return rowContent;
-  }
-
-  return (
-    <Swipeable
-      ref={swipeableRef}
-      friction={2}
-      rightThreshold={30}
-      renderRightActions={renderRightActions}
-      containerStyle={styles.swipeContainer}
-    >
-      {rowContent}
-    </Swipeable>
-  );
-}
+import { SwipeableSetRow } from './SwipeableSetRow';
 
 interface ExerciseSetListProps {
   workoutSets: WorkoutSet[];
@@ -168,7 +22,7 @@ interface ExerciseSetListProps {
     sessionId: string;
     exerciseIndex: number;
     setNumber: number;
-  }) => void;
+  }) => Promise<void>;
   onAddSet: (args: {
     sessionId: string;
     exerciseIndex: number;
@@ -204,8 +58,15 @@ export function ExerciseSetList({
   const [addReps, setAddReps] = React.useState(String(suggestedReps));
   const [addWeight, setAddWeight] = React.useState(String(suggestedWeight));
 
+  const pendingExpectedRef = useRef<Map<number, boolean>>(new Map());
+  const [, forceRender] = React.useReducer((x: number) => x + 1, 0);
+
   const allSets = [...workoutSets].sort((a, b) => a.setNumber - b.setNumber);
-  const completedCount = allSets.filter((s) => s.completed).length;
+  const completedCount = allSets.filter((s) => {
+    const expected = pendingExpectedRef.current.get(s.setNumber);
+    if (expected !== undefined) return expected;
+    return s.completed;
+  }).length;
 
   function getTarget(setNumber: number) {
     const target = targetSets.find((t) => t.setNumber === setNumber);
@@ -247,26 +108,20 @@ export function ExerciseSetList({
     }));
   }
 
-  function handleQuickComplete(set: WorkoutSet) {
-    if (set.completed) return;
-    const target = getTarget(set.setNumber);
-    const local = localValues[set.setNumber];
-    
-    const repsVal = local && local.reps !== '' 
-      ? Number(local.reps) 
-      : (set.repsPerformed !== null && set.repsPerformed !== undefined ? set.repsPerformed : (suggestedReps || target.reps || 10));
-      
-    const weightVal = local && local.weight !== '' 
-      ? Number(local.weight) 
-      : (set.weightUsed !== null && set.weightUsed !== undefined ? set.weightUsed : (suggestedWeight !== null && suggestedWeight !== undefined ? suggestedWeight : target.weight));
-
-    onRegisterSet({
-      sessionId,
-      exerciseIndex,
-      setNumber: set.setNumber,
-      repsPerformed: repsVal,
-      weightUsed: weightVal,
-    });
+  async function handleQuickComplete(set: WorkoutSet) {
+    if (pendingExpectedRef.current.has(set.setNumber)) return;
+    pendingExpectedRef.current.set(set.setNumber, !set.completed);
+    forceRender();
+    try {
+      await onCompleteSet({
+        sessionId,
+        exerciseIndex,
+        setNumber: set.setNumber,
+      });
+    } catch {
+      pendingExpectedRef.current.delete(set.setNumber);
+      forceRender();
+    }
   }
 
   function handleAddSet() {
@@ -279,94 +134,112 @@ export function ExerciseSetList({
   }
 
   return (
-    <BaseCard style={styles.card}>
+    <View style={styles.flatContainer}>
       <View style={styles.header}>
         <Text style={styles.title}>Series</Text>
         <Text style={styles.count}>{completedCount}/{allSets.length}</Text>
       </View>
+      
+      <View style={styles.setsListWrapper}>
+        {allSets.map((set) => {
+          const target = getTarget(set.setNumber);
+          const expected = pendingExpectedRef.current.get(set.setNumber);
+          let displaySet = set;
+          if (expected !== undefined) {
+            if (set.completed !== expected) {
+              displaySet = { ...set, completed: expected };
+            } else {
+              pendingExpectedRef.current.delete(set.setNumber);
+            }
+          }
 
-      {allSets.map((set) => {
-        const target = getTarget(set.setNumber);
-
-        return (
-          <SwipeableSetRow
-            key={set.setNumber}
-            set={set}
-            target={target}
-            localValues={localValues}
-            handleUpdateLocalValue={handleUpdateLocalValue}
-            handleQuickComplete={handleQuickComplete}
-            onRemoveSet={onRemoveSet}
-            sessionId={sessionId}
-            exerciseIndex={exerciseIndex}
-            isPending={isPending}
-          />
-        );
-      })}
-
-      {showAddForm && (
-        <View style={styles.addForm}>
-          <View style={styles.addInputs}>
-            <TextInput
-              label="Reps"
-              value={addReps}
-              onChangeText={setAddReps}
-              keyboardType="numeric"
-              inputMode="numeric"
-              placeholder={String(suggestedReps)}
+          return (
+            <SwipeableSetRow
+              key={set.setNumber}
+              set={displaySet}
+              target={target}
+              localValues={localValues}
+              handleUpdateLocalValue={handleUpdateLocalValue}
+              handleQuickComplete={handleQuickComplete}
+              onRemoveSet={onRemoveSet}
+              sessionId={sessionId}
+              exerciseIndex={exerciseIndex}
+              isPending={isPending}
             />
-            <TextInput
-              label="Peso (kg)"
-              value={addWeight}
-              onChangeText={setAddWeight}
-              keyboardType="numeric"
-              inputMode="decimal"
-              placeholder={String(suggestedWeight)}
-            />
+          );
+        })}
+
+        {showAddForm && (
+          <View style={styles.addForm}>
+            <View style={styles.addInputs}>
+              <TextInput
+                label="Reps"
+                value={addReps}
+                onChangeText={setAddReps}
+                keyboardType="numeric"
+                inputMode="numeric"
+                placeholder={String(suggestedReps)}
+              />
+              <TextInput
+                label="Peso (kg)"
+                value={addWeight}
+                onChangeText={setAddWeight}
+                keyboardType="numeric"
+                inputMode="decimal"
+                placeholder={String(suggestedWeight)}
+              />
+            </View>
+            <View style={styles.editActions}>
+              <SecondaryButton
+                label="Cancelar"
+                onPress={() => setShowAddForm(false)}
+                style={styles.editBtn}
+              />
+              <SecondaryButton
+                label="Agregar"
+                onPress={handleAddSet}
+                disabled={isPending}
+                style={styles.editBtn}
+              />
+            </View>
           </View>
-          <View style={styles.editActions}>
-            <SecondaryButton
-              label="Cancelar"
-              onPress={() => setShowAddForm(false)}
-              style={styles.editBtn}
-            />
-            <SecondaryButton
-              label="Agregar"
-              onPress={handleAddSet}
-              disabled={isPending}
-              style={styles.editBtn}
-            />
-          </View>
-        </View>
-      )}
+        )}
 
-      <Pressable
-        style={styles.addButton}
-        onPress={() => {
-          setAddReps(String(suggestedReps));
-          setAddWeight(String(suggestedWeight));
-          setShowAddForm(true);
-        }}
-      >
-        <Plus size={16} color={theme.colors.primary} />
-        <Text style={styles.addButtonText}>Agregar serie</Text>
-      </Pressable>
-    </BaseCard>
+        <Pressable
+          style={styles.addButton}
+          onPress={() => {
+            setAddReps(String(suggestedReps));
+            setAddWeight(String(suggestedWeight));
+            setShowAddForm(true);
+          }}
+        >
+          <Plus size={16} color={theme.colors.primary} />
+          <Text style={styles.addButtonText}>Agregar serie</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: 0,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    overflow: 'hidden',
+  flatContainer: {
+    marginHorizontal: -20,
+    backgroundColor: '#000000',
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  setsListWrapper: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderSoft,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderSoft,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 20,
     paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderSoft,
@@ -393,17 +266,6 @@ const styles = StyleSheet.create({
   },
   setRowCompleted: {
     opacity: 0.65,
-  },
-  swipeContainer: {
-    backgroundColor: '#0E0E10',
-    overflow: 'hidden',
-  },
-  deleteButton: {
-    backgroundColor: theme.colors.error,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 62,
-    height: '100%',
   },
   setInfoInline: {
     flexDirection: 'column',
@@ -526,7 +388,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   editForm: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 20,
     paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.surfaceElevated,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -545,7 +407,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   addForm: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 20,
     paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.surfaceElevated,
     gap: theme.spacing.md,
