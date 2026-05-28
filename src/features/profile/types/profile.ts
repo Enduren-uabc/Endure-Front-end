@@ -61,6 +61,7 @@ export interface TrainerProfessionalProfile {
 export interface EditableProfileInput {
   displayName: string;
   bio: string;
+  handle?: string;
 }
 
 export function mapTrainerApplicationStatus(

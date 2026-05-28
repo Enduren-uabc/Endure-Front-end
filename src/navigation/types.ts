@@ -22,6 +22,7 @@ export type OnboardingStackParamList = {
   Goal: undefined;
   BasicData: undefined;
   Level: undefined;
+  SocialSetup: undefined;
   Summary: undefined;
 };
 
@@ -39,7 +40,6 @@ export type WorkoutStackParamList = {
 
 export type SocialStackParamList = {
   SocialFeed: undefined;
-  OwnProfile: undefined;
   PublicProfile: { userId: string };
   PostDetail: { postId: string; title?: string; content?: string; authorUserId?: string; workoutSessionId?: string; exerciseSummary?: ExerciseSummary };
 };
@@ -47,7 +47,6 @@ export type SocialStackParamList = {
 export type TrainingStackParamList = {
   RoutinesList: undefined;
   RoutineDetail: { id: string };
-  RoutineEdit: { id: string };
   RoutineBuilder: { id: string };
   ExerciseCatalog: { routineId?: string; selectedDay?: string } | undefined;
   ExerciseDetail: { routineId: string; exercise: ExerciseConfig; selectedDay?: string };

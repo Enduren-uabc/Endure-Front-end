@@ -9,6 +9,8 @@ import {
   useCreateOnboardingProfile,
   type OnboardingProfileBody,
 } from '@/features/onboarding/hooks/use-onboarding';
+import { OnboardingStepIndicator } from '@/features/onboarding/components/OnboardingStepIndicator';
+import { useFlowConfig } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
@@ -38,6 +40,8 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Summary'>;
 export default function OnboardingSummaryScreen({ navigation }: Props) {
   const draft = useOnboardingStore();
   const mutation = useCreateOnboardingProfile();
+  const { data: flowConfig } = useFlowConfig();
+  const showSocial = flowConfig?.powerspike === true;
 
   const missingBlocks = [
     !draft.mainGoal ? 'Objetivo' : null,
@@ -76,7 +80,7 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.step}>Paso 4 de 4</Text>
+          <OnboardingStepIndicator currentStep={showSocial ? 5 : 4} showSocial={showSocial} />
           <Text style={styles.title}>Resumen</Text>
           <Text style={styles.subtitle}>
             Confirma tu perfil inicial antes de entrar a Endure.
@@ -219,13 +223,6 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: theme.spacing.sm,
-  },
-  step: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '700',
-    textTransform: 'uppercase',
   },
   title: {
     color: theme.colors.textPrimary,

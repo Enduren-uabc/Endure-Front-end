@@ -30,6 +30,8 @@ interface PostCardProps {
   canDelete?: boolean;
 }
 
+const MAX_COMMENT_PREVIEW = 2;
+
 export function PostCard({
   publication,
   onOpenPost,
@@ -57,9 +59,11 @@ export function PostCard({
   const hasMedia = mediaItems.length > 0;
   const hasSummary = !!publication.exerciseSummary;
 
+  const previewComments = publication.recentComments.slice(0, MAX_COMMENT_PREVIEW);
+  const remainingComments = publication.commentCount - previewComments.length;
+
   return (
     <View style={styles.card}>
-      {/* 1. Header estilo Instagram */}
       <PostHeader
         displayName={publication.authorDisplayName}
         avatarUrl={publication.authorAvatarUrl}
@@ -67,7 +71,6 @@ export function PostCard({
         onOpenProfile={() => onOpenProfile(publication.authorUserId)}
       />
 
-      {/* 2. Media / Workout Summary Carrusel */}
       <View style={styles.mediaContainer}>
         <ScrollView
           horizontal
@@ -75,7 +78,6 @@ export function PostCard({
           showsHorizontalScrollIndicator={false}
           style={styles.carousel}
         >
-          {/* Si tiene resumen, mostrarlo como la primera "foto" si no hay fotos, o como parte del carrusel */}
           {hasSummary && (
             <Pressable onPress={() => onOpenPost(publication)}>
               <WorkoutSummaryGraphic summary={publication.exerciseSummary!} />
@@ -102,7 +104,6 @@ export function PostCard({
         ) : null}
       </View>
 
-      {/* 3. Actions Row */}
       <View style={styles.actionsContainer}>
         <View style={styles.leftActions}>
           <Pressable
@@ -146,24 +147,46 @@ export function PostCard({
         )}
       </View>
 
-      {/* 4. Caption Area */}
+      {publication.reactionCount > 0 ? (
+        <View style={styles.likesContainer}>
+          <Text style={styles.likesText}>
+            <Text style={styles.likesHighlight}>{publication.recentReactorNames[0]}</Text>
+            {publication.reactionCount === 1
+              ? ` le gusta esto`
+              : publication.recentReactorNames.length === 2 && publication.reactionCount === 2
+                ? ` y ${publication.recentReactorNames[1]} le gusta esto`
+                : ` y ${publication.reactionCount - 1} personas más le gusta esto`}
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.captionContainer}>
-        {publication.title ? (
-          <Text style={styles.titleText}>{publication.title}</Text>
-        ) : null}
-        
         {publication.content ? (
           <Text style={styles.contentText} numberOfLines={3}>
-            <Text style={styles.authorBold}>
-              {publication.authorDisplayName || 'usuario'}{' '}
-            </Text>
             {publication.content}
           </Text>
         ) : null}
-        
-        <Pressable onPress={() => onOpenPost(publication)}>
-          <Text style={styles.viewComments}>Ver comentarios...</Text>
-        </Pressable>
+
+        {previewComments.map((comment) => (
+          <View key={comment.id} style={styles.commentPreviewRow}>
+            <Text style={styles.commentPreviewAuthor}>
+              {comment.authorDisplayName ?? `@${comment.authorUserId.slice(0, 8)}`}
+            </Text>
+            <Text style={styles.commentPreviewContent} numberOfLines={1}>
+              {comment.content}
+            </Text>
+          </View>
+        ))}
+
+        {publication.commentCount > 0 ? (
+          <Pressable onPress={() => onOpenPost(publication)}>
+            <Text style={styles.viewComments}>
+              {remainingComments > 0
+                ? `Ver los ${publication.commentCount} comentarios`
+                : 'Ver comentarios...'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.separator} />
@@ -186,7 +209,7 @@ const styles = StyleSheet.create({
   },
   mediaImage: {
     width: width,
-    height: width, // 1:1 Aspect Ratio
+    height: width,
     backgroundColor: theme.colors.surfaceElevated,
   },
   paginationTag: {
@@ -222,15 +245,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingBottom: theme.spacing.sm,
   },
-  titleText: {
-    color: theme.colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 4,
+  likesContainer: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.xs,
+    paddingBottom: 2,
   },
-  authorBold: {
-    fontWeight: '800',
+  likesText: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  likesHighlight: {
     color: theme.colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  commentPreviewRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    marginTop: 4,
+  },
+  commentPreviewAuthor: {
+    color: theme.colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    flexShrink: 0,
+  },
+  commentPreviewContent: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    flex: 1,
   },
   contentText: {
     color: theme.colors.textPrimary,

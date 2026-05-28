@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Pause, Play, TimerReset, X, Zap } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
@@ -68,10 +68,26 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
   const strategy = strategies?.find((s) => s.key === strategyKey) ?? null;
 
   const [showExitConfirm, setShowExitConfirm] = React.useState(false);
+  const [showTransitionCard, setShowTransitionCard] = React.useState(false);
+  const [hasDeclinedTransition, setHasDeclinedTransition] = React.useState(false);
   const [restTimeLeft, setRestTimeLeft] = React.useState(0);
   const restTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const currentExerciseIdx = session?.currentExerciseIndex ?? 0;
+  const [selectedExerciseIdx, setSelectedExerciseIdx] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (session && selectedExerciseIdx === null) {
+      setSelectedExerciseIdx(session.currentExerciseIndex ?? 0);
+    }
+  }, [session]);
+
+  React.useEffect(() => {
+    if (session) {
+      setSelectedExerciseIdx(session.currentExerciseIndex ?? 0);
+    }
+  }, [session?.currentExerciseIndex]);
+
+  const currentExerciseIdx = selectedExerciseIdx ?? session?.currentExerciseIndex ?? 0;
   const currentExercise = session?.exercises?.[currentExerciseIdx];
   const allWorkoutSets = currentExercise?.workoutSets ?? [];
   const completedCount = allWorkoutSets.filter((s) => s.completed).length;
@@ -135,6 +151,11 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
   React.useEffect(() => {
     if (allCompleted) {
       startRestTimer();
+      setHasDeclinedTransition(false);
+      setShowTransitionCard(true);
+    } else {
+      setShowTransitionCard(false);
+      setHasDeclinedTransition(false);
     }
     return () => {
       if (restTimerRef.current) clearInterval(restTimerRef.current);
@@ -170,22 +191,31 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
     });
   }, [session, discardSession, navigation]);
 
-  const handleRegisterSet = React.useCallback((args: {
+  const handleRegisterSet = React.useCallback(async (args: {
     sessionId: string;
     exerciseIndex: number;
     setNumber: number;
     repsPerformed: number;
     weightUsed: number;
   }) => {
-    registerSet.mutate(args);
+    try {
+      await registerSet.mutateAsync(args);
+    } catch (err) {
+      console.error('Error al registrar set:', err);
+    }
   }, [registerSet]);
 
-  const handleCompleteSet = React.useCallback((args: {
+  const handleCompleteSet = React.useCallback(async (args: {
     sessionId: string;
     exerciseIndex: number;
     setNumber: number;
   }) => {
-    completeSet.mutate(args);
+    try {
+      await completeSet.mutateAsync(args);
+    } catch (err) {
+      console.error('Error al completar/descompletar set:', err);
+      throw err;
+    }
   }, [completeSet]);
 
   const handleAddSet = React.useCallback((args: {
@@ -245,25 +275,10 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
       footer={
         <View style={styles.footerActions}>
           <SecondaryButton
-            label="Salir"
+            label="Salir de la sesión"
             onPress={() => setShowExitConfirm(true)}
-            style={styles.footerButton}
+            style={styles.centeredFooterButton}
           />
-          {allCompleted && !isLastExercise ? (
-            <PrimaryButton
-              label="Siguiente ejercicio"
-              onPress={handleAdvance}
-              loading={advanceExercise.isPending}
-              style={styles.footerButton}
-            />
-          ) : allCompleted && isLastExercise ? (
-            <PrimaryButton
-              label="Finalizar sesion"
-              onPress={handleFinish}
-              loading={finishSessionMut.isPending}
-              style={styles.footerButton}
-            />
-          ) : null}
         </View>
       }
     >
@@ -292,6 +307,44 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
           <X size={20} color={theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
+
+      {session.exercises && session.exercises.length > 1 && (
+        <View style={styles.exerciseTabsWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exerciseTabsRow}
+          >
+            {session.exercises.map((ex, idx) => {
+              const isActive = currentExerciseIdx === idx;
+              const isExCompleted = ex.workoutSets?.every((s) => s.completed) && ex.workoutSets.length > 0;
+              
+              return (
+                <TouchableOpacity
+                  key={ex.exerciseId || String(idx)}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setSelectedExerciseIdx(idx);
+                  }}
+                  style={[
+                    styles.exerciseTab,
+                    isActive && styles.exerciseTabActive,
+                    isExCompleted && styles.exerciseTabCompleted
+                  ]}
+                >
+                  <Text style={[
+                    styles.exerciseTabText,
+                    isActive && styles.exerciseTabTextActive,
+                    isExCompleted && styles.exerciseTabTextCompleted
+                  ]}>
+                    {ex.exerciseName} {isExCompleted ? '✓' : ''}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {currentExercise ? (
         <BaseCard style={styles.exerciseCard}>
@@ -330,6 +383,57 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
           suggestedWeight={suggestedWeight}
         />
       ) : null}
+
+      {allCompleted && showTransitionCard && (
+        <BaseCard style={styles.transitionCard}>
+          <View style={styles.transitionHeader}>
+            <View style={styles.transitionBadge}>
+              <Zap size={16} color={theme.colors.primary} />
+              <Text style={styles.transitionBadgeText}>¡Ejercicio Completado!</Text>
+            </View>
+          </View>
+          
+          <Text style={styles.transitionTitle}>
+            {isLastExercise 
+              ? "¿Listo para finalizar tu entrenamiento?" 
+              : "¿Deseas avanzar al siguiente ejercicio?"}
+          </Text>
+          
+          {!isLastExercise && session.exercises && session.exercises[currentExerciseIdx + 1] && (
+            <Text style={styles.transitionSubtitle}>
+              Próximo: {session.exercises[currentExerciseIdx + 1].exerciseName}
+            </Text>
+          )}
+
+          <View style={styles.transitionActions}>
+            <SecondaryButton
+              label="Quedarme aquí"
+              onPress={() => {
+                setHasDeclinedTransition(true);
+                setShowTransitionCard(false);
+              }}
+              style={styles.transitionSecondaryBtn}
+            />
+            <PrimaryButton
+              label={isLastExercise ? "Finalizar" : "Avanzar"}
+              onPress={isLastExercise ? handleFinish : handleAdvance}
+              loading={isLastExercise ? finishSessionMut.isPending : advanceExercise.isPending}
+              style={styles.transitionPrimaryBtn}
+            />
+          </View>
+        </BaseCard>
+      )}
+
+      {allCompleted && hasDeclinedTransition && (
+        <View style={styles.declinedTransitionContainer}>
+          <PrimaryButton
+            label={isLastExercise ? "Finalizar entrenamiento" : "Siguiente ejercicio"}
+            onPress={isLastExercise ? handleFinish : handleAdvance}
+            loading={isLastExercise ? finishSessionMut.isPending : advanceExercise.isPending}
+            style={styles.declinedTransitionButton}
+          />
+        </View>
+      )}
 
       {allCompleted && restTimeLeft > 0 && (
         <BaseCard style={styles.restCard}>
@@ -537,8 +641,112 @@ const styles = StyleSheet.create({
   footerActions: {
     flexDirection: 'row',
     gap: theme.spacing.md,
+    justifyContent: 'center',
+    width: '100%',
   },
   footerButton: {
     flex: 1,
+  },
+  centeredFooterButton: {
+    flex: 1,
+    maxWidth: 240,
+  },
+  transitionCard: {
+    backgroundColor: '#0F0F12',
+    borderColor: theme.colors.primary,
+    borderWidth: 1,
+    padding: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    gap: theme.spacing.md,
+  },
+  transitionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  transitionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.primaryMuted,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  transitionBadgeText: {
+    color: theme.colors.primary,
+    fontSize: theme.typography.caption.fontSize,
+    lineHeight: theme.typography.caption.lineHeight,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  transitionTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.heading3.fontSize,
+    lineHeight: theme.typography.heading3.lineHeight,
+    fontWeight: '800',
+  },
+  transitionSubtitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+  },
+  transitionActions: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+  },
+  transitionPrimaryBtn: {
+    flex: 1,
+  },
+  transitionSecondaryBtn: {
+    flex: 1,
+  },
+  declinedTransitionContainer: {
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xs,
+  },
+  declinedTransitionButton: {
+    width: '100%',
+  },
+  exerciseTabsWrapper: {
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+  },
+  exerciseTabsRow: {
+    paddingHorizontal: theme.spacing.sm,
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+    height: 48,
+  },
+  exerciseTab: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSoft,
+  },
+  exerciseTabActive: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
+  },
+  exerciseTabCompleted: {
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderColor: 'rgba(34, 197, 94, 0.35)',
+  },
+  exerciseTabText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    fontWeight: '700',
+  },
+  exerciseTabTextActive: {
+    color: theme.colors.primary,
+  },
+  exerciseTabTextCompleted: {
+    color: theme.colors.success,
   },
 });

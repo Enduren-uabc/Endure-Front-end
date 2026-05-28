@@ -108,13 +108,53 @@ export class ApiError extends Error {
   }
 }
 
-function getUserMessage(status: number, serverMessage?: string): string {
+const USER_SAFE_CODES = [
+  'BAD_REQUEST',
+  'VALIDATION_ERROR',
+  'CONFLICT',
+  'EMAIL_ALREADY_EXISTS',
+  'USERNAME_TAKEN',
+  'INVALID_CREDENTIALS',
+  'USER_EMAIL_ALREADY_EXISTS',
+  'USER_USERNAME_ALREADY_EXISTS',
+  'USER_NOT_FOUND',
+  'USER_INVALID_PASSWORD',
+  'USER_WEAK_PASSWORD',
+  'USER_ACCOUNT_LOCKED',
+  'ACCOUNT_LOCKED',
+  'RATE_LIMITED',
+  'PROFILE_NOT_FOUND',
+  'PROFILE_ALREADY_EXISTS',
+  'PROFILE_HANDLE_ALREADY_EXISTS',
+  'ROUTINE_NOT_FOUND',
+  'SESSION_NOT_FOUND',
+  'STRATEGY_NOT_FOUND',
+  'PUBLICATION_NOT_FOUND',
+  'REMINDER_NOT_FOUND',
+  'LINK_REQUEST_NOT_FOUND',
+  'LINK_NOT_FOUND',
+  'TRAINER_NOT_FOUND',
+  'VERIFICATION_NOT_FOUND',
+];
+
+function isSafeCode(code: string): boolean {
+  return USER_SAFE_CODES.includes(code);
+}
+
+function securitySensitive(code: string): boolean {
+  return code === 'UNAUTHORIZED' || code === 'FORBIDDEN' || code === 'INTERNAL_ERROR';
+}
+
+function getUserMessage(status: number, code: string, serverMessage?: string): string {
+  if (code && isSafeCode(code) && serverMessage) {
+    return serverMessage;
+  }
   if (status === 0) return 'Revisa tu conexión a internet e intenta de nuevo.';
   if (status === 400) return serverMessage || 'Revisa los datos ingresados.';
   if (status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente.';
   if (status === 403) return 'No tienes permisos para realizar esta acción.';
   if (status === 404) return 'No encontramos lo que buscas.';
-  if (status === 409) return 'Ya existe un recurso con esos datos.';
+  if (status === 409) return serverMessage || 'Ya existe un recurso con esos datos.';
   if (status === 422) return serverMessage || 'Algunos datos no son válidos. Revísalos e intenta de nuevo.';
   if (status === 423 || status === 429) return serverMessage || 'Demasiados intentos. Intenta de nuevo más tarde.';
   return 'Tuvimos un problema. Intenta de nuevo en un momento.';
@@ -124,12 +164,12 @@ function handleError(error: unknown): never {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 0;
     const data = error.response?.data as Record<string, unknown> | undefined;
-    const serverMessage = typeof data?.message === 'string' ? data.message : undefined;
     const code = typeof data?.code === 'string' ? data.code : 'API_ERROR';
+    const serverMessage = typeof data?.message === 'string' ? data.message : undefined;
     const remainingLockSeconds = typeof data?.remainingLockSeconds === 'number' ? data.remainingLockSeconds : undefined;
-    throw new ApiError(status, getUserMessage(status, serverMessage), code, remainingLockSeconds);
+    throw new ApiError(status, getUserMessage(status, code, serverMessage), code, remainingLockSeconds);
   }
-  throw new ApiError(0, getUserMessage(0));
+  throw new ApiError(0, getUserMessage(0, 'API_ERROR'));
 }
 
 export const apiClient = {

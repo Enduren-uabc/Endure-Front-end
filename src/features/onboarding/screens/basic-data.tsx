@@ -22,6 +22,8 @@ import {
   type OnboardingBasicDataFormData,
 } from '@/features/onboarding/validations/onboarding';
 import { useOnboardingStore } from '@/features/onboarding/stores/onboarding-store';
+import { OnboardingStepIndicator } from '@/features/onboarding/components/OnboardingStepIndicator';
+import { useFlowConfig } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { TextInput } from '@/components/ui/TextInput';
@@ -51,6 +53,8 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
   const [showPicker, setShowPicker] = React.useState(false);
   const [pickerDate, setPickerDate] = React.useState(new Date());
   const draft = useOnboardingStore();
+  const { data: flowConfig } = useFlowConfig();
+  const showSocial = flowConfig?.powerspike === true;
 
   const {
     control,
@@ -111,17 +115,7 @@ export default function OnboardingBasicDataScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <View style={styles.stepRow}>
-              <View style={styles.stepPill}>
-                <Text style={styles.stepText}>Paso 2 de 4</Text>
-              </View>
-              <View style={styles.progressRow}>
-                <View style={[styles.progressDot, styles.progressActive]} />
-                <View style={[styles.progressDot, styles.progressActive]} />
-                <View style={styles.progressDot} />
-                <View style={styles.progressDot} />
-              </View>
-            </View>
+            <OnboardingStepIndicator currentStep={2} showSocial={showSocial} />
             <Text style={styles.title}>Datos basicos</Text>
             <Text style={styles.subtitle}>
               Estos datos ayudan a ajustar las rutinas a tu perfil.
@@ -311,40 +305,6 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: theme.spacing.sm,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  stepPill: {
-    backgroundColor: theme.colors.primaryMuted,
-    borderColor: theme.colors.primary,
-    borderWidth: 1,
-    borderRadius: theme.radius.full,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-  },
-  stepText: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-  },
-  progressDot: {
-    width: 18,
-    height: 4,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.colors.border,
-  },
-  progressActive: {
-    backgroundColor: theme.colors.primary,
   },
   title: {
     color: theme.colors.textPrimary,

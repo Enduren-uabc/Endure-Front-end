@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Check, Circle, Plus, Trash2 } from 'lucide-react-native';
-import { BaseCard } from '@/components/ui/BaseCard';
+import { Plus } from 'lucide-react-native';
 import { TextInput } from '@/components/ui/TextInput';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { WorkoutSet, WorkoutExerciseTargetSet } from '../types/workout-session';
+import { SwipeableSetRow } from './SwipeableSetRow';
 
 interface ExerciseSetListProps {
   workoutSets: WorkoutSet[];
@@ -22,7 +22,7 @@ interface ExerciseSetListProps {
     sessionId: string;
     exerciseIndex: number;
     setNumber: number;
-  }) => void;
+  }) => Promise<void>;
   onAddSet: (args: {
     sessionId: string;
     exerciseIndex: number;
@@ -53,15 +53,20 @@ export function ExerciseSetList({
   suggestedReps,
   suggestedWeight,
 }: ExerciseSetListProps) {
-  const [editingSet, setEditingSet] = React.useState<number | null>(null);
-  const [editReps, setEditReps] = React.useState('');
-  const [editWeight, setEditWeight] = React.useState('');
+  const [localValues, setLocalValues] = React.useState<Record<number, { reps: string; weight: string }>>({});
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [addReps, setAddReps] = React.useState(String(suggestedReps));
   const [addWeight, setAddWeight] = React.useState(String(suggestedWeight));
 
+  const pendingExpectedRef = useRef<Map<number, boolean>>(new Map());
+  const [, forceRender] = React.useReducer((x: number) => x + 1, 0);
+
   const allSets = [...workoutSets].sort((a, b) => a.setNumber - b.setNumber);
-  const completedCount = allSets.filter((s) => s.completed).length;
+  const completedCount = allSets.filter((s) => {
+    const expected = pendingExpectedRef.current.get(s.setNumber);
+    if (expected !== undefined) return expected;
+    return s.completed;
+  }).length;
 
   function getTarget(setNumber: number) {
     const target = targetSets.find((t) => t.setNumber === setNumber);
@@ -71,39 +76,52 @@ export function ExerciseSetList({
     return { reps: 10, weight: 0 };
   }
 
-  function handleTapSet(set: WorkoutSet) {
-    if (set.completed) return;
-    setEditingSet(set.setNumber);
-    setEditReps(String(set.repsPerformed ?? suggestedReps));
-    setEditWeight(String(set.weightUsed ?? suggestedWeight));
+  React.useEffect(() => {
+    const values: Record<number, { reps: string; weight: string }> = {};
+    workoutSets.forEach((set) => {
+      const target = getTarget(set.setNumber);
+      values[set.setNumber] = {
+        reps: String(set.repsPerformed !== null && set.repsPerformed !== undefined ? set.repsPerformed : (suggestedReps || target.reps || 10)),
+        weight: String(set.weightUsed !== null && set.weightUsed !== undefined ? set.weightUsed : (suggestedWeight !== null && suggestedWeight !== undefined ? suggestedWeight : target.weight)),
+      };
+    });
+    setLocalValues((prev) => {
+      const merged = { ...values };
+      Object.keys(prev).forEach((key) => {
+        const numKey = Number(key);
+        const isCompleted = workoutSets.find((s) => s.setNumber === numKey)?.completed;
+        if (!isCompleted) {
+          merged[numKey] = prev[numKey];
+        }
+      });
+      return merged;
+    });
+  }, [workoutSets, suggestedReps, suggestedWeight]);
+
+  function handleUpdateLocalValue(setNumber: number, field: 'reps' | 'weight', val: string) {
+    setLocalValues((prev) => ({
+      ...prev,
+      [setNumber]: {
+        ...prev[setNumber],
+        [field]: val,
+      },
+    }));
   }
 
-  function handleSaveEdit() {
-    if (editingSet === null) return;
-    const reps = Number(editReps);
-    const weight = Number(editWeight);
-    if (reps <= 0 || weight < 0) return;
-    onRegisterSet({
-      sessionId,
-      exerciseIndex,
-      setNumber: editingSet,
-      repsPerformed: reps,
-      weightUsed: weight,
-    });
-    setEditingSet(null);
-  }
-
-  function handleQuickComplete(set: WorkoutSet) {
-    if (set.completed) return;
-    const reps = set.repsPerformed ?? suggestedReps;
-    const weight = set.weightUsed ?? suggestedWeight;
-    onRegisterSet({
-      sessionId,
-      exerciseIndex,
-      setNumber: set.setNumber,
-      repsPerformed: reps,
-      weightUsed: weight,
-    });
+  async function handleQuickComplete(set: WorkoutSet) {
+    if (pendingExpectedRef.current.has(set.setNumber)) return;
+    pendingExpectedRef.current.set(set.setNumber, !set.completed);
+    forceRender();
+    try {
+      await onCompleteSet({
+        sessionId,
+        exerciseIndex,
+        setNumber: set.setNumber,
+      });
+    } catch {
+      pendingExpectedRef.current.delete(set.setNumber);
+      forceRender();
+    }
   }
 
   function handleAddSet() {
@@ -116,185 +134,112 @@ export function ExerciseSetList({
   }
 
   return (
-    <BaseCard style={styles.card}>
+    <View style={styles.flatContainer}>
       <View style={styles.header}>
         <Text style={styles.title}>Series</Text>
         <Text style={styles.count}>{completedCount}/{allSets.length}</Text>
       </View>
+      
+      <View style={styles.setsListWrapper}>
+        {allSets.map((set) => {
+          const target = getTarget(set.setNumber);
+          const expected = pendingExpectedRef.current.get(set.setNumber);
+          let displaySet = set;
+          if (expected !== undefined) {
+            if (set.completed !== expected) {
+              displaySet = { ...set, completed: expected };
+            } else {
+              pendingExpectedRef.current.delete(set.setNumber);
+            }
+          }
 
-      {allSets.map((set) => {
-        const target = getTarget(set.setNumber);
-        const isEditing = editingSet === set.setNumber;
+          return (
+            <SwipeableSetRow
+              key={set.setNumber}
+              set={displaySet}
+              target={target}
+              localValues={localValues}
+              handleUpdateLocalValue={handleUpdateLocalValue}
+              handleQuickComplete={handleQuickComplete}
+              onRemoveSet={onRemoveSet}
+              sessionId={sessionId}
+              exerciseIndex={exerciseIndex}
+              isPending={isPending}
+            />
+          );
+        })}
 
-        return (
-          <View key={set.setNumber}>
-            <Pressable
-              style={[styles.setRow, set.completed && styles.setRowCompleted]}
-              onPress={() => handleTapSet(set)}
-              disabled={isPending}
-            >
-              <View style={styles.setLeft}>
-                <View
-                  style={[
-                    styles.checkbox,
-                    set.completed && styles.checkboxDone,
-                  ]}
-                >
-                  {set.completed ? (
-                    <Check size={14} color={theme.colors.background} />
-                  ) : null}
-                </View>
-                <View style={styles.setInfo}>
-                  <Text style={[styles.setNumber, set.completed && styles.setNumberMuted]}>
-                    Serie {set.setNumber}
-                  </Text>
-                  <Text style={styles.setTarget}>
-                    Objetivo: {target.reps} reps × {target.weight} kg
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.setRight}>
-                <View style={styles.setValues}>
-                  {set.completed ? (
-                    <>
-                      <Text style={styles.valueDone}>
-                        {set.repsPerformed ?? target.reps} reps
-                      </Text>
-                      <Text style={styles.valueDot}>·</Text>
-                      <Text style={styles.valueDone}>
-                        {set.weightUsed ?? target.weight} kg
-                      </Text>
-                    </>
-                  ) : (
-                    <Text style={styles.valuePending}>Pendiente</Text>
-                  )}
-                </View>
-
-                {!set.completed && (
-                  <Pressable
-                    style={styles.removeBtn}
-                    onPress={() =>
-                      onRemoveSet({
-                        sessionId,
-                        exerciseIndex,
-                        setNumber: set.setNumber,
-                      })
-                    }
-                    hitSlop={8}
-                  >
-                    <Trash2 size={14} color={theme.colors.error} />
-                  </Pressable>
-                )}
-              </View>
-            </Pressable>
-
-            {isEditing && (
-              <View style={styles.editForm}>
-                <View style={styles.editInputs}>
-                  <TextInput
-                    label="Reps"
-                    value={editReps}
-                    onChangeText={setEditReps}
-                    keyboardType="numeric"
-                    inputMode="numeric"
-                    placeholder={String(suggestedReps || target.reps)}
-                  />
-                  <TextInput
-                    label="Peso (kg)"
-                    value={editWeight}
-                    onChangeText={setEditWeight}
-                    keyboardType="numeric"
-                    inputMode="decimal"
-                    placeholder={String(suggestedWeight || target.weight)}
-                  />
-                </View>
-                <View style={styles.editActions}>
-                  <SecondaryButton
-                    label="Cancelar"
-                    onPress={() => setEditingSet(null)}
-                    style={styles.editBtn}
-                  />
-                  <SecondaryButton
-                    label="Guardar"
-                    onPress={handleSaveEdit}
-                    disabled={
-                      Number(editReps) <= 0 ||
-                      Number(editWeight) < 0 ||
-                      isPending
-                    }
-                    style={styles.editBtn}
-                  />
-                </View>
-              </View>
-            )}
+        {showAddForm && (
+          <View style={styles.addForm}>
+            <View style={styles.addInputs}>
+              <TextInput
+                label="Reps"
+                value={addReps}
+                onChangeText={setAddReps}
+                keyboardType="numeric"
+                inputMode="numeric"
+                placeholder={String(suggestedReps)}
+              />
+              <TextInput
+                label="Peso (kg)"
+                value={addWeight}
+                onChangeText={setAddWeight}
+                keyboardType="numeric"
+                inputMode="decimal"
+                placeholder={String(suggestedWeight)}
+              />
+            </View>
+            <View style={styles.editActions}>
+              <SecondaryButton
+                label="Cancelar"
+                onPress={() => setShowAddForm(false)}
+                style={styles.editBtn}
+              />
+              <SecondaryButton
+                label="Agregar"
+                onPress={handleAddSet}
+                disabled={isPending}
+                style={styles.editBtn}
+              />
+            </View>
           </View>
-        );
-      })}
+        )}
 
-      {showAddForm && (
-        <View style={styles.addForm}>
-          <View style={styles.addInputs}>
-            <TextInput
-              label="Reps"
-              value={addReps}
-              onChangeText={setAddReps}
-              keyboardType="numeric"
-              inputMode="numeric"
-              placeholder={String(suggestedReps)}
-            />
-            <TextInput
-              label="Peso (kg)"
-              value={addWeight}
-              onChangeText={setAddWeight}
-              keyboardType="numeric"
-              inputMode="decimal"
-              placeholder={String(suggestedWeight)}
-            />
-          </View>
-          <View style={styles.editActions}>
-            <SecondaryButton
-              label="Cancelar"
-              onPress={() => setShowAddForm(false)}
-              style={styles.editBtn}
-            />
-            <SecondaryButton
-              label="Agregar"
-              onPress={handleAddSet}
-              disabled={isPending}
-              style={styles.editBtn}
-            />
-          </View>
-        </View>
-      )}
-
-      <Pressable
-        style={styles.addButton}
-        onPress={() => {
-          setAddReps(String(suggestedReps));
-          setAddWeight(String(suggestedWeight));
-          setShowAddForm(true);
-        }}
-      >
-        <Plus size={16} color={theme.colors.primary} />
-        <Text style={styles.addButtonText}>Agregar serie</Text>
-      </Pressable>
-    </BaseCard>
+        <Pressable
+          style={styles.addButton}
+          onPress={() => {
+            setAddReps(String(suggestedReps));
+            setAddWeight(String(suggestedWeight));
+            setShowAddForm(true);
+          }}
+        >
+          <Plus size={16} color={theme.colors.primary} />
+          <Text style={styles.addButtonText}>Agregar serie</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: 0,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    overflow: 'hidden',
+  flatContainer: {
+    marginHorizontal: -20,
+    backgroundColor: '#000000',
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  setsListWrapper: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderSoft,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderSoft,
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 20,
     paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.borderSoft,
@@ -314,14 +259,67 @@ const styles = StyleSheet.create({
   setRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderSoft,
   },
   setRowCompleted: {
     opacity: 0.65,
+  },
+  setInfoInline: {
+    flexDirection: 'column',
+    width: 84,
+    gap: 2,
+    marginLeft: theme.spacing.sm,
+  },
+  setTargetInline: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  inlineInputsContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginRight: theme.spacing.sm,
+  },
+  completedValuesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 38,
+  },
+  inputsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    alignItems: 'center',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSoft,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: theme.spacing.xs,
+    width: 72,
+    height: 38,
+  },
+  inlineInput: {
+    flex: 1,
+    color: theme.colors.textPrimary,
+    fontSize: theme.typography.small.fontSize,
+    padding: 0,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+  inputSuffix: {
+    color: theme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+    marginLeft: 2,
   },
   setLeft: {
     flexDirection: 'row',
@@ -390,7 +388,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   editForm: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 20,
     paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.surfaceElevated,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -409,7 +407,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   addForm: {
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 20,
     paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.surfaceElevated,
     gap: theme.spacing.md,

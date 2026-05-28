@@ -41,7 +41,7 @@ function FeedPost({ publication, currentUserId, onFork }: { publication: Publica
   const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
   const interactions = useInteractions(publication.id);
   const deletePublication = useDeletePublication();
-  const [liked, setLiked] = React.useState(false);
+  const [liked, setLiked] = React.useState(publication.likedByMe);
   const reactionPending = interactions.like.isPending || interactions.unlike.isPending;
 
   return (
@@ -167,7 +167,7 @@ export default function FeedScreen() {
           </View>
           <Pressable
             style={styles.headerAction}
-            onPress={() => navigation.navigate('OwnProfile')}
+            onPress={() => navigation.getParent()?.navigate('Profile')}
             accessibilityRole="button"
             accessibilityLabel="Mi perfil"
           >

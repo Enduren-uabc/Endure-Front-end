@@ -48,6 +48,11 @@ export interface Publication {
   media: PublicationMedia[];
   workoutSessionId: string | null;
   exerciseSummary: ExerciseSummary | null;
+  reactionCount: number;
+  recentReactorNames: string[];
+  commentCount: number;
+  recentComments: CommentPreview[];
+  likedByMe: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,6 +82,15 @@ export interface Reaction {
   id: string;
   publicationId: string;
   authorUserId: string;
+  createdAt: Date;
+}
+
+export interface CommentPreview {
+  id: string;
+  publicationId: string;
+  authorUserId: string;
+  authorDisplayName?: string;
+  content: string;
   createdAt: Date;
 }
 

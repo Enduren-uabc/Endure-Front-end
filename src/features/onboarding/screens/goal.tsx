@@ -9,6 +9,8 @@ import {
   useOnboardingStore,
   type OnboardingGoal,
 } from '@/features/onboarding/stores/onboarding-store';
+import { OnboardingStepIndicator } from '@/features/onboarding/components/OnboardingStepIndicator';
+import { useFlowConfig } from '@/features/trainer-verification/hooks/use-trainer-verification';
 import { theme } from '@/theme';
 
 interface GoalOption {
@@ -24,27 +26,19 @@ const GOALS: GoalOption[] = [
   { value: 'lose_weight', label: 'Bajar de peso', Icon: TrendingDown },
 ];
 
-const TOTAL_STEPS = 3;
-
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Goal'>;
 
 export default function OnboardingGoalScreen({ navigation }: Props) {
   const mainGoal = useOnboardingStore((s) => s.mainGoal);
   const setMainGoal = useOnboardingStore((s) => s.setMainGoal);
+  const { data: flowConfig } = useFlowConfig();
+  const showSocial = flowConfig?.powerspike === true;
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
 
-        {/* Progress dots */}
-        <View style={styles.dotsRow}>
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === 0 ? styles.dotActive : styles.dotInactive]}
-            />
-          ))}
-        </View>
+        <OnboardingStepIndicator currentStep={1} showSocial={showSocial} />
 
         {/* Icon circle */}
         <View style={styles.iconCircle}>
@@ -111,25 +105,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
     alignItems: 'center',
-  },
-
-  /* Progress dots */
-  dotsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xxl,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dotActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  dotInactive: {
-    backgroundColor: theme.colors.border,
   },
 
   /* Icon circle */

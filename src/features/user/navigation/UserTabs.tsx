@@ -4,7 +4,7 @@ import { Dumbbell, Home, UserRound, Users } from 'lucide-react-native';
 import HomeTrainingV2Screen from '@/features/home/screens/v2/HomeTrainingV2Screen';
 import TrainingStack from '@/navigation/TrainingStack';
 import SocialStack from '@/navigation/SocialStack';
-import ClientProfileScreen from '@/features/profile/screens/ClientProfileScreen';
+import UnifiedProfileScreen from '@/features/profile/screens/UnifiedProfileScreen';
 import { theme } from '@/theme';
 import type { UserTabsParamList } from '../types/user-navigation.types';
 
@@ -56,7 +56,7 @@ export default function UserTabs() {
       />
       <Tabs.Screen
         name="Profile"
-        component={ClientProfileScreen}
+        component={UnifiedProfileScreen}
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => <UserRound size={size} color={color} />,
