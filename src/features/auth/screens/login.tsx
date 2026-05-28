@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "@/features/auth/validations/auth";
-import { useLogin } from "@/features/auth/hooks/use-auth";
+import { useLogin, isAccountLockedError } from "@/features/auth/hooks/use-auth";
 import { useGoogleAuth } from "@/features/auth/hooks/use-social-auth";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { TextInput } from "@/components/ui/TextInput";
@@ -29,7 +29,6 @@ export default function LoginScreen({ navigation, route }: Props) {
   const loginMutation = useLogin();
   const { login: googleLogin, isPending: googlePending, error: googleError, clearError } = useGoogleAuth();
   const { email: prefillEmail, password: prefillPassword } = route.params ?? {};
-  const [, setFailedAttempts] = React.useState(0);
   const [blockedUntil, setBlockedUntil] = React.useState<number | null>(null);
   const [remainingSeconds, setRemainingSeconds] = React.useState(0);
 
@@ -50,13 +49,14 @@ export default function LoginScreen({ navigation, route }: Props) {
     if (loginMutation.isError) {
       const message = loginMutation.error.message || "Error al iniciar sesión";
       setError("root", { message });
-      setFailedAttempts((current) => {
-        const next = current + 1;
-        if (next >= 3) {
-          setBlockedUntil(Date.now() + 60_000);
-        }
-        return next;
-      });
+
+      if (
+        isAccountLockedError(loginMutation.error) &&
+        typeof loginMutation.error.remainingLockSeconds === "number" &&
+        loginMutation.error.remainingLockSeconds > 0
+      ) {
+        setBlockedUntil(Date.now() + loginMutation.error.remainingLockSeconds * 1000);
+      }
     }
   }, [loginMutation.isError, loginMutation.error, setError]);
 
@@ -68,7 +68,7 @@ export default function LoginScreen({ navigation, route }: Props) {
       setRemainingSeconds(seconds);
       if (seconds === 0) {
         setBlockedUntil(null);
-        setFailedAttempts(0);
+        loginMutation.reset();
       }
     };
 
