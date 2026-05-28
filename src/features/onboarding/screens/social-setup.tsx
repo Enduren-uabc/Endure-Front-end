@@ -12,17 +12,54 @@ import { useSessionStore } from '@/features/auth/stores/session-store';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { OnboardingStepIndicator } from '@/features/onboarding/components/OnboardingStepIndicator';
+import { useOnboardingStore } from '@/features/onboarding/stores/onboarding-store';
 import type { OnboardingStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SocialSetup'>;
 
 export default function SocialSetupScreen({ navigation }: Props) {
   const username = useSessionStore((s) => s.username) ?? 'usuario';
-  const [displayName, setDisplayName] = React.useState(username.replace(/_/g, ' '));
-  const [bio, setBio] = React.useState('');
-  const [avatarUri, setAvatarUri] = React.useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = React.useState<{ uri: string; name: string; type: string } | null>(null);
+  const draft = useOnboardingStore();
+
+  const [displayName, setDisplayName] = React.useState(
+    draft.displayName ?? username.replace(/_/g, ' '),
+  );
+  const [bio, setBio] = React.useState(draft.bio ?? '');
+  const [avatarUri, setAvatarUri] = React.useState<string | null>(
+    draft.avatarUri ?? null,
+  );
+  const [avatarFile, setAvatarFile] = React.useState<{
+    uri: string;
+    name: string;
+    type: string;
+  } | null>(draft.avatarFile ?? null);
   const [isSaving, setIsSaving] = React.useState(false);
+
+  const persistSocialData = React.useCallback(
+    (overrides?: { displayName?: string; bio?: string; avatarUri?: string | null; avatarFile?: typeof avatarFile }) => {
+      draft.setSocialData({
+        displayName: overrides?.displayName ?? displayName,
+        bio: overrides?.bio ?? bio,
+        avatarUri: overrides?.avatarUri ?? avatarUri ?? undefined,
+        avatarFile: overrides?.avatarFile ?? avatarFile,
+      });
+    },
+    [draft, displayName, bio, avatarUri, avatarFile],
+  );
+
+  const onAvatarPicked = React.useCallback(
+    (asset: { uri: string; fileName?: string | null; mimeType?: string | null }) => {
+      const file = {
+        uri: asset.uri,
+        name: asset.fileName ?? 'avatar.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      };
+      setAvatarUri(asset.uri);
+      setAvatarFile(file);
+      persistSocialData({ avatarUri: asset.uri, avatarFile: file });
+    },
+    [persistSocialData],
+  );
 
   const pickFromGallery = React.useCallback(async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -37,14 +74,8 @@ export default function SocialSetupScreen({ navigation }: Props) {
 
     if (result.canceled || !result.assets[0]) return;
 
-    const asset = result.assets[0];
-    setAvatarUri(asset.uri);
-    setAvatarFile({
-      uri: asset.uri,
-      name: asset.fileName ?? 'avatar.jpg',
-      type: asset.mimeType ?? 'image/jpeg',
-    });
-  }, []);
+    onAvatarPicked(result.assets[0]);
+  }, [onAvatarPicked]);
 
   const pickFromCamera = React.useCallback(async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -58,14 +89,8 @@ export default function SocialSetupScreen({ navigation }: Props) {
 
     if (result.canceled || !result.assets[0]) return;
 
-    const asset = result.assets[0];
-    setAvatarUri(asset.uri);
-    setAvatarFile({
-      uri: asset.uri,
-      name: asset.fileName ?? 'camera.jpg',
-      type: asset.mimeType ?? 'image/jpeg',
-    });
-  }, []);
+    onAvatarPicked(result.assets[0]);
+  }, [onAvatarPicked]);
 
   const showImagePicker = React.useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -88,6 +113,7 @@ export default function SocialSetupScreen({ navigation }: Props) {
   const handleSubmit = React.useCallback(async () => {
     setIsSaving(true);
     try {
+      persistSocialData();
       const formData = new FormData();
       formData.append('displayName', displayName.trim() || username);
       formData.append('bio', bio.trim());
@@ -101,7 +127,23 @@ export default function SocialSetupScreen({ navigation }: Props) {
     } finally {
       setIsSaving(false);
     }
-  }, [displayName, bio, username, avatarFile, navigation]);
+  }, [displayName, bio, username, avatarFile, navigation, persistSocialData]);
+
+  const handleDisplayNameChange = React.useCallback(
+    (text: string) => {
+      setDisplayName(text);
+      persistSocialData({ displayName: text });
+    },
+    [persistSocialData],
+  );
+
+  const handleBioChange = React.useCallback(
+    (text: string) => {
+      setBio(text);
+      persistSocialData({ bio: text });
+    },
+    [persistSocialData],
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -124,7 +166,7 @@ export default function SocialSetupScreen({ navigation }: Props) {
           <TextInput
             label=""
             value={displayName}
-            onChangeText={setDisplayName}
+            onChangeText={handleDisplayNameChange}
             placeholder="Tu nombre en Endure"
           />
         </View>
@@ -136,7 +178,7 @@ export default function SocialSetupScreen({ navigation }: Props) {
             <RNTextInput
               style={styles.bioInput}
               value={bio}
-              onChangeText={setBio}
+              onChangeText={handleBioChange}
               placeholder="Ej. Apasionado del fitness"
               placeholderTextColor={theme.colors.textMuted}
               multiline

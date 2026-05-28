@@ -43,6 +43,9 @@ export const API_ENDPOINTS = {
       `/routines/${routineId}/days/${dayOfWeek}/fork`,
     trainingStrategy: (id: string) => `/routines/${id}/training-strategy`,
     generateSets: (id: string) => `/routines/${id}/generate-sets`,
+    default: '/routines/default',
+    templates: '/routines/templates',
+    templateDetail: (templateId: string) => `/routines/templates/${templateId}`,
   },
   exercises: {
     catalog: '/exercises/catalog',
@@ -144,6 +147,8 @@ export const API_ENDPOINTS = {
     editRoutineContent: (clientId: string, assignedId: string) =>
       `/trainer/clients/${clientId}/assigned-routine/${assignedId}/content`,
     myAssignedRoutines: '/client/assigned-routine',
+    startAssignedRoutine: (assignedId: string) =>
+      `/client/assigned-routine/${assignedId}/start`,
   },
   reminders: {
     list: '/training-reminders',

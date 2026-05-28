@@ -176,6 +176,7 @@ export function mapPublicProfileFromApi(apiProfile: PublicProfileApi): PublicPro
     ...mapProfileFromApi(apiProfile),
     followersCount: apiProfile.followersCount,
     followingCount: apiProfile.followingCount,
+    isFollowing: apiProfile.isFollowing ?? false,
   };
 }
 

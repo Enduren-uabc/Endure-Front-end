@@ -20,9 +20,10 @@ import { useTrainingStrategies } from '@/features/training/hooks/use-training-st
 import { useSetRoutineStrategy } from '@/features/training/hooks/use-set-routine-strategy';
 import { TrainingStrategySelector } from '@/features/training/components/TrainingStrategySelector';
 import { useHomeProfile } from '@/features/home/hooks/use-home-data';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
-import type { DayOfWeek } from '@/features/training/types/routine';
+import type { DayOfWeek, RoutineTargetAudience } from '@/features/training/types/routine';
 import type { TrainingStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<TrainingStackParamList, 'RoutineBuilder'>;
@@ -50,6 +51,12 @@ function newSetId() { return `set-${++setIdCounter}`; }
 
 export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
   const isNewRoutine = route.params.id === 'new';
+  const [routineName, setRoutineName] = React.useState('');
+  const [selectedDayKeys, setSelectedDayKeys] = React.useState<string[]>([]);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [routineId, setRoutineId] = React.useState(isNewRoutine ? '' : route.params.id);
+  const [created, setCreated] = React.useState(!isNewRoutine);
+  const [targetAudience, setTargetAudience] = React.useState<RoutineTargetAudience>('self');
   const { data: existingRoutine, isLoading: loadingExisting, refetch: refetchRoutine } = useRoutineDetail(
     routineId,
   );
@@ -57,12 +64,8 @@ export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
   const { data: strategies } = useTrainingStrategies();
   const setStrategyMutation = useSetRoutineStrategy();
   const { data: homeProfile } = useHomeProfile();
-
-  const [routineName, setRoutineName] = React.useState('');
-  const [selectedDayKeys, setSelectedDayKeys] = React.useState<string[]>([]);
-  const [saveError, setSaveError] = React.useState<string | null>(null);
-  const [routineId, setRoutineId] = React.useState(isNewRoutine ? '' : route.params.id);
-  const [created, setCreated] = React.useState(!isNewRoutine);
+  const role = useSessionStore((state) => state.role);
+  const canCreateClientRoutine = role === 'trainer';
 
   const [selectedDayForExercise, setSelectedDayForExercise] = React.useState('');
   const [exerciseName, setExerciseName] = React.useState('');
@@ -82,6 +85,7 @@ export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
       );
       setRoutineId(existingRoutine.id);
       setCreated(true);
+      setTargetAudience(existingRoutine.targetAudience ?? 'self');
     }
   }, [existingRoutine]);
 
@@ -101,7 +105,11 @@ export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
     if (!canSaveRoutine) return;
 
     createRoutine.mutate(
-      { name: routineName.trim(), dayOfWeeks: selectedDayKeys.map((k) => DAY_MAP[k]).filter(Boolean) },
+      {
+        name: routineName.trim(),
+        dayOfWeeks: selectedDayKeys.map((k) => DAY_MAP[k]).filter(Boolean),
+        targetAudience,
+      },
       {
         onSuccess: (routine) => {
           setRoutineId(routine.id);
@@ -225,6 +233,24 @@ export default function RoutineBuilderV2Screen({ navigation, route }: Props) {
           allowEmoji={false}
           disabled={created}
         />
+
+        {canCreateClientRoutine && !created ? (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Destino</Text>
+            <View style={styles.segmentRow}>
+              <Chip
+                label="Para mi"
+                selected={targetAudience === 'self'}
+                onPress={() => setTargetAudience('self')}
+              />
+              <Chip
+                label="Para clientes"
+                selected={targetAudience === 'client'}
+                onPress={() => setTargetAudience('client')}
+              />
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Dias de entrenamiento</Text>
@@ -444,6 +470,11 @@ const styles = StyleSheet.create({
   },
   dayRow: {
     flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  segmentRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.sm,
   },
   dayChip: {

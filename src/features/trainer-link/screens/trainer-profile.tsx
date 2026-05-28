@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp } from '@react-navigation/native';
@@ -103,7 +104,11 @@ export default function TrainerProfileScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <View style={styles.avatar}>
-            <User size={48} color={theme.colors.textSecondary} />
+            {profile.profileImageUrl ? (
+              <Image source={{ uri: profile.profileImageUrl }} style={styles.avatarImage} />
+            ) : (
+              <User size={48} color={theme.colors.textSecondary} />
+            )}
           </View>
           <Text style={styles.name}>{profile.displayName}</Text>
           <Text style={styles.code}>{profile.trainerCode}</Text>
@@ -200,6 +205,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2A3E',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
   },
   name: {
     fontSize: 22,

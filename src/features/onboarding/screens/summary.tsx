@@ -1,13 +1,17 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AlertCircle, CheckCircle2, Dumbbell, Pencil, Ruler, UserRound } from 'lucide-react-native';
+import { AlertCircle, CheckCircle2, Camera, Dumbbell, Pencil, Ruler, UserRound } from 'lucide-react-native';
 import type { OnboardingStackParamList } from '@/navigation/types';
 import { useOnboardingStore } from '@/features/onboarding/stores/onboarding-store';
+import { useSessionStore } from '@/features/auth/stores/session-store';
 import {
   useCreateOnboardingProfile,
+  useCreateDefaultRoutine,
   type OnboardingProfileBody,
+  type OnboardingStatusResponse,
 } from '@/features/onboarding/hooks/use-onboarding';
 import { OnboardingStepIndicator } from '@/features/onboarding/components/OnboardingStepIndicator';
 import { useFlowConfig } from '@/features/trainer-verification/hooks/use-trainer-verification';
@@ -39,9 +43,15 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Summary'>;
 
 export default function OnboardingSummaryScreen({ navigation }: Props) {
   const draft = useOnboardingStore();
+  const setOnboardingCompleted = useSessionStore((s) => s.setOnboardingCompleted);
+  const queryClient = useQueryClient();
   const mutation = useCreateOnboardingProfile();
+  const defaultRoutineMutation = useCreateDefaultRoutine();
   const { data: flowConfig } = useFlowConfig();
   const showSocial = flowConfig?.powerspike === true;
+  const [routineError, setRoutineError] = React.useState<string | null>(null);
+
+  const isSubmitting = mutation.isPending || defaultRoutineMutation.isPending;
 
   const missingBlocks = [
     !draft.mainGoal ? 'Objetivo' : null,
@@ -49,12 +59,19 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
       ? 'Datos básicos'
       : null,
     !draft.experienceLevel ? 'Nivel' : null,
+    showSocial && !draft.displayName ? 'Perfil social' : null,
   ].filter((item): item is string => Boolean(item));
 
   const hasRequiredData = missingBlocks.length === 0;
 
-  const handleConfirm = () => {
-    if (!hasRequiredData) return;
+  const handleConfirm = async () => {
+    if (!hasRequiredData || isSubmitting) return;
+
+    setRoutineError(null);
+
+    const experienceLevel = draft.experienceLevel as OnboardingProfileBody['experienceLevel'];
+    const trainingSplitKey = draft.trainingSplitKey;
+    const trainingStrategyKey = draft.trainingStrategyKey;
 
     const body: OnboardingProfileBody = {
       fullName: draft.fullName as string,
@@ -62,18 +79,38 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
       gender: draft.gender as OnboardingProfileBody['gender'],
       weight: parseFloat(draft.weight as string),
       height: parseFloat(draft.height as string),
-      experienceLevel: draft.experienceLevel as OnboardingProfileBody['experienceLevel'],
+      experienceLevel,
       mainGoal: draft.mainGoal as OnboardingProfileBody['mainGoal'],
-      daysAvailablePerWeek: draft.daysAvailablePerWeek ?? 3,
+      daysAvailablePerWeek: 7,
       weightUnit: draft.weightUnit ?? 'kg',
-      defaultTrainingStrategyKey: draft.trainingStrategyKey,
+      defaultTrainingStrategyKey: trainingStrategyKey,
     };
 
-    mutation.mutate(body, {
-      onSuccess: () => {
-        draft.reset();
-      },
-    });
+    try {
+      // 1. Create profile first
+      const profile = await mutation.mutateAsync(body);
+
+      // 2. Then create default routine
+      await defaultRoutineMutation.mutateAsync({
+        experienceLevel,
+        trainingSplitKey: experienceLevel === 'advanced' ? trainingSplitKey : undefined,
+        trainingStrategyKey: trainingStrategyKey ?? 'straight',
+      });
+
+      // 3. Invalidate routines cache so home fetches fresh data
+      queryClient.invalidateQueries({ queryKey: ['routines'] });
+
+      // 4. Only when BOTH succeed: mark complete and reset
+      draft.reset();
+      setOnboardingCompleted(profile.onboardingCompleted);
+      queryClient.setQueryData<OnboardingStatusResponse>(['onboarding-status'], {
+        completed: profile.onboardingCompleted,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Error al crear tu perfil. Intenta de nuevo.';
+      setRoutineError(message);
+    }
   };
 
   return (
@@ -124,12 +161,21 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
           onEdit={() => navigation.navigate('Level')}
           rows={[
             { label: 'Nivel', value: LEVEL_LABELS[draft.experienceLevel || ''] || 'Pendiente' },
-            {
-              label: 'Días disponibles',
-              value: `${draft.daysAvailablePerWeek ?? 3} por semana`,
-            },
           ]}
         />
+
+        {showSocial ? (
+          <SummaryBlock
+            icon={<Camera size={22} color={theme.colors.primary} />}
+            title="Perfil social"
+            valid={Boolean(draft.displayName)}
+            onEdit={() => navigation.navigate('SocialSetup')}
+            rows={[
+              { label: 'Nombre para mostrar', value: draft.displayName || 'Pendiente' },
+              { label: 'Biografía', value: draft.bio || '(Sin biografía)' },
+            ]}
+          />
+        ) : null}
 
         {missingBlocks.length > 0 ? (
           <View style={styles.validationCard}>
@@ -140,21 +186,19 @@ export default function OnboardingSummaryScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        {mutation.isError ? (
+        {routineError ? (
           <View style={styles.validationCard}>
             <AlertCircle size={18} color={theme.colors.error} />
-            <Text style={styles.validationText}>
-              {mutation.error.message || 'No pudimos guardar tu perfil. Intenta de nuevo.'}
-            </Text>
+            <Text style={styles.validationText}>{routineError}</Text>
           </View>
         ) : null}
 
         <View style={styles.footer}>
           <PrimaryButton
-            label={mutation.isPending ? 'Guardando' : 'Finalizar'}
+            label={isSubmitting ? 'Guardando...' : 'Finalizar'}
             onPress={handleConfirm}
-            loading={mutation.isPending}
-            disabled={!hasRequiredData || mutation.isPending}
+            loading={isSubmitting}
+            disabled={!hasRequiredData || isSubmitting}
             icon={
               !mutation.isPending ? (
                 <CheckCircle2 size={18} color={theme.colors.background} />

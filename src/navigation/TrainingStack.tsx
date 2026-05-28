@@ -6,6 +6,7 @@ import RoutineBuilderV2Screen from '@/features/training/screens/v2/RoutineBuilde
 import ExerciseCatalogV2Screen from '@/features/training/screens/v2/ExerciseCatalogV2Screen';
 import ExerciseDetailV2Screen from '@/features/training/screens/v2/ExerciseDetailV2Screen';
 import ManualExerciseV2Screen from '@/features/training/screens/v2/ManualExerciseV2Screen';
+import TemplateDetailScreen from '@/features/training/screens/v2/TemplateDetailScreen';
 import { TrainingStackParamList } from './types';
 import { theme } from '@/theme';
 
@@ -25,6 +26,7 @@ export default function TrainingStack() {
       <Stack.Screen name="ExerciseCatalog" component={ExerciseCatalogV2Screen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="ExerciseDetail" component={ExerciseDetailV2Screen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="ManualExercise" component={ManualExerciseV2Screen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="TemplateDetail" component={TemplateDetailScreen} />
     </Stack.Navigator>
   );
 }

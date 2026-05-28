@@ -10,6 +10,8 @@ import type {
   UpdateNotesInput,
   AssignableRoutineItem,
 } from '@/features/trainer-link/types/trainer-link';
+import type { DayOfWeek } from '@/features/training/types/routine';
+import type { WorkoutSession } from '@/features/training/types/workout-session';
 
 export function useAssignableRoutines(clientId: string) {
   return useQuery<AssignableRoutineItem[]>({
@@ -58,6 +60,26 @@ export function useMyAssignedRoutines() {
         API_ENDPOINTS.trainerLink.myAssignedRoutines,
       );
       return res.items;
+    },
+  });
+}
+
+export function useStartAssignedRoutine() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    WorkoutSession,
+    Error,
+    { assignedId: string; dayOfWeek?: DayOfWeek }
+  >({
+    mutationFn: ({ assignedId, dayOfWeek }) =>
+      apiClient.post<WorkoutSession>(
+        API_ENDPOINTS.trainerLink.startAssignedRoutine(assignedId),
+        dayOfWeek ? { dayOfWeek } : undefined,
+      ),
+    onSuccess: (session) => {
+      queryClient.setQueryData(['workout-session', session.id], session);
+      queryClient.setQueryData(['workout-session', 'in-progress'], session);
     },
   });
 }

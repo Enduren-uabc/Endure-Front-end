@@ -9,10 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import {
   AlertCircle,
-  CalendarDays,
   CheckCircle2,
   ChevronRight,
   Dumbbell,
@@ -21,11 +21,15 @@ import {
   X,
 } from 'lucide-react-native';
 import { BaseCard } from '@/components/ui/BaseCard';
-import { Chip } from '@/components/ui/Chip';
 import { DragIndicator } from '@/components/ui/DragIndicator';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useLinkedClients } from '@/features/trainer-link/hooks/use-trainer-link';
+import {
+  useAssignRoutine,
+  useClientAssignedRoutines,
+  useReplaceRoutine,
+} from '@/features/trainer-link/hooks/use-assigned-routines';
 import { useRoutines } from '@/features/training/hooks/use-routines';
 import {
   TrainingV2Screen,
@@ -33,39 +37,44 @@ import {
   TrainingV2Tag,
 } from '@/features/training/screens/v2/TrainingV2Primitives';
 import { theme } from '@/theme';
-import type { TrainerClientsStackParamList } from '@/navigation/types';
-import { useTrainerClientAssignmentsStore } from '../stores/trainer-client-assignments.store';
 import type { TrainerRoutineOption } from '../types/trainer-clients';
 import {
-  buildDemoAssignedRoutine,
   buildDemoRoutineOptions,
   buildRoutineOption,
   buildTrainerClientViewModel,
 } from './trainer-clients.mock';
 
-type Props = NativeStackScreenProps<TrainerClientsStackParamList, 'AssignRoutine'>;
+type AssignRoutineParams = {
+  clientId: string;
+  clientName: string;
+  linkId?: string;
+  activatedAt?: string;
+  preselectedRoutineId?: string;
+  preselectedRoutineName?: string;
+};
 
-const WEEK_DAYS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+type Props = {
+  navigation: NativeStackNavigationProp<any>;
+  route: RouteProp<{ AssignRoutine: AssignRoutineParams }, 'AssignRoutine'>;
+};
 
 export default function AssignRoutineScreen({ navigation, route }: Props) {
   const params = route.params;
   const client = React.useMemo(() => buildTrainerClientViewModel(params), [params]);
   const routinesQuery = useRoutines();
   const linkedClients = useLinkedClients();
-  const assignRoutine = useTrainerClientAssignmentsStore((state) => state.assignRoutine);
-  const savedAssignment = useTrainerClientAssignmentsStore(
-    (state) => state.assignmentsByLinkId[params.linkId],
+  const assignedRoutinesQuery = useClientAssignedRoutines(params.clientId);
+  const assignMutation = useAssignRoutine(params.clientId);
+  const currentAssignment = assignedRoutinesQuery.data?.[0] ?? null;
+  const replaceMutation = useReplaceRoutine(
+    params.clientId,
+    currentAssignment?.id ?? '',
   );
-  const demoAssignment = React.useMemo(() => buildDemoAssignedRoutine(params), [params]);
-  const currentAssignment = savedAssignment ?? demoAssignment;
   const [query, setQuery] = React.useState('');
   const [selectedRoutineId, setSelectedRoutineId] = React.useState<string | null>(
     currentAssignment?.routineId ?? params.preselectedRoutineId ?? null,
   );
-  const [selectedDays, setSelectedDays] = React.useState<string[]>(
-    currentAssignment?.days ?? ['Lun', 'Mie', 'Vie'],
-  );
-  const [note, setNote] = React.useState(currentAssignment?.note ?? '');
+  const [note, setNote] = React.useState(currentAssignment?.notes ?? '');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [mutationError, setMutationError] = React.useState<string | null>(null);
@@ -109,11 +118,9 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
     linkedClients.data?.items.some((item) => item.linkId === params.linkId) ?? true;
   const hasUnsavedChanges =
     selectedRoutineId !== (currentAssignment?.routineId ?? params.preselectedRoutineId ?? null) ||
-    selectedDays.join('|') !== (currentAssignment?.days ?? ['Lun', 'Mie', 'Vie']).join('|') ||
-    note.trim() !== (currentAssignment?.note ?? '');
+    note.trim() !== (currentAssignment?.notes ?? '');
   const canSubmit =
     Boolean(selectedOption) &&
-    selectedDays.length > 0 &&
     !isSubmitting &&
     (!currentAssignment || hasUnsavedChanges);
   const screenTitle = currentAssignment ? 'Gestionar rutina' : 'Asignar rutina';
@@ -138,59 +145,46 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
-  const toggleDay = (day: string) => {
-    clearFeedback();
-    setSelectedDays((current) =>
-      current.includes(day)
-        ? current.filter((item) => item !== day)
-        : [...current, day],
-    );
-  };
-
   const selectRoutine = (option: TrainerRoutineOption) => {
     setSelectedRoutineId(option.routine.id);
     clearFeedback();
-    if (!currentAssignment || currentAssignment.routineId !== option.routine.id) {
-      setSelectedDays(option.dayLabels.length > 0 ? option.dayLabels : ['Lun', 'Mie', 'Vie']);
-    }
   };
 
-  const persistAssignment = () => {
+  const persistAssignment = async () => {
     if (!selectedOption) {
       setValidationError('Selecciona una rutina para asignar.');
       return;
     }
 
-    if (selectedDays.length === 0) {
-      setValidationError('Selecciona al menos un dia de entrenamiento.');
-      return;
-    }
-
     setIsSubmitting(true);
     setSuccessMessage(null);
-    setTimeout(() => {
-      try {
-        assignRoutine({
-          linkId: params.linkId,
-          routineId: selectedOption.routine.id,
-          routineName: selectedOption.routine.name,
-          assignedAt: new Date().toISOString(),
-          days: selectedDays,
-          note: note.trim() || undefined,
+    try {
+      if (currentAssignment) {
+        await replaceMutation.mutateAsync({
+          newRoutineId: selectedOption.routine.id,
+          notes: note.trim() || undefined,
         });
-      } catch {
-        setMutationError('No pudimos guardar la asignacion local. Intenta de nuevo.');
-        setIsSubmitting(false);
-        return;
+      } else {
+        await assignMutation.mutateAsync({
+          routineId: selectedOption.routine.id,
+          notes: note.trim() || undefined,
+        });
       }
       setIsSubmitting(false);
       setConfirmVisible(false);
       setSuccessMessage(
         currentAssignment
-          ? 'Rutina reemplazada correctamente. El cliente conserva solo esta rutina asignada por entrenador.'
+          ? 'Rutina reemplazada correctamente.'
           : 'Rutina asignada correctamente al cliente.',
       );
-    }, 450);
+    } catch (error) {
+      setIsSubmitting(false);
+      setMutationError(
+        currentAssignment
+          ? 'No pudimos reemplazar la rutina. Intenta de nuevo.'
+          : 'No pudimos asignar la rutina. Intenta de nuevo.',
+      );
+    }
   };
 
   const submitAssignment = () => {
@@ -213,6 +207,16 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
         icon={<ActivityIndicator color={theme.colors.primary} size="large" />}
         title="Validando vinculo"
         description="Estamos confirmando que este cliente siga vinculado."
+      />
+    );
+  }
+
+  if (assignedRoutinesQuery.isLoading) {
+    return (
+      <CenteredState
+        icon={<ActivityIndicator color={theme.colors.primary} size="large" />}
+        title="Cargando asignacion actual"
+        description="Estamos verificando si el cliente ya tiene una rutina asignada."
       />
     );
   }
@@ -363,7 +367,7 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
             </Text>
             <Text style={styles.currentText}>
               {currentAssignment
-                ? `${currentAssignment.routineName} - ${currentAssignment.days.join(', ')}`
+                ? currentAssignment.routineName
                 : selectedOption
                   ? selectedOption.routine.name
                   : 'Elige una rutina para asignar.'}
@@ -400,25 +404,6 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
       <TrainingV2SectionHeader title="Rutinas disponibles" />
       {renderContent()}
 
-      <TrainingV2SectionHeader title="Calendario" />
-      <BaseCard style={styles.calendarCard}>
-        <View style={styles.calendarHeader}>
-          <CalendarDays size={18} color={theme.colors.primary} />
-          <Text style={styles.calendarText}>Dias sugeridos para esta asignacion</Text>
-        </View>
-        <View style={styles.dayChips}>
-          {WEEK_DAYS.map((day) => (
-            <Chip
-              key={day}
-              label={day}
-              selected={selectedDays.includes(day)}
-              onPress={() => toggleDay(day)}
-              disabled={isSubmitting}
-            />
-          ))}
-        </View>
-      </BaseCard>
-
       <TrainingV2SectionHeader title="Nota para seguimiento" />
       <View style={styles.noteBox}>
         <TextInput
@@ -436,14 +421,6 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
         />
         <Text style={styles.noteCounter}>{note.length}/180</Text>
       </View>
-
-      <BaseCard style={styles.noticeCard}>
-        <Text style={styles.noticeTitle}>Asignacion local</Text>
-        <Text style={styles.noticeText}>
-          Esta vista guarda la seleccion en estado local del feature. No llama endpoints ni cambia
-          contratos API.
-        </Text>
-      </BaseCard>
       </TrainingV2Screen>
 
       <Modal visible={confirmVisible} animationType="slide" transparent>
@@ -465,8 +442,8 @@ export default function AssignRoutineScreen({ navigation, route }: Props) {
               {selectedOption?.routine.name ?? 'la nueva rutina'} para {client.clientName}.
             </Text>
             <Text style={styles.confirmHint}>
-              Esta accion solo actualiza estado local del frontend y queda lista para conectar a
-              backend cuando exista contrato aprobado.
+              La rutina actual sera reemplazada por la nueva seleccion. El cliente recibira una
+              notificacion del cambio.
             </Text>
             <PrimaryButton
               label={isSubmitting ? 'Guardando' : 'Confirmar reemplazo'}
@@ -713,25 +690,6 @@ const styles = StyleSheet.create({
     lineHeight: theme.typography.body.lineHeight,
     textAlign: 'center',
   },
-  calendarCard: {
-    gap: theme.spacing.md,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  calendarText: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.bodyStrong.fontSize,
-    lineHeight: theme.typography.bodyStrong.lineHeight,
-    fontWeight: theme.typography.bodyStrong.fontWeight,
-  },
-  dayChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
   noteBox: {
     minHeight: 112,
     borderRadius: theme.radius.md,
@@ -753,20 +711,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.fontSize,
     lineHeight: theme.typography.caption.lineHeight,
     textAlign: 'right',
-  },
-  noticeCard: {
-    gap: theme.spacing.xs,
-  },
-  noticeTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '700',
-  },
-  noticeText: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
   },
   footerActions: {
     gap: theme.spacing.sm,

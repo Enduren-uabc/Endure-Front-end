@@ -87,7 +87,7 @@ export function useUnifiedProfile() {
     ?? social?.displayName
     ?? me.data?.username
     ?? sessionUsername
-    ?? 'Usuario';
+    ?? '';
   const bio = localProfile?.bio ?? social?.bio ?? clientProfileDefaults.bio;
   const handle = social?.handle ?? `@${handleFromName(displayName)}`;
   const avatarUrl = social?.avatarUrl ?? null;

@@ -27,6 +27,8 @@ export const DAY_OF_WEEK_ORDER: DayOfWeek[] = [
   'sunday',
 ];
 
+export type RoutineTargetAudience = 'self' | 'client';
+
 export interface ExerciseSet {
   id?: string;
   setNumber: number;
@@ -56,6 +58,7 @@ export interface Routine {
   description?: string;
   isActive?: boolean;
   trainingStrategyKey?: string | null;
+  targetAudience?: RoutineTargetAudience;
   dayOfWeeks: DayOfWeek[];
   days: RoutineDay[];
   createdAt?: string;

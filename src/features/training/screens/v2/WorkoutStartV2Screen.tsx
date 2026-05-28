@@ -41,7 +41,8 @@ export default function WorkoutStartV2Screen({ navigation }: Props) {
   const { data: inProgressSession } = useWorkoutSessionInProgress();
   const startSessionMutation = useStartWorkoutSession();
 
-  const activeRoutine = routines?.find((r) => r.isActive) ?? null;
+  const activeRoutine =
+    routines?.find((r) => (r.targetAudience ?? 'self') === 'self' && r.isActive) ?? null;
   const selectedDayOfWeek = LABEL_TO_DAY_OF_WEEK[selectedDay];
   const selectedRoutineDay = activeRoutine?.days.find((d) => d.dayOfWeek === selectedDayOfWeek) ?? null;
   const dayExercises = selectedRoutineDay?.exercises ?? [];

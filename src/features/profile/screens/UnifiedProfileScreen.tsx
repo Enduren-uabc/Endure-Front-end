@@ -2,6 +2,7 @@ import React from 'react';
 import {
   FlatList,
   Image,
+  InteractionManager,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -15,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import {
   AlertCircle,
@@ -31,7 +32,6 @@ import {
   Medal,
   Ruler,
   Settings,
-  Settings2,
   Trophy,
   UserRound,
   X,
@@ -50,19 +50,20 @@ import {
   TrainingV2SkeletonList,
 } from '@/features/training/screens/v2/TrainingV2States';
 import { PostCard } from '@/features/social/components/PostCard';
+import ForkWorkoutModal from '@/features/social/components/ForkWorkoutModal';
 import {
   useDeletePublication,
+  useFollowers,
+  useFollowing,
   useInteractions,
 } from '@/features/social/hooks/use-social';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import type { UserDrawerParamList, UserTabsParamList } from '@/features/user/types/user-navigation.types';
-import type { SocialStackParamList } from '@/navigation/types';
 import { useWorkoutSessionDetail } from '@/features/training/hooks/use-workout-session';
 import { useUnifiedProfile } from '../hooks/use-unified-profile';
-import type { Publication } from '@/features/social/types/social.types';
+import type { Profile, Publication } from '@/features/social/types/social.types';
 import type { WorkoutSessionSummary } from '@/features/training/types/workout-session';
-import { socialService } from '@/features/social/services/social.service';
 
 type ProfileNavigation = NavigationProp<UserTabsParamList>;
 type ProfileDrawerNavigation = NavigationProp<UserDrawerParamList>;
@@ -70,10 +71,11 @@ type ProfileDrawerNavigation = NavigationProp<UserDrawerParamList>;
 type TabKey = 'publications' | 'training';
 
 type SheetAction = 'routines' | 'history' | 'achievements' | 'measurements';
+type SocialListKind = 'followers' | 'following';
 
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 
-function ProfilePost({ publication, navigation }: { publication: Publication; navigation: ProfileNavigation }) {
+function ProfilePost({ publication, navigation, onFork }: { publication: Publication; navigation: ProfileNavigation; onFork?: (pub: Publication) => void }) {
   const interactions = useInteractions(publication.id);
   const deletePublication = useDeletePublication();
   const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
@@ -100,6 +102,7 @@ function ProfilePost({ publication, navigation }: { publication: Publication; na
       onLike={() => interactions.like.mutate(undefined, { onSuccess: () => setLiked(true) })}
       onUnlike={() => interactions.unlike.mutate(undefined, { onSuccess: () => setLiked(false) })}
       onDelete={() => deletePublication.mutate(publication.id)}
+      onFork={onFork}
       liked={liked}
       canDelete={publication.authorUserId === currentUserId}
       likeLoading={reactionPending}
@@ -111,7 +114,9 @@ function ProfilePost({ publication, navigation }: { publication: Publication; na
 export default function UnifiedProfileScreen() {
   const navigation = useNavigation<ProfileNavigation>();
   const drawerNavigation = navigation.getParent<ProfileDrawerNavigation>();
+  const insets = useSafeAreaInsets();
   const profile = useUnifiedProfile();
+  const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
 
   const [activeTab, setActiveTab] = React.useState<TabKey>('publications');
   const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -122,6 +127,7 @@ export default function UnifiedProfileScreen() {
   const [draftName, setDraftName] = React.useState('');
   const [draftBio, setDraftBio] = React.useState('');
   const [draftHandle, setDraftHandle] = React.useState('');
+  const [forkPublication, setForkPublication] = React.useState<Publication | null>(null);
 
   const openEdit = () => {
     setDraftName(profile.displayName);
@@ -201,10 +207,10 @@ export default function UnifiedProfileScreen() {
         data={activeTab === 'publications' ? profile.allPublications : []}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <ProfilePost publication={item} navigation={navigation} />
+          <ProfilePost publication={item} navigation={navigation} onFork={setForkPublication} />
         )}
         ListHeaderComponent={
-          <View>
+          <View style={{ paddingTop: insets.top }}>
             <View style={styles.heroSection}>
               <Pressable onPress={profile.showAvatarPicker} style={styles.avatarWrap}>
                 {profile.avatarUrl ? (
@@ -218,15 +224,6 @@ export default function UnifiedProfileScreen() {
                   <Camera size={18} color={theme.colors.background} />
                 </View>
               </Pressable>
-              <TouchableOpacity
-                activeOpacity={0.78}
-                onPress={() => setSheetOpen(true)}
-                style={styles.gearButton}
-                accessibilityRole="button"
-                accessibilityLabel="Menú de acciones"
-              >
-                <Settings2 size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
             </View>
 
             <Text style={styles.name}>{profile.displayName}</Text>
@@ -419,14 +416,18 @@ export default function UnifiedProfileScreen() {
       <FollowersSheet
         visible={showFollowers}
         title="Seguidores"
-        userId={profile.userId!}
+        kind="followers"
+        userId={profile.userId ?? currentUserId}
+        navigation={navigation}
         onClose={() => setShowFollowers(false)}
       />
 
       <FollowersSheet
         visible={showFollowing}
         title="Siguiendo"
-        userId={profile.userId!}
+        kind="following"
+        userId={profile.userId ?? currentUserId}
+        navigation={navigation}
         onClose={() => setShowFollowing(false)}
       />
 
@@ -448,6 +449,13 @@ export default function UnifiedProfileScreen() {
       <SessionDetailSheet
         session={selectedSession}
         onClose={() => setSelectedSession(null)}
+      />
+
+      <ForkWorkoutModal
+        visible={forkPublication !== null}
+        onClose={() => setForkPublication(null)}
+        publication={forkPublication}
+        currentUserId={currentUserId}
       />
     </View>
   );
@@ -502,29 +510,32 @@ function ActionSheet({
 function FollowersSheet({
   visible,
   title,
+  kind,
   userId,
+  navigation,
   onClose,
 }: {
   visible: boolean;
   title: string;
+  kind: SocialListKind;
   userId: string;
+  navigation: ProfileNavigation;
   onClose: () => void;
 }) {
-  const [profiles, setProfiles] = React.useState<{ userId: string; displayName: string; handle: string }[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const navigation = useNavigation<NavigationProp<SocialStackParamList>>();
+  const followers = useFollowers(kind === 'followers' ? userId : '');
+  const following = useFollowing(kind === 'following' ? userId : '');
+  const query = kind === 'followers' ? followers : following;
+  const profiles: Profile[] = query.data ?? [];
 
-  React.useEffect(() => {
-    if (!visible) return;
-    setIsLoading(true);
-    const fetchFn = title === 'Seguidores'
-      ? socialService.getFollowers(userId)
-      : socialService.getFollowing(userId);
-    fetchFn
-      .then(setProfiles)
-      .catch(() => setProfiles([]))
-      .finally(() => setIsLoading(false));
-  }, [visible, userId, title]);
+  const openProfile = React.useCallback((targetUserId: string) => {
+    onClose();
+    InteractionManager.runAfterInteractions(() => {
+      navigation.navigate('Social', {
+        screen: 'PublicProfile',
+        params: { userId: targetUserId },
+      });
+    });
+  }, [navigation, onClose]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -536,24 +547,38 @@ function FollowersSheet({
               <X size={22} color={theme.colors.textSecondary} />
             </Pressable>
           </View>
-          {isLoading ? (
+          {query.isLoading ? (
             <Text style={styles.modalMeta}>Cargando...</Text>
+          ) : query.isError ? (
+            <View style={styles.modalError}>
+              <Text style={styles.modalMeta}>No pudimos cargar esta lista.</Text>
+              <SecondaryButton label="Reintentar" onPress={() => void query.refetch()} />
+            </View>
           ) : profiles.length === 0 ? (
             <Text style={styles.modalMeta}>No hay usuarios para mostrar.</Text>
           ) : (
-            profiles.map((p) => (
-              <Pressable
-                key={p.userId}
-                style={styles.profileListRow}
-                onPress={() => {
-                  onClose();
-                  navigation.navigate('PublicProfile', { userId: p.userId });
-                }}
-              >
-                <Text style={styles.profileListName}>{p.displayName}</Text>
-                <Text style={styles.profileListHandle}>@{p.handle}</Text>
-              </Pressable>
-            ))
+            <ScrollView style={styles.profileListScroll}>
+              {profiles.map((p) => (
+                <Pressable
+                  key={p.userId}
+                  style={styles.profileListRow}
+                  onPress={() => openProfile(p.userId)}
+                >
+                  <View style={styles.profileListAvatar}>
+                    {p.avatarUrl ? (
+                      <Image source={{ uri: p.avatarUrl }} style={styles.profileListAvatarImg} />
+                    ) : (
+                      <UserRound size={20} color={theme.colors.textMuted} />
+                    )}
+                  </View>
+                  <View style={styles.profileListText}>
+                    <Text style={styles.profileListName}>{p.displayName}</Text>
+                    <Text style={styles.profileListHandle}>@{p.handle}</Text>
+                  </View>
+                  <ChevronRight size={16} color={theme.colors.textMuted} />
+                </Pressable>
+              ))}
+            </ScrollView>
           )}
         </View>
       </View>
@@ -1265,14 +1290,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: theme.spacing.xl,
   },
+  modalError: {
+    gap: theme.spacing.md,
+    paddingVertical: theme.spacing.lg,
+  },
   profileListRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.sm,
+    gap: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+  },
+  profileListAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  profileListAvatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  profileListText: {
+    flex: 1,
   },
   profileListName: {
     color: theme.colors.textPrimary,
@@ -1284,6 +1330,9 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: theme.typography.small.fontSize,
     lineHeight: theme.typography.small.lineHeight,
+  },
+  profileListScroll: {
+    maxHeight: 400,
   },
   keyboardDoneButton: {
     minHeight: 44,

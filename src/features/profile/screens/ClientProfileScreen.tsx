@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -172,7 +173,11 @@ export default function ClientProfileScreen() {
         <BaseCard style={styles.heroCard}>
           <View style={styles.heroTop}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{dashboard.profile.avatarInitials}</Text>
+              {dashboard.profile.avatarUrl ? (
+                <Image source={{ uri: dashboard.profile.avatarUrl }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarText}>{dashboard.profile.avatarInitials}</Text>
+              )}
             </View>
             <TouchableOpacity
               activeOpacity={0.78}
@@ -452,6 +457,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
   },
   avatarText: {
     color: theme.colors.primary,

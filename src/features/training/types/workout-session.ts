@@ -1,6 +1,7 @@
 import type { DayOfWeek } from './routine';
 
 export type WorkoutSessionStatus = 'in_progress' | 'finished';
+export type WorkoutSessionSourceType = 'personal' | 'trainer_assigned';
 
 export interface WorkoutSet {
   setNumber: number;
@@ -29,6 +30,8 @@ export interface WorkoutSession {
   id: string;
   userId: string;
   routineId: string;
+  sourceType: WorkoutSessionSourceType;
+  assignedRoutineId: string | null;
   dayOfWeek: DayOfWeek;
   status: WorkoutSessionStatus;
   currentExerciseIndex: number;
@@ -45,6 +48,8 @@ export interface WorkoutSessionDetail extends WorkoutSession {
 export interface WorkoutSessionSummary {
   id: string;
   routineId: string;
+  sourceType: WorkoutSessionSourceType;
+  assignedRoutineId: string | null;
   dayOfWeek: DayOfWeek;
   routineName: string;
   startedAt: string;

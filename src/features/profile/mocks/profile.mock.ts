@@ -92,7 +92,7 @@ export function buildTrainerApplicationCard(
 
 export const trainerProfileDefaults: Omit<
   TrainerProfessionalProfile,
-  'displayName' | 'email' | 'handle' | 'avatarInitials'
+  'displayName' | 'email' | 'handle' | 'avatarUrl' | 'avatarInitials'
 > = {
   specialty: 'Fuerza e hipertrofia',
   yearsOfExperience: '5 anos',

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
+import { type NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AlertCircle,
@@ -23,28 +23,37 @@ import {
 } from '@/features/training/screens/v2/TrainingV2Primitives';
 import { theme } from '@/theme';
 import type { TrainerLinkStackParamList } from '@/navigation/types';
+import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
+import type { DayOfWeek } from '@/features/training/types/routine';
 import { useAssignedRoutine } from '../hooks/use-assigned-routine';
+import { useStartAssignedRoutine } from '../hooks/use-assigned-routines';
 import type { AssignedRoutineDay, AssignedRoutineDetail } from '../types/assigned-routine';
 
 type Props = NativeStackScreenProps<TrainerLinkStackParamList, 'AssignedRoutine'>;
 
 export default function AssignedRoutineScreen({ navigation }: Props) {
   const assignedRoutine = useAssignedRoutine();
+  const startAssignedRoutine = useStartAssignedRoutine();
+  const drawerNavigation = navigation.getParent<NavigationProp<UserDrawerParamList>>();
 
-  const activeRoutine = routines?.find((r) => r.isActive) ?? null;
-  const displayRoutine = activeRoutine;
-
-  const startWorkout = React.useCallback(() => {
-    navigation.getParent()?.dispatch(
-      CommonActions.navigate({
-        name: 'MainTabs',
-        params: {
-          screen: 'Workout',
-          params: { screen: 'WorkoutStart' },
+  const startWorkout = React.useCallback((routine: AssignedRoutineDetail) => {
+    const selectedDay =
+      routine.days.find((day) => day.status === 'today') ?? routine.days[0];
+    startAssignedRoutine.mutate(
+      {
+        assignedId: routine.id,
+        dayOfWeek: selectedDay?.dayOfWeek as DayOfWeek | undefined,
+      },
+      {
+        onSuccess: (session) => {
+          drawerNavigation?.navigate('WorkoutStack', {
+            screen: 'WorkoutSession',
+            params: { sessionId: session.id },
+          });
         },
-      }),
+      },
     );
-  }, [navigation]);
+  }, [drawerNavigation, startAssignedRoutine]);
 
   if (assignedRoutine.isLoading) {
     return (
@@ -102,7 +111,9 @@ export default function AssignedRoutineScreen({ navigation }: Props) {
     <AssignedRoutineContent
       routine={routine}
       onBack={() => navigation.goBack()}
-      onStartWorkout={startWorkout}
+      onStartWorkout={() => startWorkout(routine)}
+      startLoading={startAssignedRoutine.isPending}
+      startError={startAssignedRoutine.error?.message ?? null}
       onViewTrainer={() =>
         navigation.navigate('TrainerProfile', { trainerId: routine.trainer.id })
       }
@@ -114,11 +125,15 @@ function AssignedRoutineContent({
   routine,
   onBack,
   onStartWorkout,
+  startLoading,
+  startError,
   onViewTrainer,
 }: {
   routine: AssignedRoutineDetail;
   onBack: () => void;
   onStartWorkout: () => void;
+  startLoading: boolean;
+  startError: string | null;
   onViewTrainer: () => void;
 }) {
   const totalExercises = routine.days.reduce((total, day) => total + day.exercises.length, 0);
@@ -134,8 +149,10 @@ function AssignedRoutineContent({
         <View style={styles.footerActions}>
           <SecondaryButton label="Ver entrenador" onPress={onViewTrainer} style={styles.footerButton} />
           <PrimaryButton
-            label="Empezar"
+            label={startLoading ? 'Iniciando...' : 'Empezar'}
             onPress={onStartWorkout}
+            loading={startLoading}
+            disabled={startLoading}
             icon={<Play size={18} color={theme.colors.background} />}
             style={styles.footerButton}
           />
@@ -183,6 +200,7 @@ function AssignedRoutineContent({
         <Text style={styles.noteMeta}>
           Asignada {formatDate(routine.assignedAt)} - inicia {formatDate(routine.startsAt)}
         </Text>
+        {startError ? <Text style={styles.startError}>{startError}</Text> : null}
       </BaseCard>
 
       <View style={styles.metricsRow}>
@@ -197,14 +215,6 @@ function AssignedRoutineContent({
           <AssignedRoutineDayCard key={day.id} day={day} />
         ))}
       </View>
-
-      <BaseCard style={styles.integrationCard}>
-        <Text style={styles.integrationTitle}>Preparada para integracion</Text>
-        <Text style={styles.integrationText}>
-          Esta vista consume `useAssignedRoutine()`. Hoy usa un mock aislado; la conexion real debe
-          reemplazar ese hook sin cambiar la pantalla.
-        </Text>
-      </BaseCard>
     </TrainingV2Screen>
   );
 }
@@ -393,6 +403,11 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontSize: theme.typography.caption.fontSize,
     lineHeight: theme.typography.caption.lineHeight,
+  },
+  startError: {
+    color: theme.colors.error,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
   },
   metricsRow: {
     flexDirection: 'row',

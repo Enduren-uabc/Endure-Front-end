@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import { apiClient } from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/lib/api-endpoints";
-import type { Routine, DayOfWeek } from "../types/routine";
+import type { Routine, DayOfWeek, RoutineTargetAudience } from "../types/routine";
 
 interface ListRoutinesResponse {
   routines?: Routine[];
@@ -87,7 +87,15 @@ export function useUpdateRoutineName() {
 
 export function useCreateRoutine() {
   const queryClient = useQueryClient();
-  return useMutation<Routine, Error, { name: string; dayOfWeeks: DayOfWeek[] }>(
+  return useMutation<
+    Routine,
+    Error,
+    {
+      name: string;
+      dayOfWeeks: DayOfWeek[];
+      targetAudience?: RoutineTargetAudience;
+    }
+  >(
     {
       mutationFn: (body) =>
         apiClient.post<Routine>(API_ENDPOINTS.routines.create, body),

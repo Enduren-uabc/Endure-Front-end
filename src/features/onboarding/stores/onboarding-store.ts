@@ -21,9 +21,13 @@ interface OnboardingDraft {
   weight?: string;
   height?: string;
   experienceLevel?: OnboardingExperienceLevel;
-  daysAvailablePerWeek?: number;
   weightUnit?: OnboardingWeightUnit;
   trainingStrategyKey?: string;
+  trainingSplitKey?: 'ppl' | 'arnold';
+  displayName?: string;
+  bio?: string;
+  avatarUri?: string;
+  avatarFile?: { uri: string; name: string; type: string };
 }
 
 interface OnboardingState extends OnboardingDraft {
@@ -36,9 +40,15 @@ interface OnboardingState extends OnboardingDraft {
     height: string;
   }) => void;
   setExperienceLevel: (level: OnboardingExperienceLevel) => void;
-  setDaysAvailablePerWeek: (days: number) => void;
   setWeightUnit: (unit: OnboardingWeightUnit) => void;
   setTrainingStrategyKey: (key: string) => void;
+  setTrainingSplitKey: (key: 'ppl' | 'arnold') => void;
+  setSocialData: (data: {
+    displayName: string;
+    bio: string;
+    avatarUri?: string;
+    avatarFile?: { uri: string; name: string; type: string } | null;
+  }) => void;
   reset: () => void;
 }
 
@@ -50,8 +60,11 @@ const initialState: OnboardingDraft = {
   weight: undefined,
   height: undefined,
   experienceLevel: undefined,
-  daysAvailablePerWeek: 3,
   weightUnit: 'kg',
+  displayName: undefined,
+  bio: undefined,
+  avatarUri: undefined,
+  avatarFile: undefined,
 };
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -60,8 +73,10 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
   setBasicData: ({ fullName, birthDate, gender, weight, height }) =>
     set({ fullName, birthDate, gender, weight, height }),
   setExperienceLevel: (experienceLevel) => set({ experienceLevel }),
-  setDaysAvailablePerWeek: (daysAvailablePerWeek) => set({ daysAvailablePerWeek }),
   setWeightUnit: (weightUnit) => set({ weightUnit }),
   setTrainingStrategyKey: (trainingStrategyKey) => set({ trainingStrategyKey }),
+  setTrainingSplitKey: (trainingSplitKey) => set({ trainingSplitKey }),
+  setSocialData: ({ displayName, bio, avatarUri, avatarFile }) =>
+    set({ displayName, bio, avatarUri, avatarFile: avatarFile ?? undefined }),
   reset: () => set({ ...initialState }),
 }));

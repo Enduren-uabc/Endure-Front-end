@@ -91,6 +91,9 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
   const [selectedStrategy, setSelectedStrategy] = React.useState<string | null>(
     draft.trainingStrategyKey ?? null,
   );
+  const [selectedSplit, setSelectedSplit] = React.useState<'ppl' | 'arnold' | null>(
+    draft.trainingSplitKey ?? 'ppl',
+  );
 
   const recommended = ALL_STRATEGIES.filter((s) => RECOMMENDED_KEYS.includes(s.key));
   const other = ALL_STRATEGIES.filter((s) => !RECOMMENDED_KEYS.includes(s.key));
@@ -101,6 +104,9 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
       draft.setTrainingStrategyKey('straight');
     } else if (selectedStrategy) {
       draft.setTrainingStrategyKey(selectedStrategy);
+    }
+    if (data.experienceLevel === 'advanced' && selectedSplit) {
+      draft.setTrainingSplitKey(selectedSplit);
     }
     if (showSocial) {
       navigation.navigate('SocialSetup');
@@ -115,6 +121,9 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
       setSelectedStrategy('straight');
     } else {
       setSelectedStrategy(draft.trainingStrategyKey ?? null);
+    }
+    if (level === 'advanced') {
+      setSelectedSplit(draft.trainingSplitKey ?? 'ppl');
     }
   };
 
@@ -207,19 +216,37 @@ export default function OnboardingLevelScreen({ navigation }: Props) {
                     )}
 
                     {isSelected && level.value === 'advanced' && (
-                      <View style={styles.strategySection}>
-                        <Text style={styles.strategySectionLabel}>Elige tu estrategia de entrenamiento</Text>
-                        <View style={styles.strategyChipsRow}>
-                          {ALL_STRATEGIES.map((s) => (
-                            <Chip
-                              key={s.key}
-                              label={s.name}
-                              selected={selectedStrategy === s.key}
-                              onPress={() => setSelectedStrategy(s.key)}
-                            />
-                          ))}
+                      <>
+                        <View style={styles.strategySection}>
+                          <Text style={styles.strategySectionLabel}>Elige tu estrategia de entrenamiento</Text>
+                          <View style={styles.strategyChipsRow}>
+                            {ALL_STRATEGIES.map((s) => (
+                              <Chip
+                                key={s.key}
+                                label={s.name}
+                                selected={selectedStrategy === s.key}
+                                onPress={() => setSelectedStrategy(s.key)}
+                              />
+                            ))}
+                          </View>
                         </View>
-                      </View>
+
+                        <View style={styles.strategySection}>
+                          <Text style={styles.strategySectionLabel}>Elige tu tipo de rutina</Text>
+                          <View style={styles.strategyChipsRow}>
+                            <Chip
+                              label="Push / Pull / Legs"
+                              selected={selectedSplit === 'ppl'}
+                              onPress={() => setSelectedSplit('ppl')}
+                            />
+                            <Chip
+                              label="Arnold Split"
+                              selected={selectedSplit === 'arnold'}
+                              onPress={() => setSelectedSplit('arnold')}
+                            />
+                          </View>
+                        </View>
+                      </>
                     )}
                   </React.Fragment>
                 );

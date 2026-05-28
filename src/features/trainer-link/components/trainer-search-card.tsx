@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { User, Star } from 'lucide-react-native';
 import { theme } from '@/theme';
 import type { TrainerSearchResult } from '../types/trainer-link';
@@ -32,7 +32,11 @@ export default function TrainerSearchCard({
       activeOpacity={0.7}
     >
       <View style={styles.avatar}>
-        <User size={24} color={theme.colors.textSecondary} />
+        {trainer.profileImageUrl ? (
+          <Image source={{ uri: trainer.profileImageUrl }} style={styles.avatarImage} />
+        ) : (
+          <User size={24} color={theme.colors.textSecondary} />
+        )}
       </View>
       <View style={styles.info}>
         <Text style={styles.name}>{trainer.displayName}</Text>
@@ -86,6 +90,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2A3E',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   info: {
     flex: 1,

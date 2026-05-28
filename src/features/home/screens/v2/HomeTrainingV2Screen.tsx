@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation, type NavigationProp, type NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -6,11 +6,12 @@ import { AlertCircle, Bell, CalendarDays, Clock, Flame, Link2, Play, RefreshCcw,
 import { BaseCard } from '@/components/ui/BaseCard';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import { Chip } from '@/components/ui/Chip';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import type { TrainingStackParamList, WorkoutStackParamList, RootStackParamList } from '@/navigation/types';
 import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
-import type { TrainingV2Level } from '@/features/training/screens/v2/training-v2.types';
+import type { TrainingV2Level, RoutineTemplate, TemplateFilter } from '@/features/training/screens/v2/training-v2.types';
 import {
   TrainingV2MetricCard,
   TrainingV2RoutineCard,
@@ -18,12 +19,14 @@ import {
   TrainingV2SectionHeader,
 } from '@/features/training/screens/v2/TrainingV2Primitives';
 import { useRoutines } from '@/features/training/hooks/use-routines';
+import { useRoutineTemplates } from '@/features/training/hooks/use-routine-templates';
 import { useWorkoutHistory, useWorkoutSessionInProgress } from '@/features/training/hooks/use-workout-session';
 import { useHomeGreeting, useHomeStats, useHomeUnreadNotifications, useWeeklyStats } from '@/features/home/hooks/use-home-data';
 import { useMyTrainer } from '@/features/trainer-link/hooks/use-trainer-link';
 import { DAY_OF_WEEK_LABELS } from '@/features/training/types/routine';
 import type { Routine } from '@/features/training/types/routine';
 import type { RoutineV2 } from '@/features/training/screens/v2/training-v2.types';
+import { templateToRoutineV2 } from '@/features/training/screens/v2/training-v2.mock';
 import {
   SkeletonGreeting,
   SkeletonTodayCard,
@@ -77,6 +80,22 @@ export default function HomeTrainingV2Screen() {
   const { data: myTrainerData, isLoading: trainerLoading, isError: trainerError } = useMyTrainer();
   const { data: inProgressSession, isLoading: inProgressLoading } = useWorkoutSessionInProgress();
   const greeting = useHomeGreeting();
+  const [activeFilter, setActiveFilter] = useState<TemplateFilter>('Todos');
+
+  const templateFilters: TemplateFilter[] = ['Todos', 'Principiante', 'Intermedio', 'Avanzado'];
+
+  const levelMap: Record<TemplateFilter, string | undefined> = {
+    'Todos': undefined,
+    'Principiante': 'beginner',
+    'Intermedio': 'intermediate',
+    'Avanzado': 'advanced',
+  };
+
+  const { data: templatesData, isLoading: templatesLoading } = useRoutineTemplates({
+    level: levelMap[activeFilter],
+    limit: 10,
+  });
+  const templates = templatesData?.templates ?? [];
 
   const activeRoutine = routines?.find((r) => r.isActive) ?? null;
   const historySessions = historyData?.sessions ?? [];
@@ -107,6 +126,12 @@ export default function HomeTrainingV2Screen() {
     drawerNavigation?.navigate('TrainerLinkStack', { screen: 'SearchTrainer' });
   const openNotifications = () =>
     rootNavigation.navigate('RemindersStack', { screen: 'NotificationList' });
+  const openTemplateDetail = (template: RoutineTemplate) => {
+    navigation.navigate('Routines', {
+      screen: 'TemplateDetail',
+      params: { templateId: template.id },
+    });
+  };
 
   const isClient = role !== 'trainer';
   const unreadCount = unreadNotifications?.count ?? 0;
@@ -140,6 +165,7 @@ export default function HomeTrainingV2Screen() {
   ];
 
   return (
+    <>
     <TrainingV2Screen
       title="Inicio"
       subtitle={greeting.dateLabel}
@@ -324,36 +350,44 @@ export default function HomeTrainingV2Screen() {
         )
       ) : null}
 
-      <TrainingV2SectionHeader title="Para ti" actionLabel="Explorar" onAction={() => navigation.navigate('Routines', { screen: 'RoutinesList' })} />
-      {routinesLoading ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestions}>
+      <TrainingV2SectionHeader title="Para ti" />
+      <View style={styles.filterRow}>
+        {templateFilters.map((filter) => (
+          <Chip
+            key={filter}
+            label={filter}
+            selected={activeFilter === filter}
+            onPress={() => setActiveFilter(filter)}
+          />
+        ))}
+      </View>
+      {templatesLoading ? (
+        <View style={styles.templateList}>
           <SkeletonRoutineCards />
-        </ScrollView>
-      ) : (
+        </View>
+      ) : templates.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.suggestions}
+          contentContainerStyle={styles.templateCarousel}
         >
-          {(routines ?? []).length > 0 ? (
-            (routines ?? []).map((routine) => (
-              <TrainingV2RoutineCard
-                key={routine.id}
-                routine={mapRoutineToV2(routine, greeting.experienceLevel)}
-                compact
-                onPress={() => openRoutine(routine.id)}
-              />
-            ))
-          ) : (
-            <BaseCard style={styles.discoveryCard}>
-              <Sparkles size={20} color={theme.colors.primary} />
-              <Text style={styles.discoveryText}>Aun no tienes rutinas. Crea la primera para empezar.</Text>
-              <SecondaryButton label="Crear rutina" onPress={createRoutine} style={styles.discoveryButton} />
-            </BaseCard>
-          )}
+          {templates.map((item) => (
+            <TrainingV2RoutineCard
+              key={item.id}
+              routine={templateToRoutineV2(item)}
+              compact={true}
+              onPress={() => openTemplateDetail(item)}
+            />
+          ))}
         </ScrollView>
+      ) : (
+        <BaseCard style={styles.discoveryCard}>
+          <Sparkles size={20} color={theme.colors.primary} />
+          <Text style={styles.discoveryText}>No hay rutinas predeterminadas para este nivel.</Text>
+        </BaseCard>
       )}
     </TrainingV2Screen>
+    </>
   );
 }
 
@@ -537,5 +571,23 @@ const styles = StyleSheet.create({
   },
   discoveryButton: {
     width: '100%',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  templateList: {
+    gap: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
+  },
+  templateCardWrapper: {
+    marginBottom: theme.spacing.sm,
+  },
+  templateCarousel: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    paddingRight: theme.spacing.xl,
+    paddingBottom: theme.spacing.md,
   },
 });

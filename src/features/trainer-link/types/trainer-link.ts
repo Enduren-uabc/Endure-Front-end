@@ -169,6 +169,7 @@ export interface RoutineSnapshot {
   difficulty: string;
   estimatedDuration: number;
   exercises: ExerciseSnapshot[];
+  days: DayDetailItem[];
 }
 
 export interface AssignedRoutine {
@@ -209,6 +210,7 @@ export interface MyAssignedRoutineItem {
   notes: string | null;
   originLabel: string;
   exercises: ExerciseSnapshot[];
+  days: DayDetailItem[];
 }
 
 export interface AssignRoutineInput {
@@ -248,4 +250,5 @@ export interface AssignableRoutineItem {
   estimatedDuration: number;
   exerciseCount: number;
   isActive: boolean;
+  targetAudience: 'client';
 }

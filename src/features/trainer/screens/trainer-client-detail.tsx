@@ -24,10 +24,12 @@ import {
   Eye,
 } from 'lucide-react-native';
 import { theme } from '@/theme';
+import { useQueryClient } from '@tanstack/react-query';
 import { useClientGeneralInfo, useRecentSessions, useBasicIndicators } from '@/features/trainer-link/hooks/use-client-progress';
 import { useClientAssignedRoutines } from '@/features/trainer-link/hooks/use-assigned-routines';
 import type { ClientsStackParamList } from '@/navigation/types';
 import type { RecentSession } from '@/features/trainer-link/types/trainer-link';
+
 
 type ClientDetailRouteProp = RouteProp<ClientsStackParamList, 'ClientDetail'>;
 
@@ -70,7 +72,7 @@ function SectionError({ message, onRetry }: { message: string; onRetry?: () => v
 export default function TrainerClientDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ClientsStackParamList, 'ClientDetail'>>();
   const route = useRoute<ClientDetailRouteProp>();
-  const { clientId, clientName } = route.params;
+  const { clientId, clientName, linkId } = route.params;
 
   const {
     data: generalInfo,
@@ -212,7 +214,7 @@ export default function TrainerClientDetailScreen() {
               <Text style={styles.noRoutineSubtext}>Asigna una rutina desde tu lista disponible.</Text>
               <TouchableOpacity
                 style={styles.assignButton}
-                onPress={() => navigation.navigate('AssignRoutine', { clientId, clientName })}
+                onPress={() => navigation.navigate('AssignRoutine', { clientId, clientName, linkId })}
               >
                 <Plus size={18} color="#FFFFFF" />
                 <Text style={styles.assignButtonText}>Asignar rutina</Text>
@@ -262,7 +264,7 @@ export default function TrainerClientDetailScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.replaceButton}
-                      onPress={() => navigation.navigate('AssignRoutine', { clientId, clientName })}
+                      onPress={() => navigation.navigate('AssignRoutine', { clientId, clientName, linkId })}
                     >
                       <RefreshCw size={16} color={theme.colors.primary} />
                       <Text style={styles.replaceButtonText}>Reemplazar</Text>

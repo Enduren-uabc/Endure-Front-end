@@ -51,6 +51,7 @@ export type TrainingStackParamList = {
   ExerciseCatalog: { routineId?: string; selectedDay?: string } | undefined;
   ExerciseDetail: { routineId: string; exercise: ExerciseConfig; selectedDay?: string };
   ManualExercise: { routineId: string; selectedDay?: string };
+  TemplateDetail: { templateId: string };
 };
 
 export type CoachStackParamList = {
@@ -83,9 +84,16 @@ export type RemindersStackParamList = {
 
 export type ClientsStackParamList = {
   ClientList: undefined;
-  ClientDetail: { clientId: string; clientName: string };
+  ClientDetail: { clientId: string; clientName: string; linkId?: string; activatedAt?: string };
   ExerciseProgress: { clientId: string; exerciseId: string; exerciseName: string };
-  AssignRoutine: { clientId: string; clientName: string };
+  AssignRoutine: {
+    clientId: string;
+    clientName: string;
+    linkId?: string;
+    activatedAt?: string;
+    preselectedRoutineId?: string;
+    preselectedRoutineName?: string;
+  };
   AssignedRoutineDetail: { clientId: string; assignedId: string; routineName: string };
   EditAssignedRoutine: { clientId: string; clientName: string; assignedId: string; routineName: string };
 };

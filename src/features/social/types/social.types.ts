@@ -76,6 +76,7 @@ export interface Profile {
 export interface PublicProfile extends Profile {
   followersCount: number;
   followingCount: number;
+  isFollowing: boolean;
 }
 
 export interface Reaction {

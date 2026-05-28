@@ -5,6 +5,7 @@ import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { fetchMe, useLogout } from '@/features/auth/hooks/use-auth';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { useMyVerificationStatus } from '@/features/trainer-verification/hooks/use-trainer-verification';
+import { socialService } from '@/features/social/services/social.service';
 import { useWorkoutStats } from '@/features/training/hooks/use-workout-stats';
 import {
   buildTrainerApplicationCard,
@@ -44,6 +45,12 @@ export function useClientProfileDashboard() {
     queryFn: fetchMe,
     retry: 1,
   });
+  const socialProfile = useQuery({
+    queryKey: ['social-profile', me.data?.id],
+    queryFn: () => socialService.getProfile(me.data!.id),
+    enabled: !!me.data?.id,
+    retry: 1,
+  });
   const profileQuery = useQuery<OnboardingProfileResponse>({
     queryKey: ['profile', 'data'],
     queryFn: () => apiClient.get<OnboardingProfileResponse>(API_ENDPOINTS.profile.get),
@@ -58,11 +65,13 @@ export function useClientProfileDashboard() {
 
   const displayName =
     localProfile?.displayName ??
+    socialProfile.data?.displayName ??
     me.data?.username ??
     sessionUsername ??
-    'Gerardo Medina';
-  const bio = localProfile?.bio ?? clientProfileDefaults.bio;
-  const email = me.data?.email ?? sessionEmail ?? 'gerardo@endure.local';
+    '';
+  const bio = localProfile?.bio ?? socialProfile.data?.bio ?? clientProfileDefaults.bio;
+  const email = me.data?.email ?? sessionEmail ?? '';
+  const avatarUrl = socialProfile.data?.avatarUrl ?? null;
 
   const weight = profileQuery.data?.weight;
   const weightUnit = profileQuery.data?.weightUnit ?? 'kg';
@@ -77,6 +86,7 @@ export function useClientProfileDashboard() {
     email,
     handle: `@${handleFromName(displayName)}`,
     bio,
+    avatarUrl,
     avatarInitials: initialsFromName(displayName),
     metrics: [
       { id: 'workouts', label: 'Entrenos', value: `${totalWorkouts}`, helper: 'Completados' },
@@ -129,11 +139,12 @@ export function useClientProfileDashboard() {
   return {
     profile,
     trainerCard,
-    isLoading: me.isLoading || profileQuery.isLoading || stats.isLoading || verification.isLoading,
-    isError: me.isError || profileQuery.isError || stats.isError,
-    isRefreshing: me.isRefetching || profileQuery.isRefetching || stats.isRefetching || verification.isRefetching,
+    isLoading: me.isLoading || socialProfile.isLoading || profileQuery.isLoading || stats.isLoading || verification.isLoading,
+    isError: me.isError || socialProfile.isError || profileQuery.isError || stats.isError,
+    isRefreshing: me.isRefetching || socialProfile.isRefetching || profileQuery.isRefetching || stats.isRefetching || verification.isRefetching,
     refetch: () => {
       void me.refetch();
+      void socialProfile.refetch();
       void profileQuery.refetch();
       void stats.refetch();
       void verification.refetch();
@@ -154,6 +165,12 @@ export function useTrainerProfileDashboard() {
     queryFn: fetchMe,
     retry: 1,
   });
+  const socialProfile = useQuery({
+    queryKey: ['social-profile', me.data?.id],
+    queryFn: () => socialService.getProfile(me.data!.id),
+    enabled: !!me.data?.id,
+    retry: 1,
+  });
   const logout = useLogout();
   const [localProfile, setLocalProfile] = React.useState<EditableProfileInput | null>(null);
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
@@ -161,11 +178,13 @@ export function useTrainerProfileDashboard() {
 
   const displayName =
     localProfile?.displayName ??
+    socialProfile.data?.displayName ??
     me.data?.username ??
     sessionUsername ??
-    'Coach Endure';
-  const email = me.data?.email ?? sessionEmail ?? 'coach@endure.local';
-  const bio = localProfile?.bio ?? trainerProfileDefaults.bio;
+    '';
+  const email = me.data?.email ?? sessionEmail ?? '';
+  const bio = localProfile?.bio ?? socialProfile.data?.bio ?? trainerProfileDefaults.bio;
+  const avatarUrl = socialProfile.data?.avatarUrl ?? null;
 
   const profile: TrainerProfessionalProfile = {
     ...trainerProfileDefaults,
@@ -173,6 +192,7 @@ export function useTrainerProfileDashboard() {
     email,
     bio,
     handle: `@${handleFromName(displayName)}`,
+    avatarUrl,
     avatarInitials: initialsFromName(displayName),
   };
 
@@ -212,11 +232,12 @@ export function useTrainerProfileDashboard() {
 
   return {
     profile,
-    isLoading: me.isLoading,
-    isError: me.isError,
-    isRefreshing: me.isRefetching,
+    isLoading: me.isLoading || socialProfile.isLoading,
+    isError: me.isError || socialProfile.isError,
+    isRefreshing: me.isRefetching || socialProfile.isRefetching,
     refetch: () => {
       void me.refetch();
+      void socialProfile.refetch();
     },
     saveProfile,
     isSavingProfile,

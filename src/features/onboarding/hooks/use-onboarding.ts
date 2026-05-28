@@ -1,7 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
-import { useSessionStore } from '@/features/auth/stores/session-store';
+import type {
+  CreateDefaultRoutineRequestDto,
+  RoutineResponseDto,
+} from '@/shared/api/types/training';
 
 export interface OnboardingProfileBody {
   fullName: string;
@@ -39,18 +42,9 @@ export interface OnboardingStatusResponse {
 }
 
 export function useCreateOnboardingProfile() {
-  const setOnboardingCompleted = useSessionStore((s) => s.setOnboardingCompleted);
-  const queryClient = useQueryClient();
-
   return useMutation<OnboardingProfileResponse, Error, OnboardingProfileBody>({
     mutationFn: (body) =>
       apiClient.post<OnboardingProfileResponse>(API_ENDPOINTS.onboarding.profile, body),
-    onSuccess: (data) => {
-      setOnboardingCompleted(data.onboardingCompleted);
-      queryClient.setQueryData<OnboardingStatusResponse>(['onboarding-status'], {
-        completed: data.onboardingCompleted,
-      });
-    },
   });
 }
 
@@ -60,5 +54,12 @@ export function useOnboardingStatus(enabled = true) {
     queryFn: () => apiClient.get<OnboardingStatusResponse>(API_ENDPOINTS.onboarding.status),
     enabled,
     retry: 1,
+  });
+}
+
+export function useCreateDefaultRoutine() {
+  return useMutation<RoutineResponseDto, Error, CreateDefaultRoutineRequestDto>({
+    mutationFn: (body) =>
+      apiClient.post<RoutineResponseDto>(API_ENDPOINTS.routines.default, body),
   });
 }

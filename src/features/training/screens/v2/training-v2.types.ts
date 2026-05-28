@@ -81,3 +81,46 @@ export interface WorkoutSessionV2 {
   elapsedLabel: string;
   restSeconds: number;
 }
+
+export interface RoutineTemplate {
+  id: string;
+  experienceLevel: string;
+  splitKey: string | null;
+  name: string;
+  dayCount: number;
+  exerciseCount: number;
+  totalSets: number;
+  description: string;
+}
+
+export interface RoutineTemplateDay {
+  dayOfWeek: string;
+  name: string;
+  displayOrder: number;
+  exercises: Array<{
+    catalogId: string;
+    name: string;
+    setsCount: number;
+    initialReps: number;
+    initialWeight: number;
+    order: number;
+  }>;
+}
+
+export interface RoutineTemplateDetail {
+  id: string;
+  experienceLevel: string;
+  splitKey: string | null;
+  name: string;
+  description: string;
+  days: RoutineTemplateDay[];
+}
+
+export interface RoutineTemplateListResponse {
+  templates: RoutineTemplate[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export type TemplateFilter = 'Todos' | 'Principiante' | 'Intermedio' | 'Avanzado';

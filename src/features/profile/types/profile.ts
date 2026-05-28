@@ -27,6 +27,7 @@ export interface ClientProfileViewModel {
   email: string;
   handle: string;
   bio: string;
+  avatarUrl: string | null;
   avatarInitials: string;
   metrics: ProfileMetric[];
 }
@@ -50,6 +51,7 @@ export interface TrainerProfessionalProfile {
   displayName: string;
   email: string;
   handle: string;
+  avatarUrl: string | null;
   avatarInitials: string;
   specialty: string;
   bio: string;

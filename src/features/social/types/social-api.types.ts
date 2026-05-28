@@ -102,6 +102,7 @@ export interface ProfileApi {
 export interface PublicProfileApi extends ProfileApi {
   followersCount: number;
   followingCount: number;
+  isFollowing: boolean;
 }
 
 export interface ProfileListApi {

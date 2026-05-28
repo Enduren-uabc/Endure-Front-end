@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, InteractionManager, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import { AlertCircle, Check, Clock3, Dumbbell, Pencil, Play, Plus, Rows3, Star, Trash2 } from 'lucide-react-native';
@@ -62,6 +62,7 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
   const setStrategyMutation = useSetRoutineStrategy();
 
   const [selectedDay, setSelectedDay] = React.useState<DayOfWeek | null>(null);
+  const [isTransitioning, setIsTransitioning] = React.useState(true);
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [showAddDayModal, setShowAddDayModal] = React.useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
@@ -76,15 +77,25 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
   const [editSaveError, setEditSaveError] = React.useState<string | null>(null);
   const [infoMessage, setInfoMessage] = React.useState<string | null>(null);
 
+  const hasInitializedDay = React.useRef(false);
+
   React.useEffect(() => {
-    if (routine && !selectedDay) {
+    const task = InteractionManager.runAfterInteractions(() => {
+      setIsTransitioning(false);
+    });
+    return () => task.cancel();
+  }, []);
+
+  React.useEffect(() => {
+    if (routine && !hasInitializedDay.current) {
       const jsDay = new Date().getDay();
       const JS_TO_DAY: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const todayDayOfWeek = JS_TO_DAY[jsDay];
       const hasToday = routine.days.some((d) => d.dayOfWeek === todayDayOfWeek);
       setSelectedDay(hasToday ? todayDayOfWeek : (routine.days[0]?.dayOfWeek ?? null));
+      hasInitializedDay.current = true;
     }
-  }, [routine, selectedDay]);
+  }, [routine]);
 
   const openWorkoutStart = () => {
     const drawer = navigation.getParent()?.getParent<DrawerNavigationProp<UserDrawerParamList>>();
@@ -214,7 +225,7 @@ export default function RoutineDetailV2Screen({ navigation, route }: Props) {
     );
   };
 
-  if (isLoading) {
+  if (isLoading || isTransitioning) {
     return (
       <TrainingV2Screen title="Detalle de rutina" titleColor={theme.colors.textPrimary} onBack={navigation.goBack}>
         <View style={styles.center}>

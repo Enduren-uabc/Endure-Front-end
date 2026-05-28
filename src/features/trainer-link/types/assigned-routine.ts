@@ -12,6 +12,7 @@ export interface AssignedRoutineExercise {
 
 export interface AssignedRoutineDay {
   id: string;
+  dayOfWeek: string;
   label: string;
   dateHint: string;
   status: AssignedRoutineDayStatus;

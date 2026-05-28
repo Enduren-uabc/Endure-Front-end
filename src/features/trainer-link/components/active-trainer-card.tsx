@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { User, Award, Star } from 'lucide-react-native';
 import { theme } from '@/theme';
 import type { ActiveTrainerResponse } from '../types/trainer-link';
@@ -14,7 +14,11 @@ export default function ActiveTrainerCard({ data, onViewProfile, onDeactivate }:
   return (
     <View style={styles.card}>
       <View style={styles.avatar}>
-        <User size={40} color={theme.colors.textSecondary} />
+        {data.profileImageUrl ? (
+          <Image source={{ uri: data.profileImageUrl }} style={styles.avatarImage} />
+        ) : (
+          <User size={40} color={theme.colors.textSecondary} />
+        )}
       </View>
       <Text style={styles.name}>{data.displayName}</Text>
       <Text style={styles.code}>{data.trainerCode}</Text>
@@ -62,6 +66,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
   name: {
     fontSize: 20,

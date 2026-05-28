@@ -8,7 +8,6 @@ import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { useAssignedRoutine } from '@/features/trainer-link/hooks/use-assigned-routine';
 import {
-  TrainingV2ChipRow,
   TrainingV2RoutineCard,
   TrainingV2Screen,
   TrainingV2SearchField,
@@ -22,7 +21,7 @@ import {
 import { useRoutines } from '@/features/training/hooks/use-routines';
 import { DAY_OF_WEEK_LABELS } from '@/features/training/types/routine';
 import type { Routine } from '@/features/training/types/routine';
-import type { RoutineV2, RoutineV2Filter, TrainingV2State } from './training-v2.types';
+import type { RoutineV2, TrainingV2State } from './training-v2.types';
 import type { TrainingStackParamList } from '@/navigation/types';
 import type { UserDrawerParamList } from '@/features/user/types/user-navigation.types';
 import { theme } from '@/theme';
@@ -32,6 +31,7 @@ type Props = NativeStackScreenProps<TrainingStackParamList, 'RoutinesList'>;
 
 function toRoutineV2(routine: Routine): RoutineV2 {
   const exerciseCount = routine.days.reduce((sum, d) => sum + d.exercises.length, 0);
+  const targetAudience = routine.targetAudience ?? 'self';
   return {
     id: routine.id,
     name: routine.name,
@@ -40,7 +40,7 @@ function toRoutineV2(routine: Routine): RoutineV2 {
     durationMinutes: exerciseCount * 8,
     exerciseCount,
     description: routine.description ?? `${routine.dayOfWeeks.length} dias de entrenamiento`,
-    goal: routine.isActive ? 'Activa' : 'Rutina',
+    goal: targetAudience === 'client' ? 'Para clientes' : routine.isActive ? 'Activa' : 'Personal',
     days: routine.dayOfWeeks.map((d) => DAY_OF_WEEK_LABELS[d] ?? d.slice(0, 3)),
     imageUri: '',
     isMine: true,
@@ -53,7 +53,6 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
   const drawerNavigation = navigation.getParent()?.getParent<NavigationProp<UserDrawerParamList>>();
   const role = useSessionStore((state) => state.role);
   const assignedRoutine = useAssignedRoutine();
-  const [selectedFilter, setSelectedFilter] = React.useState<RoutineV2Filter>('Todas');
   const [query, setQuery] = React.useState('');
   const createRoutine = () => navigation.navigate('RoutineBuilder', { id: 'new' });
   const openAssignedRoutine = () =>
@@ -63,16 +62,17 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
       screen: assignedRoutine.hasTrainer ? 'MyTrainer' : 'SearchTrainer',
     });
   const shouldShowAssignedRoutine =
-    role !== 'trainer' || assignedRoutine.hasTrainer || Boolean(assignedRoutine.data);
+    role !== 'trainer' && (assignedRoutine.hasTrainer || Boolean(assignedRoutine.data));
 
   const visualState: TrainingV2State = isLoading ? 'loading' : isError ? 'error' : 'success';
-  const routineList = (routines ?? []).map(toRoutineV2);
-
-  const filteredRoutines = routineList.filter((routine) => {
-    const matchesFilter =
-      selectedFilter === 'Todas' || (selectedFilter === 'Mias' ? routine.isMine : false);
-    const matchesQuery = routine.name.toLowerCase().includes(query.trim().toLowerCase());
-    return matchesFilter && matchesQuery;
+  const normalizedQuery = query.trim().toLowerCase();
+  const personalRoutines = (routines ?? []).filter((routine) => {
+    const matchesQuery = routine.name.toLowerCase().includes(normalizedQuery);
+    return (routine.targetAudience ?? 'self') === 'self' && matchesQuery;
+  });
+  const clientRoutines = (routines ?? []).filter((routine) => {
+    const matchesQuery = routine.name.toLowerCase().includes(normalizedQuery);
+    return routine.targetAudience === 'client' && matchesQuery;
   });
 
   function renderContent() {
@@ -90,7 +90,7 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
       );
     }
 
-    if (filteredRoutines.length === 0) {
+    if (personalRoutines.length === 0 && clientRoutines.length === 0) {
       return (
         <TrainingV2EmptyState
           title="Aun no hay rutinas aqui"
@@ -102,15 +102,34 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
     }
 
     return (
-      <View style={styles.list}>
-        {filteredRoutines.map((routine) => (
-          <TrainingV2RoutineCard
-            key={routine.id}
-            routine={routine}
-            onPress={() => navigation.navigate('RoutineDetail', { id: routine.id })}
+      <>
+        <TrainingV2SectionHeader title="Mis rutinas" />
+        {personalRoutines.length > 0 ? (
+          <RoutineSection routines={personalRoutines} navigation={navigation} />
+        ) : (
+          <TrainingV2EmptyState
+            title="Aun no tienes rutinas personales"
+            description="Crea una rutina para entrenar por tu cuenta."
+            actionLabel="Crear rutina"
+            onAction={createRoutine}
           />
-        ))}
-      </View>
+        )}
+        {role === 'trainer' ? (
+          <>
+            <TrainingV2SectionHeader title="Rutinas para clientes" />
+            {clientRoutines.length > 0 ? (
+              <RoutineSection routines={clientRoutines} navigation={navigation} />
+            ) : (
+              <TrainingV2EmptyState
+                title="Sin rutinas para clientes"
+                description="Crea una rutina marcada para clientes para poder asignarla."
+                actionLabel="Crear rutina"
+                onAction={createRoutine}
+              />
+            )}
+          </>
+        ) : null}
+      </>
     );
   }
 
@@ -123,7 +142,7 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
         {shouldShowAssignedRoutine ? (
           <>
             <TrainingV2SectionHeader
-              title="Asignada por tu entrenador"
+              title="De mi entrenador"
               actionLabel={assignedRoutine.data ? 'Ver' : undefined}
               onAction={assignedRoutine.data ? openAssignedRoutine : undefined}
             />
@@ -146,12 +165,6 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
           onChangeText={setQuery}
           placeholder="Buscar rutina"
         />
-        <TrainingV2ChipRow
-          options={['Todas', 'Mias']}
-          selected={selectedFilter}
-          onSelect={(value) => setSelectedFilter(value as RoutineV2Filter)}
-        />
-        <TrainingV2SectionHeader title="Tus rutinas" />
         {renderContent()}
       </TrainingV2Screen>
 
@@ -165,6 +178,26 @@ export default function RoutinesListV2Screen({ navigation }: Props) {
         <Plus size={26} color={theme.colors.background} />
       </TouchableOpacity>
       <Text style={styles.fabLabel}>Crear</Text>
+    </View>
+  );
+}
+
+function RoutineSection({
+  routines,
+  navigation,
+}: {
+  routines: Routine[];
+  navigation: Props['navigation'];
+}) {
+  return (
+    <View style={styles.list}>
+      {routines.map((routine) => (
+        <TrainingV2RoutineCard
+          key={routine.id}
+          routine={toRoutineV2(routine)}
+          onPress={() => navigation.navigate('RoutineDetail', { id: routine.id })}
+        />
+      ))}
     </View>
   );
 }

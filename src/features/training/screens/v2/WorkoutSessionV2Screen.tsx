@@ -182,7 +182,7 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
   }, [session, finishSessionMut, navigation]);
 
   const handleDiscard = React.useCallback(() => {
-    if (!session) return;
+    if (!session || discardSession.isPending) return;
     stopRestTimer();
     discardSession.mutate({ sessionId: session.id }, {
       onSuccess: () => {
@@ -486,11 +486,13 @@ export default function WorkoutSessionV2Screen({ navigation, route }: Props) {
             <SecondaryButton
               label="Seguir entrenando"
               onPress={() => setShowExitConfirm(false)}
+              disabled={discardSession.isPending}
               style={styles.footerButton}
             />
             <SecondaryButton
-              label="Descartar sesion"
+              label={discardSession.isPending ? 'Descartando...' : 'Descartar sesion'}
               onPress={handleDiscard}
+              disabled={discardSession.isPending}
               style={styles.footerButton}
             />
           </View>

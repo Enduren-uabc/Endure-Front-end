@@ -63,12 +63,13 @@ const DEMO_REPLACEMENT_ROUTINES = [
   },
 ] as const;
 
-function textSeed(value: string): number {
-  return value.split('').reduce((total, char) => total + char.charCodeAt(0), 0);
+function textSeed(value: string | null | undefined): number {
+  const safe = String(value ?? '');
+  return safe.split('').reduce((total, char) => total + char.charCodeAt(0), 0);
 }
 
-function initials(name: string): string {
-  return name
+function initials(name: string | null | undefined): string {
+  return String(name ?? '')
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -77,20 +78,25 @@ function initials(name: string): string {
 }
 
 export function buildTrainerClientViewModel(
-  client: ActiveClient | TrainerClientRouteParams,
+  client: Partial<ActiveClient> & Partial<TrainerClientRouteParams>,
 ): TrainerClientViewModel {
-  const seed = textSeed(`${client.clientName}-${client.linkId}`);
+  const clientId = client.clientId ?? 'unknown';
+  const clientName = client.clientName ?? 'Cliente';
+  const linkId = client.linkId ?? clientId;
+  const activatedAt = client.activatedAt ?? new Date().toISOString();
+
+  const seed = textSeed(`${clientName}-${linkId}`);
   const inactive = seed % 5 === 0;
   const daysSinceLastWorkout = inactive ? 8 + (seed % 6) : 1 + (seed % 4);
   const weeklySessions = inactive ? Math.max(1, seed % 3) : 3 + (seed % 3);
   const adherence = inactive ? 46 + (seed % 18) : 72 + (seed % 24);
 
   return {
-    clientId: client.clientId,
-    clientName: client.clientName,
-    linkId: client.linkId,
-    activatedAt: client.activatedAt,
-    initials: initials(client.clientName),
+    clientId,
+    clientName,
+    linkId,
+    activatedAt,
+    initials: initials(clientName),
     goal: GOALS[seed % GOALS.length],
     ageLabel: `${22 + (seed % 17)} anos`,
     experience: EXPERIENCES[seed % EXPERIENCES.length],
@@ -202,14 +208,16 @@ export function buildRoutineOption(routine: Routine): TrainerRoutineOption {
 }
 
 export function buildDemoAssignedRoutine(
-  client: TrainerClientRouteParams,
+  client: Partial<TrainerClientRouteParams>,
 ): TrainerClientAssignedRoutine {
-  const seed = textSeed(`${client.linkId}-${client.clientId}`);
+  const clientId = client.clientId ?? 'unknown';
+  const linkId = client.linkId ?? clientId;
+  const seed = textSeed(`${linkId}-${clientId}`);
   const template = DEMO_ASSIGNED_ROUTINES[seed % DEMO_ASSIGNED_ROUTINES.length];
   const assignedDay = 17 + (seed % 7);
 
   return {
-    linkId: client.linkId,
+    linkId,
     routineId: template.routineId,
     routineName: template.routineName,
     assignedAt: new Date(Date.UTC(2026, 4, assignedDay, 12, 0, 0)).toISOString(),
@@ -218,8 +226,9 @@ export function buildDemoAssignedRoutine(
   };
 }
 
-export function buildDemoRoutineOptions(linkId: string): TrainerRoutineOption[] {
-  const seed = textSeed(linkId);
+export function buildDemoRoutineOptions(linkId: string | null | undefined): TrainerRoutineOption[] {
+  const safeLinkId = String(linkId ?? 'default');
+  const seed = textSeed(safeLinkId);
 
   return DEMO_REPLACEMENT_ROUTINES.map((template, index) =>
     buildRoutineOption({

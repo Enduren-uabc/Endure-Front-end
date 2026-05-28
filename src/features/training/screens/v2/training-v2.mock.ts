@@ -8,6 +8,8 @@ import type {
   RoutineV2Filter,
   WorkoutHistoryV2,
   WorkoutSessionV2,
+  RoutineTemplate,
+  TrainingV2Level,
 } from './training-v2.types';
 
 export const routineFiltersV2: RoutineV2Filter[] = [
@@ -201,6 +203,62 @@ export const workoutHistoryV2: WorkoutHistoryV2[] = [
 ];
 
 export const currentRoutineV2 = routinesV2[0];
+
+export const routineTemplatesMock: RoutineTemplate[] = [
+  {
+    id: 'beginner-default',
+    experienceLevel: 'beginner',
+    splitKey: null,
+    name: 'Rutina Principiante',
+    dayCount: 3,
+    exerciseCount: 12,
+    totalSets: 36,
+    description: '3 dias · 12 ejercicios',
+  },
+  {
+    id: 'intermediate-default',
+    experienceLevel: 'intermediate',
+    splitKey: null,
+    name: 'Rutina Intermedia',
+    dayCount: 3,
+    exerciseCount: 15,
+    totalSets: 60,
+    description: '3 dias · 15 ejercicios',
+  },
+  {
+    id: 'advanced-ppl',
+    experienceLevel: 'advanced',
+    splitKey: 'ppl',
+    name: 'Rutina Avanzada — PPL',
+    dayCount: 6,
+    exerciseCount: 30,
+    totalSets: 120,
+    description: '6 dias · 30 ejercicios',
+  },
+];
+
+const levelMap: Record<string, TrainingV2Level> = {
+  beginner: 'Principiante',
+  intermediate: 'Intermedio',
+  advanced: 'Avanzado',
+};
+
+export function templateToRoutineV2(template: RoutineTemplate): RoutineV2 {
+  return {
+    id: template.id,
+    name: template.name,
+    type: 'Mias',
+    level: levelMap[template.experienceLevel] ?? 'Intermedio',
+    durationMinutes: template.exerciseCount * 4,
+    exerciseCount: template.exerciseCount,
+    description: template.description,
+    goal: template.splitKey === 'ppl' ? 'Split PPL' : `Nivel ${levelMap[template.experienceLevel]}`,
+    days: [],
+    imageUri: '',
+    isMine: false,
+    exercises: [],
+  };
+}
 
 export function toExerciseConfigV2(exercise: ExerciseV2, order = 0): ExerciseConfig {
   return {

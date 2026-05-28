@@ -1,8 +1,6 @@
 import React, { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { TextInput } from '@/components/ui/TextInput';
-import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { theme } from '@/theme';
 import type { WorkoutSet, WorkoutExerciseTargetSet } from '../types/workout-session';
 import { SwipeableSetRow } from './SwipeableSetRow';
@@ -54,9 +52,6 @@ export function ExerciseSetList({
   suggestedWeight,
 }: ExerciseSetListProps) {
   const [localValues, setLocalValues] = React.useState<Record<number, { reps: string; weight: string }>>({});
-  const [showAddForm, setShowAddForm] = React.useState(false);
-  const [addReps, setAddReps] = React.useState(String(suggestedReps));
-  const [addWeight, setAddWeight] = React.useState(String(suggestedWeight));
 
   const pendingExpectedRef = useRef<Map<number, boolean>>(new Map());
   const [, forceRender] = React.useReducer((x: number) => x + 1, 0);
@@ -124,15 +119,6 @@ export function ExerciseSetList({
     }
   }
 
-  function handleAddSet() {
-    const reps = Number(addReps) || suggestedReps;
-    const weight = Number(addWeight) || suggestedWeight;
-    onAddSet({ sessionId, exerciseIndex, reps, weight });
-    setShowAddForm(false);
-    setAddReps(String(suggestedReps));
-    setAddWeight(String(suggestedWeight));
-  }
-
   return (
     <View style={styles.flatContainer}>
       <View style={styles.header}>
@@ -169,49 +155,9 @@ export function ExerciseSetList({
           );
         })}
 
-        {showAddForm && (
-          <View style={styles.addForm}>
-            <View style={styles.addInputs}>
-              <TextInput
-                label="Reps"
-                value={addReps}
-                onChangeText={setAddReps}
-                keyboardType="numeric"
-                inputMode="numeric"
-                placeholder={String(suggestedReps)}
-              />
-              <TextInput
-                label="Peso (kg)"
-                value={addWeight}
-                onChangeText={setAddWeight}
-                keyboardType="numeric"
-                inputMode="decimal"
-                placeholder={String(suggestedWeight)}
-              />
-            </View>
-            <View style={styles.editActions}>
-              <SecondaryButton
-                label="Cancelar"
-                onPress={() => setShowAddForm(false)}
-                style={styles.editBtn}
-              />
-              <SecondaryButton
-                label="Agregar"
-                onPress={handleAddSet}
-                disabled={isPending}
-                style={styles.editBtn}
-              />
-            </View>
-          </View>
-        )}
-
         <Pressable
           style={styles.addButton}
-          onPress={() => {
-            setAddReps(String(suggestedReps));
-            setAddWeight(String(suggestedWeight));
-            setShowAddForm(true);
-          }}
+          onPress={() => onAddSet({ sessionId, exerciseIndex, reps: suggestedReps, weight: suggestedWeight })}
         >
           <Plus size={16} color={theme.colors.primary} />
           <Text style={styles.addButtonText}>Agregar serie</Text>

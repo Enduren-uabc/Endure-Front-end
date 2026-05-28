@@ -27,6 +27,7 @@ import { theme } from '@/theme';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import type { SocialStackParamList } from '@/navigation/types';
 import { PostCard } from '../components/PostCard';
+import ForkWorkoutModal from '../components/ForkWorkoutModal';
 import { SocialEmptyState, SocialErrorState, SocialLoadingState } from '../components/SocialState';
 import {
   useDeletePublication,
@@ -44,7 +45,7 @@ import type { Profile, Publication } from '../types/social.types';
 
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
 
-function ProfilePost({ publication }: { publication: Publication }) {
+function ProfilePost({ publication, onFork }: { publication: Publication; onFork?: (pub: Publication) => void }) {
   const navigation = useNavigation<NativeStackNavigationProp<SocialStackParamList>>();
   const interactions = useInteractions(publication.id);
   const deletePublication = useDeletePublication();
@@ -69,6 +70,7 @@ function ProfilePost({ publication }: { publication: Publication }) {
       onLike={() => interactions.like.mutate(undefined, { onSuccess: () => setLiked(true) })}
       onUnlike={() => interactions.unlike.mutate(undefined, { onSuccess: () => setLiked(false) })}
       onDelete={() => deletePublication.mutate(publication.id)}
+      onFork={onFork}
       liked={liked}
       canDelete={publication.authorUserId === currentUserId}
       likeLoading={reactionPending}
@@ -136,16 +138,28 @@ export default function ProfileScreen({ userId }: { userId: string }) {
   const uploadAvatar = useUploadAvatar(userId);
   const followers = useFollowers(userId);
   const following = useFollowing(userId);
-  const items = publications.data?.pages.flatMap((page) => page.items) ?? [];
+  const items = React.useMemo(
+    () =>
+      publications.data?.pages.flatMap((page) =>
+        page.items.map((item) => ({
+          ...item,
+          authorDisplayName: item.authorDisplayName || profile.data?.displayName || '',
+          authorAvatarUrl: item.authorAvatarUrl || profile.data?.avatarUrl || undefined,
+        })),
+      ) ?? [],
+    [publications.data, profile.data?.displayName, profile.data?.avatarUrl],
+  );
   const [isFollowing, setIsFollowing] = React.useState(false);
   const [showEdit, setShowEdit] = React.useState(false);
   const [showFollowers, setShowFollowers] = React.useState(false);
   const [showFollowing, setShowFollowing] = React.useState(false);
+  const [forkPublication, setForkPublication] = React.useState<Publication | null>(null);
   const [bio, setBio] = React.useState('');
 
   React.useEffect(() => {
     if (!profile.data) return;
     setBio(profile.data.bio ?? '');
+    setIsFollowing(profile.data.isFollowing);
   }, [profile.data]);
 
   const handleFollowToggle = () => {
@@ -259,7 +273,7 @@ export default function ProfileScreen({ userId }: { userId: string }) {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ProfilePost publication={item} />}
+        renderItem={({ item }) => <ProfilePost publication={item} onFork={setForkPublication} />}
         ListHeaderComponent={
           <View style={styles.profileHeader}>
             <Pressable onPress={isOwnProfile ? showAvatarPicker : undefined} style={styles.avatarWrap}>
@@ -423,6 +437,12 @@ export default function ProfileScreen({ userId }: { userId: string }) {
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </Modal>
+      <ForkWorkoutModal
+        visible={forkPublication !== null}
+        onClose={() => setForkPublication(null)}
+        publication={forkPublication}
+        currentUserId={currentUserId}
+      />
     </SafeAreaView>
   );
 }
