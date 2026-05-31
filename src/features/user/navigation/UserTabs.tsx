@@ -66,8 +66,11 @@ export default function UserTabs() {
         name="Social"
         component={SocialStack}
         options={{
+          // Keep Social available for internal navigation and deep links, but hide it from the tab bar.
           title: 'Comunidad',
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+          tabBarButton: () => null,
+          tabBarItemStyle: { display: 'none' },
         }}
       />
     </Tabs.Navigator>

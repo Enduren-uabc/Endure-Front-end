@@ -1,11 +1,10 @@
 import React from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { ShieldCheck, Settings, HelpCircle, LogOut } from 'lucide-react-native';
+import { ShieldCheck, Settings, LogOut } from 'lucide-react-native';
 import AdminTabs from './AdminTabs';
 import SettingsScreen from '@/features/settings/screens/settings';
 import PrivacyScreen from '@/features/privacy/screens/PrivacyScreen';
-import HelpScreen from '@/features/help/screens/help';
 import { useLogout } from '@/features/auth/hooks/use-auth';
 import { theme } from '@/theme';
 import type { AdminDrawerParamList } from '../types/admin-navigation.types';
@@ -111,14 +110,6 @@ export default function AdminDrawer() {
         options={{
           title: 'Aviso de Privacidad',
           drawerItemStyle: { display: 'none' },
-        }}
-      />
-      <Drawer.Screen
-        name="Help"
-        component={HelpScreen}
-        options={{
-          title: 'Ayuda',
-          drawerIcon: ({ color, size }) => <HelpCircle size={size} color={color} />,
         }}
       />
     </Drawer.Navigator>

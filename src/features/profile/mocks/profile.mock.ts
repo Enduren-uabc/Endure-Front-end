@@ -42,11 +42,6 @@ export const clientProfileActions: ProfileAction[] = [
     description: 'Recordatorios, privacidad y cuenta.',
   },
   {
-    key: 'help',
-    label: 'Ayuda y soporte',
-    description: 'Preguntas frecuentes y contacto.',
-  },
-  {
     key: 'logout',
     label: 'Cerrar sesion',
     description: 'Salir de esta cuenta en el dispositivo.',

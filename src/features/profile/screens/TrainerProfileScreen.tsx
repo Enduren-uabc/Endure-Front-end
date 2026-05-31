@@ -18,7 +18,6 @@ import {
   BookOpenCheck,
   ChevronRight,
   Edit3,
-  HelpCircle,
   LogOut,
   Settings,
   ShieldCheck,
@@ -174,12 +173,6 @@ export default function TrainerProfileScreen() {
             title="Configuracion"
             description="Recordatorios, privacidad y cuenta."
             onPress={() => drawerNavigation?.navigate('Settings', { screen: 'SettingsHome' })}
-          />
-          <TrainerActionRow
-            icon={<HelpCircle size={20} color={theme.colors.primary} />}
-            title="Ayuda y soporte"
-            description="Resuelve dudas del panel entrenador."
-            onPress={() => drawerNavigation?.navigate('Help')}
           />
           <TrainerActionRow
             icon={<LogOut size={20} color={theme.colors.error} />}

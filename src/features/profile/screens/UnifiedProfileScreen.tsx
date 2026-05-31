@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  FlatList,
   Image,
   InteractionManager,
   Keyboard,
@@ -49,67 +48,25 @@ import {
   TrainingV2ErrorState,
   TrainingV2SkeletonList,
 } from '@/features/training/screens/v2/TrainingV2States';
-import { PostCard } from '@/features/social/components/PostCard';
-import ForkWorkoutModal from '@/features/social/components/ForkWorkoutModal';
 import {
-  useDeletePublication,
   useFollowers,
   useFollowing,
-  useInteractions,
 } from '@/features/social/hooks/use-social';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { theme } from '@/theme';
 import type { UserDrawerParamList, UserTabsParamList } from '@/features/user/types/user-navigation.types';
 import { useWorkoutSessionDetail } from '@/features/training/hooks/use-workout-session';
 import { useUnifiedProfile } from '../hooks/use-unified-profile';
-import type { Profile, Publication } from '@/features/social/types/social.types';
+import type { Profile } from '@/features/social/types/social.types';
 import type { WorkoutSessionSummary } from '@/features/training/types/workout-session';
 
 type ProfileNavigation = NavigationProp<UserTabsParamList>;
 type ProfileDrawerNavigation = NavigationProp<UserDrawerParamList>;
 
-type TabKey = 'publications' | 'training';
-
 type SheetAction = 'routines' | 'history' | 'achievements' | 'measurements';
 type SocialListKind = 'followers' | 'following';
 
 const DEV_USER_ID = '00000000-0000-0000-0000-000000000001';
-
-function ProfilePost({ publication, navigation, onFork }: { publication: Publication; navigation: ProfileNavigation; onFork?: (pub: Publication) => void }) {
-  const interactions = useInteractions(publication.id);
-  const deletePublication = useDeletePublication();
-  const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
-  const [liked, setLiked] = React.useState(publication.likedByMe);
-  const reactionPending = interactions.like.isPending || interactions.unlike.isPending;
-
-  return (
-    <PostCard
-      publication={publication}
-      onOpenPost={(pub) =>
-        navigation.navigate('Social', {
-          screen: 'PostDetail',
-          params: {
-            postId: pub.id,
-            title: pub.title,
-            content: pub.content,
-            authorUserId: pub.authorUserId,
-            workoutSessionId: pub.workoutSessionId ?? undefined,
-            exerciseSummary: pub.exerciseSummary ?? undefined,
-          },
-        })
-      }
-      onOpenProfile={() => {}}
-      onLike={() => interactions.like.mutate(undefined, { onSuccess: () => setLiked(true) })}
-      onUnlike={() => interactions.unlike.mutate(undefined, { onSuccess: () => setLiked(false) })}
-      onDelete={() => deletePublication.mutate(publication.id)}
-      onFork={onFork}
-      liked={liked}
-      canDelete={publication.authorUserId === currentUserId}
-      likeLoading={reactionPending}
-      deleteLoading={deletePublication.isPending}
-    />
-  );
-}
 
 export default function UnifiedProfileScreen() {
   const navigation = useNavigation<ProfileNavigation>();
@@ -118,7 +75,6 @@ export default function UnifiedProfileScreen() {
   const profile = useUnifiedProfile();
   const currentUserId = useSessionStore((state) => state.userId) ?? DEV_USER_ID;
 
-  const [activeTab, setActiveTab] = React.useState<TabKey>('publications');
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [showFollowers, setShowFollowers] = React.useState(false);
@@ -127,7 +83,6 @@ export default function UnifiedProfileScreen() {
   const [draftName, setDraftName] = React.useState('');
   const [draftBio, setDraftBio] = React.useState('');
   const [draftHandle, setDraftHandle] = React.useState('');
-  const [forkPublication, setForkPublication] = React.useState<Publication | null>(null);
 
   const openEdit = () => {
     setDraftName(profile.displayName);
@@ -203,184 +158,8 @@ export default function UnifiedProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={activeTab === 'publications' ? profile.allPublications : []}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ProfilePost publication={item} navigation={navigation} onFork={setForkPublication} />
-        )}
-        ListHeaderComponent={
-          <View style={{ paddingTop: insets.top }}>
-            <View style={styles.heroSection}>
-              <Pressable onPress={profile.showAvatarPicker} style={styles.avatarWrap}>
-                {profile.avatarUrl ? (
-                  <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarFallback}>
-                    <Text style={styles.avatarText}>{profile.avatarInitials}</Text>
-                  </View>
-                )}
-                <View style={styles.avatarOverlay}>
-                  <Camera size={18} color={theme.colors.background} />
-                </View>
-              </Pressable>
-            </View>
-
-            <Text style={styles.name}>{profile.displayName}</Text>
-            <Text style={styles.handle}>{profile.handle}</Text>
-            <Text style={styles.bio}>{profile.bio}</Text>
-
-            <View style={styles.statsRow}>
-              <Pressable onPress={() => setShowFollowers(true)} style={styles.statItem}>
-                <Text style={styles.statCount}>{profile.followersCount}</Text>
-                <Text style={styles.statLabel}>seguidores</Text>
-              </Pressable>
-              <View style={styles.statDot} />
-              <Pressable onPress={() => setShowFollowing(true)} style={styles.statItem}>
-                <Text style={styles.statCount}>{profile.followingCount}</Text>
-                <Text style={styles.statLabel}>siguiendo</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.editButtonWrap}>
-              <SecondaryButton label="Editar perfil" onPress={openEdit} />
-            </View>
-
-            {profile.trainerCard.status !== 'approved' ? (
-              <TouchableOpacity
-                activeOpacity={0.78}
-                onPress={openTrainerApplication}
-                style={styles.trainerPrompt}
-              >
-                <Award size={18} color={theme.colors.primary} />
-                <Text style={styles.trainerPromptText}>
-                  {profile.trainerCard.actionLabel ?? 'Solicita ser entrenador'}
-                </Text>
-                <ChevronRight size={16} color={theme.colors.textMuted} />
-              </TouchableOpacity>
-            ) : null}
-
-            {activeTab === 'training' ? (
-              <View style={styles.metricsRow}>
-                {profile.metrics.map((metric) => (
-                  <View key={metric.id} style={styles.metricItem}>
-                    <Text style={styles.metricValue}>{metric.value}</Text>
-                    <Text style={styles.metricLabel}>{metric.label}</Text>
-                    <Text style={styles.metricHelper}>{metric.helper}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            <View style={styles.tabRow}>
-              <TouchableOpacity
-                activeOpacity={0.78}
-                onPress={() => setActiveTab('publications')}
-                style={[styles.tab, activeTab === 'publications' && styles.tabActive]}
-              >
-                <Text style={[styles.tabText, activeTab === 'publications' && styles.tabTextActive]}>
-                  Publicaciones
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.78}
-                onPress={() => setActiveTab('training')}
-                style={[styles.tab, activeTab === 'training' && styles.tabActive]}
-              >
-                <Text style={[styles.tabText, activeTab === 'training' && styles.tabTextActive]}>
-                  Entrenamiento
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {activeTab === 'training' ? (
-              <View style={styles.trainingContent}>
-                {profile.trainerCard.status === 'approved' ? (
-                  <BaseCard style={styles.trainerCardApproved}>
-                    <View style={styles.trainerHeader}>
-                      <View style={[styles.trainerIcon, { borderColor: theme.colors.success }]}>
-                        <Award size={22} color={theme.colors.success} />
-                      </View>
-                      <View style={styles.trainerCopy}>
-                        <Text style={styles.trainerTitle}>Entrenador verificado</Text>
-                        <Text style={styles.trainerText}>Ya puedes gestionar clientes.</Text>
-                      </View>
-                    </View>
-                  </BaseCard>
-                ) : profile.trainerCard.status === 'in_review' ? (
-                  <BaseCard>
-                    <View style={styles.trainerHeader}>
-                      <View style={[styles.trainerIcon, { borderColor: theme.colors.primary }]}>
-                        <Award size={22} color={theme.colors.primary} />
-                      </View>
-                      <View style={styles.trainerCopy}>
-                        <Text style={styles.trainerTitle}>Solicitud en revisión</Text>
-                        <Text style={styles.trainerText}>Estamos revisando tu solicitud.</Text>
-                      </View>
-                    </View>
-                    <TrainingV2Tag label="En revisión" />
-                  </BaseCard>
-                ) : null}
-
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Últimos entrenos</Text>
-                </View>
-                {profile.recentSessions.length === 0 ? (
-                  <BaseCard style={styles.emptyCard}>
-                    <Dumbbell size={24} color={theme.colors.border} />
-                    <Text style={styles.emptyText}>Aún no tienes entrenos registrados.</Text>
-                  </BaseCard>
-                ) : (
-                  profile.recentSessions.map((session) => (
-                    <Pressable
-                      key={session.id}
-                      style={styles.sessionRow}
-                      onPress={() => setSelectedSession(session)}
-                    >
-                      <View style={styles.sessionLeft}>
-                        <Text style={styles.sessionName}>{session.routineName}</Text>
-                        <View style={styles.sessionMeta}>
-                          <Clock size={12} color={theme.colors.textMuted} />
-                          <Text style={styles.sessionMetaText}>
-                            {session.durationMinutes ? `${session.durationMinutes} min` : '--'}
-                          </Text>
-                          <Text style={styles.sessionMetaSep}>·</Text>
-                          <Text style={styles.sessionMetaText}>
-                            {session.startedAt
-                              ? new Date(session.startedAt).toLocaleDateString('es-MX', {
-                                  weekday: 'short',
-                                  day: 'numeric',
-                                  month: 'short',
-                                })
-                              : ''}
-                          </Text>
-                        </View>
-                      </View>
-                      <ChevronRight size={16} color={theme.colors.textMuted} />
-                    </Pressable>
-                  ))
-                )}
-                <TouchableOpacity
-                  activeOpacity={0.78}
-                  onPress={() =>
-                    drawerNavigation?.navigate('WorkoutStack', {
-                      screen: 'WorkoutHistory',
-                      params: { returnTo: 'Profile' },
-                    })
-                  }
-                  style={styles.viewAllLink}
-                >
-                  <Text style={styles.viewAllText}>Ver historial completo →</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-          </View>
-        }
-        contentContainerStyle={
-          activeTab === 'publications' && profile.allPublications.length === 0
-            ? styles.emptyList
-            : styles.list
-        }
+      <ScrollView
+        contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
             refreshing={profile.isRefreshing}
@@ -388,24 +167,148 @@ export default function UnifiedProfileScreen() {
             tintColor={theme.colors.primary}
           />
         }
-        onEndReached={activeTab === 'publications' ? profile.fetchNextPublications : undefined}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={
-          activeTab === 'publications' && profile.isFetchingMorePublications ? (
-            <View style={styles.footerLoading}>
-              <Text style={styles.footerLoadingText}>Cargando más publicaciones...</Text>
+      >
+        <View style={{ paddingTop: insets.top }}>
+          <View style={styles.heroSection}>
+            <Pressable onPress={profile.showAvatarPicker} style={styles.avatarWrap}>
+              {profile.avatarUrl ? (
+                <Image source={{ uri: profile.avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarText}>{profile.avatarInitials}</Text>
+                </View>
+              )}
+              <View style={styles.avatarOverlay}>
+                <Camera size={18} color={theme.colors.background} />
+              </View>
+            </Pressable>
+          </View>
+
+          <Text style={styles.name}>{profile.displayName}</Text>
+          <Text style={styles.handle}>{profile.handle}</Text>
+          <Text style={styles.bio}>{profile.bio}</Text>
+
+          <View style={styles.statsRow}>
+            <Pressable onPress={() => setShowFollowers(true)} style={styles.statItem}>
+              <Text style={styles.statCount}>{profile.followersCount}</Text>
+              <Text style={styles.statLabel}>seguidores</Text>
+            </Pressable>
+            <View style={styles.statDot} />
+            <Pressable onPress={() => setShowFollowing(true)} style={styles.statItem}>
+              <Text style={styles.statCount}>{profile.followingCount}</Text>
+              <Text style={styles.statLabel}>siguiendo</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.editButtonWrap}>
+            <SecondaryButton label="Editar perfil" onPress={openEdit} />
+          </View>
+
+          {profile.trainerCard.status !== 'approved' ? (
+            <TouchableOpacity
+              activeOpacity={0.78}
+              onPress={openTrainerApplication}
+              style={styles.trainerPrompt}
+            >
+              <Award size={18} color={theme.colors.primary} />
+              <Text style={styles.trainerPromptText}>
+                {profile.trainerCard.actionLabel ?? 'Solicita ser entrenador'}
+              </Text>
+              <ChevronRight size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+
+          <View style={styles.metricsRow}>
+            {profile.metrics.map((metric) => (
+              <View key={metric.id} style={styles.metricItem}>
+                <Text style={styles.metricValue}>{metric.value}</Text>
+                <Text style={styles.metricLabel}>{metric.label}</Text>
+                <Text style={styles.metricHelper}>{metric.helper}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.trainingContent}>
+            {profile.trainerCard.status === 'approved' ? (
+              <BaseCard style={styles.trainerCardApproved}>
+                <View style={styles.trainerHeader}>
+                  <View style={[styles.trainerIcon, { borderColor: theme.colors.success }]}>
+                    <Award size={22} color={theme.colors.success} />
+                  </View>
+                  <View style={styles.trainerCopy}>
+                    <Text style={styles.trainerTitle}>Entrenador verificado</Text>
+                    <Text style={styles.trainerText}>Ya puedes gestionar clientes.</Text>
+                  </View>
+                </View>
+              </BaseCard>
+            ) : profile.trainerCard.status === 'in_review' ? (
+              <BaseCard>
+                <View style={styles.trainerHeader}>
+                  <View style={[styles.trainerIcon, { borderColor: theme.colors.primary }]}>
+                    <Award size={22} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.trainerCopy}>
+                    <Text style={styles.trainerTitle}>Solicitud en revisión</Text>
+                    <Text style={styles.trainerText}>Estamos revisando tu solicitud.</Text>
+                  </View>
+                </View>
+                <TrainingV2Tag label="En revisión" />
+              </BaseCard>
+            ) : null}
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Últimos entrenos</Text>
             </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          activeTab === 'publications' ? (
-            <BaseCard style={styles.emptyCard}>
-              <UserRound size={24} color={theme.colors.border} />
-              <Text style={styles.emptyText}>Aún no has publicado nada.</Text>
-            </BaseCard>
-          ) : null
-        }
-      />
+            {profile.recentSessions.length === 0 ? (
+              <BaseCard style={styles.emptyCard}>
+                <Dumbbell size={24} color={theme.colors.border} />
+                <Text style={styles.emptyText}>Aún no tienes entrenos registrados.</Text>
+              </BaseCard>
+            ) : (
+              profile.recentSessions.map((session) => (
+                <Pressable
+                  key={session.id}
+                  style={styles.sessionRow}
+                  onPress={() => setSelectedSession(session)}
+                >
+                  <View style={styles.sessionLeft}>
+                    <Text style={styles.sessionName}>{session.routineName}</Text>
+                    <View style={styles.sessionMeta}>
+                      <Clock size={12} color={theme.colors.textMuted} />
+                      <Text style={styles.sessionMetaText}>
+                        {session.durationMinutes ? `${session.durationMinutes} min` : '--'}
+                      </Text>
+                      <Text style={styles.sessionMetaSep}>·</Text>
+                      <Text style={styles.sessionMetaText}>
+                        {session.startedAt
+                          ? new Date(session.startedAt).toLocaleDateString('es-MX', {
+                              weekday: 'short',
+                              day: 'numeric',
+                              month: 'short',
+                            })
+                          : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={16} color={theme.colors.textMuted} />
+                </Pressable>
+              ))
+            )}
+            <TouchableOpacity
+              activeOpacity={0.78}
+              onPress={() =>
+                drawerNavigation?.navigate('WorkoutStack', {
+                  screen: 'WorkoutHistory',
+                  params: { returnTo: 'Profile' },
+                })
+              }
+              style={styles.viewAllLink}
+            >
+              <Text style={styles.viewAllText}>Ver historial completo →</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
 
       <ActionSheet
         visible={sheetOpen}
@@ -449,13 +352,6 @@ export default function UnifiedProfileScreen() {
       <SessionDetailSheet
         session={selectedSession}
         onClose={() => setSelectedSession(null)}
-      />
-
-      <ForkWorkoutModal
-        visible={forkPublication !== null}
-        onClose={() => setForkPublication(null)}
-        publication={forkPublication}
-        currentUserId={currentUserId}
       />
     </View>
   );
@@ -1049,34 +945,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.fontSize,
     lineHeight: theme.typography.caption.lineHeight,
   },
-  tabRow: {
-    flexDirection: 'row',
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.xl,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: 3,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: theme.radius.sm,
-  },
-  tabActive: {
-    backgroundColor: theme.colors.primaryMuted,
-  },
-  tabText: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.bodyStrong.fontSize,
-    lineHeight: theme.typography.bodyStrong.lineHeight,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: theme.colors.primary,
-  },
   trainingContent: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
@@ -1171,18 +1039,6 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: 24,
-  },
-  emptyList: {
-    flexGrow: 1,
-    paddingBottom: 24,
-  },
-  footerLoading: {
-    paddingVertical: theme.spacing.lg,
-    alignItems: 'center',
-  },
-  footerLoadingText: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.small.fontSize,
   },
   emptyCard: {
     marginHorizontal: theme.spacing.lg,

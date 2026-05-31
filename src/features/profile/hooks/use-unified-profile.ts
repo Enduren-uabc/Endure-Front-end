@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import { apiClient } from '@/lib/api-client';
@@ -16,10 +16,8 @@ import {
   clientProfileDefaults,
 } from '../mocks/profile.mock';
 import type { EditableProfileInput, ProfileMetric } from '../types/profile';
-import type { PublicProfile, Publication } from '@/features/social/types/social.types';
+import type { PublicProfile } from '@/features/social/types/social.types';
 import type { WorkoutSessionSummary } from '@/features/training/types/workout-session';
-
-const PAGE_SIZE = 10;
 
 function initialsFromName(name: string): string {
   return name
@@ -63,16 +61,6 @@ export function useUnifiedProfile() {
     enabled: !!userId,
   });
 
-  const publications = useInfiniteQuery({
-    queryKey: ['social-profile-publications', userId],
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) =>
-      socialService.getUserPublications({ userId: userId!, limit: PAGE_SIZE, offset: pageParam }),
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.offset + lastPage.items.length : undefined,
-    enabled: !!userId,
-  });
-
   const stats = useWorkoutStats();
   const history = useWorkoutHistory();
   const verification = useMyVerificationStatus();
@@ -106,8 +94,6 @@ export function useUnifiedProfile() {
   ];
 
   const recentSessions: WorkoutSessionSummary[] = (history.data?.sessions ?? []).slice(0, 5);
-
-  const allPublications: Publication[] = publications.data?.pages.flatMap((page) => page.items) ?? [];
 
   const applicationStatus = mapTrainerApplicationStatus(verification.data?.status);
   const trainerCard = buildTrainerApplicationCard(
@@ -230,12 +216,6 @@ export function useUnifiedProfile() {
     }
   }, [pickAvatar, pickAvatarFromCamera]);
 
-  const fetchNextPublications = React.useCallback(() => {
-    if (publications.hasNextPage && !publications.isFetchingNextPage) {
-      void publications.fetchNextPage();
-    }
-  }, [publications]);
-
   const isLoading =
     !userId ||
     me.isLoading ||
@@ -261,11 +241,6 @@ export function useUnifiedProfile() {
     followingCount: social?.followingCount ?? 0,
     metrics,
     recentSessions,
-    allPublications,
-    isLoadingPublications: publications.isLoading,
-    isFetchingMorePublications: publications.isFetchingNextPage,
-    hasMorePublications: !!publications.hasNextPage,
-    fetchNextPublications,
     trainerCard,
     isLoading,
     isError,
@@ -274,15 +249,13 @@ export function useUnifiedProfile() {
       socialProfile.isRefetching ||
       stats.isRefetching ||
       history.isRefetching ||
-      verification.isRefetching ||
-      publications.isRefetching,
+      verification.isRefetching,
     refetch: () => {
       void me.refetch();
       void socialProfile.refetch();
       void stats.refetch();
       void history.refetch();
       void verification.refetch();
-      void publications.refetch();
     },
     saveProfile,
     isSavingProfile,

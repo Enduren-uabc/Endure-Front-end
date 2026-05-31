@@ -6,14 +6,13 @@ import {
   DrawerItemList,
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
-import { Dumbbell, Settings, HelpCircle, Award, ChevronRight, Link2, LogOut } from 'lucide-react-native';
+import { Dumbbell, Settings, Award, ChevronRight, Link2, LogOut } from 'lucide-react-native';
 import UserTabs from './UserTabs';
 import CoachStack from '@/navigation/CoachStack';
 import WorkoutStack from '@/navigation/WorkoutStack';
 import TrainerLinkStack from '@/features/trainer-link/navigation/TrainerLinkStack';
 import SettingsStack from '@/features/settings/navigation/SettingsStack';
 import PrivacyScreen from '@/features/privacy/screens/PrivacyScreen';
-import HelpScreen from '@/features/help/screens/help';
 import { useLogout } from '@/features/auth/hooks/use-auth';
 import { theme } from '@/theme';
 import type { UserDrawerParamList } from '../types/user-navigation.types';
@@ -183,14 +182,6 @@ export default function UserDrawer() {
         options={{
           title: 'Aviso de Privacidad',
           drawerItemStyle: { display: 'none' },
-        }}
-      />
-      <Drawer.Screen
-        name="Help"
-        component={HelpScreen}
-        options={{
-          title: 'Ayuda',
-          drawerIcon: ({ color, size }) => <HelpCircle size={size} color={color} />,
         }}
       />
     </Drawer.Navigator>
