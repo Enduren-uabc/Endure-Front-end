@@ -51,10 +51,18 @@ export function useWorkoutSessionDetail(sessionId?: string) {
 export function useWorkoutHistory() {
   return useQuery<WorkoutSessionSummary[]>({
     queryKey: workoutSessionKeys.history,
-    queryFn: () =>
-      apiClient.get<WorkoutSessionSummary[]>(
+    queryFn: async () => {
+      const response = await apiClient.get<{
+        sessions: WorkoutSessionSummary[];
+        hasIncompleteData: boolean;
+      }>(
         API_ENDPOINTS.workoutSessions.history,
-      ),
+      );
+      if (!response || !Array.isArray(response.sessions)) {
+        throw new Error('Historial no disponible');
+      }
+      return response.sessions;
+    },
   });
 }
 

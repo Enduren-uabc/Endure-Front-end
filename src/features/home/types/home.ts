@@ -1,29 +1,30 @@
+import type { Routine } from '@/features/training/types/routine';
+import type { WorkoutSession, WorkoutSessionSummary } from '@/features/training/types/workout-session';
+
 export interface HomeProfileData {
-  id: string;
   fullName: string;
-  birthDate: string;
-  gender: string;
-  weight: number;
-  height: number;
-  experienceLevel: string;
-  mainGoal: string;
-  weightUnit: string;
+}
+
+export interface HomeWorkoutHistory {
+  sessions: WorkoutSessionSummary[];
+  hasIncompleteData: boolean;
 }
 
 export interface WeeklyStats {
   completedWorkouts: number;
-  totalVolumeKg: number;
   activeMinutes: number;
+  activeDays: boolean[];
+  hasIncompleteData: boolean;
+  hasIncompleteMinutes: boolean;
 }
 
-export interface StreakData {
-  days: boolean[];
-  currentStreak: number;
+export interface HomeQueryState<T> {
+  data: T | undefined;
+  isPending: boolean;
+  isError: boolean;
 }
 
-export interface HomeData {
-  profile: HomeProfileData | null;
-  weeklyStats: WeeklyStats | null;
-  streak: StreakData | null;
-  hasActiveRoutine: boolean;
-}
+export type HomeWorkoutAction =
+  | { kind: 'loading' | 'error' | 'incomplete' | 'no-routine' }
+  | { kind: 'resume'; session: WorkoutSession }
+  | { kind: 'ready' | 'no-exercises'; routine: Routine; exerciseCount: number };

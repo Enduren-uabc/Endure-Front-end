@@ -1,160 +1,265 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import {
-  Bell,
-  Calendar,
-  Clock,
-  Dumbbell,
-  Flame,
-  TrendingUp,
-} from 'lucide-react-native';
-import type { AppTabsParamList } from '@/navigation/types';
-import { useSessionStore } from '@/features/auth/stores/session-store';
-import { useHomeGreeting, useWeeklyStats } from '@/features/home/hooks/use-home-data';
-import { PrimaryButton } from '@/components/ui/PrimaryButton';
-import { SecondaryButton } from '@/components/ui/SecondaryButton';
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import type { TrainerDrawerParamList, TrainerTabsParamList } from '@/features/trainer/types/trainer-navigation.types';
+import { useHomeData } from '../hooks/use-home-data';
+import { getWorkoutAction } from '../home-state';
+import type { HomeWorkoutAction } from '../types/home';
 import { theme } from '@/theme';
 
-type HomeNavigation = BottomTabNavigationProp<AppTabsParamList, 'Home'>;
+type HomeData = ReturnType<typeof useHomeData>;
+type HomeNavigation = BottomTabNavigationProp<TrainerTabsParamList, 'Home'>;
+const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+function HomeButton({ label, onPress, primary = false }: {
+  label: string; onPress: () => void; primary?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={({ pressed }) => [
+        styles.button, primary && styles.primaryButton,
+        pressed && styles.pressedButton, focused && styles.focusedButton,
+      ]}
+    >
+      <Text style={[styles.buttonText, primary && styles.primaryButtonText]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function Loading({ label }: { label: string }) {
+  return (
+    <View style={styles.loading} accessibilityLiveRegion="polite">
+      <ActivityIndicator color={theme.colors.primary} accessibilityLabel="Cargando" />
+      <Text style={styles.body}>{label}</Text>
+    </View>
+  );
+}
+
+function Recovery({ message, label, onRetry }: {
+  message: string; label: string; onRetry: () => void;
+}) {
+  return (
+    <View style={styles.group}>
+      <Text style={styles.notice} accessibilityLiveRegion="polite">{message}</Text>
+      <HomeButton label={label} onPress={onRetry} />
+    </View>
+  );
+}
+
+function WorkoutPanel({ home, navigation, secondary = false }: {
+  home: HomeData; navigation: HomeNavigation; secondary?: boolean;
+}) {
+  const action = getWorkoutAction(home.session, home.routines, home.now);
+  const retry = () => { void home.session.refetch(); void home.routines.refetch(); };
+  const routines = () => navigation.navigate('Routines', { screen: 'RoutinesList' });
+  const workout = () => navigation.navigate('Workout', { screen: 'WorkoutStart' });
+  const content = getWorkoutCopy(action);
+  const hasError = home.session.isError || home.routines.isError;
+  const refreshing = home.session.isFetching || home.routines.isFetching;
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.eyebrow}>{secondary ? 'TU ENTRENAMIENTO' : 'HOY'}</Text>
+      {action.kind === 'loading' ? <Loading label="Buscando tu entrenamiento…" /> : (
+        <>
+          <Text accessibilityRole="header" style={secondary ? styles.sectionTitle : styles.actionTitle}>
+            {content.title}
+          </Text>
+          <Text style={styles.body}>{content.description}</Text>
+          {action.kind === 'error' ? (
+            <HomeButton label="Reintentar entrenamiento" onPress={retry} primary={!secondary} />
+          ) : (
+            <HomeButton
+              label={content.button}
+              primary={!secondary}
+              onPress={action.kind === 'resume'
+                ? () => navigation.navigate('Workout', {
+                  screen: 'WorkoutSession', params: { sessionId: action.session.id },
+                })
+                : action.kind === 'ready' ? workout : routines}
+            />
+          )}
+          {action.kind === 'incomplete' && (
+            <HomeButton label="Actualizar entrenamiento" onPress={retry} />
+          )}
+          {hasError && action.kind !== 'error' && (
+            <Recovery
+              message="No pudimos actualizar tu entrenamiento. Mostramos la última información disponible."
+              label="Reintentar entrenamiento" onRetry={retry}
+            />
+          )}
+          {!hasError && refreshing && <Text style={styles.meta} accessibilityLiveRegion="polite">Actualizando entrenamiento…</Text>}
+        </>
+      )}
+    </View>
+  );
+}
+
+function getWorkoutCopy(action: HomeWorkoutAction): { title: string; description: string; button: string } {
+  switch (action.kind) {
+    case 'resume': return {
+      title: 'Continúa tu entrenamiento',
+      description: 'Tienes una sesión en curso. Retoma donde la dejaste.', button: 'Continuar sesión',
+    };
+    case 'ready': return {
+      title: action.routine.name,
+      description: `${action.exerciseCount} ${action.exerciseCount === 1 ? 'ejercicio disponible' : 'ejercicios disponibles'} para hoy. Revisa tu entrenamiento antes de empezar.`,
+      button: 'Ver entrenamiento de hoy',
+    };
+    case 'no-exercises': return {
+      title: 'Hoy no hay ejercicios en tu rutina',
+      description: `${action.routine.name} está activa. Revisa sus días y ejercicios en Rutinas.`, button: 'Revisar mi rutina',
+    };
+    case 'no-routine': return {
+      title: 'Elige una rutina para empezar',
+      description: 'Activa una de tus rutinas para ver aquí tu entrenamiento del día.', button: 'Ver mis rutinas',
+    };
+    case 'incomplete': return {
+      title: 'Tu rutina tiene información incompleta',
+      description: 'No podemos confirmar los ejercicios de hoy. Revisa tu rutina o actualiza la información.', button: 'Revisar mi rutina',
+    };
+    case 'error': return {
+      title: 'No pudimos cargar tu entrenamiento',
+      description: 'Vuelve a intentarlo para consultar tu sesión y tu rutina activa.', button: 'Reintentar entrenamiento',
+    };
+    case 'loading': return { title: '', description: '', button: '' };
+  }
+}
+
+function TrainerPanel({ home, navigation }: { home: HomeData; navigation: HomeNavigation }) {
+  const requests = home.requests;
+  const total = requests.data;
+  const openRequests = () => navigation.getParent<DrawerNavigationProp<TrainerDrawerParamList>>()
+    ?.navigate('TrainerLinkStack', { screen: 'ReceivedRequests' });
+  return (
+    <View style={styles.group}>
+      <View style={styles.panel}>
+        <Text style={styles.eyebrow}>SOLICITUDES</Text>
+        {total === undefined ? requests.isError ? (
+          <>
+            <Text accessibilityRole="header" style={styles.actionTitle}>No pudimos cargar tus solicitudes</Text>
+            <Recovery message="Reintenta para conocer cuántas están pendientes."
+              label="Reintentar solicitudes" onRetry={() => { void requests.refetch(); }} />
+          </>
+        ) : <Loading label="Consultando solicitudes pendientes…" /> : (
+          <>
+            <Text accessibilityRole="header" style={styles.actionTitle}>
+              {total > 0 ? `${total} ${total === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}` : 'Tu bandeja está al día'}
+            </Text>
+            <Text style={styles.body}>
+              {total > 0 ? 'Revisa las solicitudes de quienes quieren entrenar contigo.' : 'No tienes solicitudes pendientes. Puedes continuar con tus clientes.'}
+            </Text>
+            <HomeButton primary label={total > 0 ? 'Ver solicitudes recibidas' : 'Ver clientes'}
+              onPress={total > 0 ? openRequests : () => navigation.navigate('Clients')} />
+            {total === 0 && <HomeButton label="Ver solicitudes recibidas" onPress={openRequests} />}
+            {requests.isError ? (
+              <Recovery message="No pudimos actualizar las solicitudes. Mostramos el último total disponible."
+                label="Reintentar solicitudes" onRetry={() => { void requests.refetch(); }} />
+            ) : requests.isFetching && <Text style={styles.meta} accessibilityLiveRegion="polite">Actualizando solicitudes…</Text>}
+          </>
+        )}
+      </View>
+      <View style={styles.management}>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>Gestiona tu trabajo</Text>
+        <View style={styles.group}>
+          <Text style={styles.body}>Consulta tus clientes y organiza tus rutinas.</Text>
+          <HomeButton label="Clientes" onPress={() => navigation.navigate('Clients')} />
+          <HomeButton label="Rutinas" onPress={() => navigation.navigate('Routines', { screen: 'RoutinesList' })} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function WeeklyPanel({ home, navigation }: { home: HomeData; navigation: HomeNavigation }) {
+  const query = home.weeklyStats;
+  const stats = query.data;
+  const incomplete = stats?.hasIncompleteData || stats?.hasIncompleteMinutes;
+  return (
+    <View style={styles.panel}>
+      <View style={styles.group}>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>Tu semana</Text>
+        <Text style={styles.meta}>{home.week.label}</Text>
+      </View>
+      {!stats ? query.isError ? (
+        <Recovery message="No pudimos cargar tu actividad semanal."
+          label="Reintentar actividad" onRetry={() => { void query.refetch(); }} />
+      ) : <Loading label="Cargando actividad semanal…" /> : (
+        <>
+          <View style={styles.metrics}>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>{stats.completedWorkouts}</Text>
+              <Text style={styles.body}>{stats.hasIncompleteData ? 'Entrenamientos registrados' : 'Entrenamientos'}</Text>
+            </View>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>{stats.activeMinutes}</Text>
+              <Text style={styles.body}>{incomplete ? 'Minutos registrados' : 'Minutos'}</Text>
+            </View>
+          </View>
+          {incomplete && (
+            <Recovery
+              message="Hay información incompleta. Los valores muestran solo las sesiones y duraciones válidas; pueden faltar registros."
+              label="Actualizar actividad" onRetry={() => { void query.refetch(); }}
+            />
+          )}
+          <View style={styles.group}>
+            <Text style={styles.body}>Actividad por día</Text>
+            <View style={styles.days}>
+              {WEEKDAYS.map((day, index) => (
+                <View key={day} style={styles.day} accessible
+                  accessibilityLabel={`${day}: ${stats.activeDays[index] ? 'entrenamiento registrado' : incomplete ? 'sin entrenamiento registrado; información incompleta' : 'sin entrenamiento terminado'}`}>
+                  <Text style={styles.dayLabel}>{day}</Text>
+                  <Text style={[styles.dayMark, stats.activeDays[index] && styles.activeDay]}>
+                    {stats.activeDays[index] ? '✓' : '—'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          {stats.completedWorkouts === 0 && !incomplete && (
+            <Text style={styles.body}>Aún no hay entrenamientos terminados esta semana.</Text>
+          )}
+          {query.isError ? (
+            <Recovery message="No pudimos actualizar tu actividad. Mostramos la última información disponible."
+              label="Reintentar actividad" onRetry={() => { void query.refetch(); }} />
+          ) : query.isFetching && <Text style={styles.meta} accessibilityLiveRegion="polite">Actualizando actividad…</Text>}
+        </>
+      )}
+      <HomeButton label="Ver historial" onPress={() => navigation.navigate('Workout', { screen: 'WorkoutHistory' })} />
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();
-  const { name, dateLabel } = useHomeGreeting();
-  const { data: weeklyStats, isLoading: statsLoading } = useWeeklyStats();
-
-  const hasStats = weeklyStats !== null && weeklyStats !== undefined;
-
-  const handleNotifications = () => {
-    // Placeholder: notificaciones no implementadas
-  };
-
-  const handleCreateRoutine = () => {
-    navigation.navigate('Routines', { screen: 'RoutinesList' });
-  };
-
-  const handleStartWorkout = () => {
-    navigation.navigate('Workout', { screen: 'WorkoutStart' });
-  };
-
+  const home = useHomeData();
+  const { width } = useWindowDimensions();
+  const wide = width >= 960;
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Inicio</Text>
-          <TouchableOpacity
-            onPress={handleNotifications}
-            style={styles.notifButton}
-            activeOpacity={0.7}
-            accessibilityLabel="Notificaciones"
-          >
-            <Bell size={22} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.group}>
+          <Text style={styles.eyebrow}>INICIO</Text>
+          <Text accessibilityRole="header" style={styles.greeting}>Hola{home.name ? `, ${home.name}` : ''}</Text>
+          <Text style={styles.body}>{home.dateLabel}</Text>
         </View>
-
-        {/* Greeting */}
-        <View style={styles.greetingSection}>
-          <Text style={styles.greeting}>Hola{name ? `, ${name}` : ''}</Text>
-          <Text style={styles.dateLabel}>{dateLabel}</Text>
-        </View>
-
-        {/* Today's Workout */}
-        <View style={styles.todayCard}>
-          <View style={styles.todayHeader}>
-            <View style={styles.todayBadge}>
-              <Text style={styles.todayBadgeText}>HOY</Text>
-            </View>
+        <View style={[styles.columns, wide && styles.wideColumns]}>
+          <View style={[styles.mainColumn, wide && styles.wideMain]}>
+            {home.isTrainer ? <TrainerPanel home={home} navigation={navigation} />
+              : <WorkoutPanel home={home} navigation={navigation} />}
           </View>
-
-          <View style={styles.todayBody}>
-            <View style={styles.todayIconCircle}>
-              <Calendar size={24} color={theme.colors.textSecondary} strokeWidth={1.5} />
-            </View>
-            <Text style={styles.todayEmptyTitle}>Aún no hay entrenamiento para hoy</Text>
-            <Text style={styles.todayEmptyDesc}>
-              Cuando tengas una rutina asignada, aparecerá aquí.
-            </Text>
+          <View style={[styles.sideColumn, wide && styles.wideSide]}>
+            {home.isTrainer && <WorkoutPanel home={home} navigation={navigation} secondary />}
+            <WeeklyPanel home={home} navigation={navigation} />
           </View>
-
-          <PrimaryButton
-            label="Ver mis rutinas"
-            onPress={handleCreateRoutine}
-          />
-        </View>
-
-        {/* Weekly Stats */}
-        <Text style={styles.sectionTitle}>ESTA SEMANA</Text>
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIconSlot}>
-              <Dumbbell size={18} color={theme.colors.primary} strokeWidth={1.5} />
-            </View>
-            <Text style={styles.metricValue}>
-              {statsLoading ? '...' : hasStats ? weeklyStats.completedWorkouts : '0'}
-            </Text>
-            <Text style={styles.metricLabel}>Entrenamientos</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIconSlot}>
-              <TrendingUp size={18} color={theme.colors.primary} strokeWidth={1.5} />
-            </View>
-            <Text style={styles.metricValue}>
-              {statsLoading ? '...' : hasStats ? `${weeklyStats.totalVolumeKg}` : '0'}
-            </Text>
-            <Text style={styles.metricLabel}>Volumen (kg)</Text>
-          </View>
-          <View style={styles.metricCard}>
-            <View style={styles.metricIconSlot}>
-              <Clock size={18} color={theme.colors.primary} strokeWidth={1.5} />
-            </View>
-            <Text style={styles.metricValue}>
-              {statsLoading ? '...' : hasStats ? `${weeklyStats.activeMinutes}` : '0'}
-            </Text>
-            <Text style={styles.metricLabel}>Min. activos</Text>
-          </View>
-        </View>
-
-        {/* Streak */}
-        <Text style={styles.sectionTitle}>RACHA</Text>
-        <View style={styles.streakCard}>
-          <View style={styles.streakHeader}>
-            <Flame size={20} color={theme.colors.primary} strokeWidth={1.5} />
-            <Text style={styles.streakEmptyTitle}>Aún no tienes racha</Text>
-          </View>
-          <Text style={styles.streakEmptyDesc}>
-            Completa tu primer entrenamiento para comenzar.
-          </Text>
-          <View style={styles.streakDots}>
-            {WEEKDAYS.map((day, i) => (
-              <View key={day} style={styles.streakCircle}>
-                <Text style={styles.streakDay}>{day}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* For You */}
-        <Text style={styles.sectionTitle}>PARA TI</Text>
-        <View style={styles.foryouCard}>
-          <Text style={styles.foryouEmptyTitle}>Recomendaciones no disponibles</Text>
-          <Text style={styles.foryouEmptyDesc}>
-            Esta sección estará disponible cuando se implemente el módulo de rutinas
-            sugeridas.
-          </Text>
-          <SecondaryButton
-            label="Próximamente"
-            onPress={() => {}}
-            disabled
-          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -162,232 +267,47 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
+  safe: { flex: 1, backgroundColor: theme.colors.background },
+  content: {
+    width: '100%', maxWidth: 1100, alignSelf: 'center',
+    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40, gap: 24,
   },
-  scroll: {
-    flex: 1,
+  group: { gap: 12 },
+  columns: { gap: 24 },
+  wideColumns: { flexDirection: 'row', alignItems: 'flex-start' },
+  mainColumn: { minWidth: 0 },
+  sideColumn: { gap: 24, minWidth: 0 },
+  wideMain: { flex: 1.8 },
+  wideSide: { flex: 1 },
+  panel: {
+    backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg, padding: 16, gap: 12,
   },
-  scrollContent: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.xxxl,
-    gap: theme.spacing.xl,
+  management: { gap: 12, marginTop: 12 },
+  eyebrow: { color: theme.colors.primary, fontSize: 13, lineHeight: 18, fontWeight: '700', letterSpacing: 1 },
+  greeting: { color: theme.colors.textPrimary, ...theme.typography.heading1 },
+  actionTitle: { color: theme.colors.textPrimary, fontSize: 24, lineHeight: 30, fontWeight: '700' },
+  sectionTitle: { color: theme.colors.textPrimary, ...theme.typography.heading3 },
+  body: { color: theme.colors.textSecondary, ...theme.typography.body },
+  meta: { color: theme.colors.textSecondary, ...theme.typography.small },
+  notice: { color: theme.colors.textPrimary, ...theme.typography.body },
+  loading: { gap: 12, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  button: {
+    minHeight: 48, minWidth: 44, paddingHorizontal: 16, paddingVertical: 12,
+    borderRadius: theme.radius.md, borderWidth: 2, borderColor: theme.colors.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-
-  /* Header */
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: theme.spacing.xs,
-  },
-  headerTitle: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.heading2.fontSize,
-    lineHeight: theme.typography.heading2.lineHeight,
-    fontWeight: theme.typography.heading2.fontWeight,
-  },
-  notifButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  /* Greeting */
-  greetingSection: {
-    gap: theme.spacing.xs,
-    marginBottom: theme.spacing.xs,
-  },
-  greeting: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.heading1.fontSize,
-    lineHeight: theme.typography.heading1.lineHeight,
-    fontWeight: theme.typography.heading1.fontWeight,
-  },
-  dateLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.body.fontSize,
-    lineHeight: theme.typography.body.lineHeight,
-  },
-
-  /* Today Card */
-  todayCard: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
-  },
-  todayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  todayBadge: {
-    backgroundColor: theme.colors.primaryMuted,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    borderRadius: theme.radius.full,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xxs,
-  },
-  todayBadgeText: {
-    color: theme.colors.primary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  todayBody: {
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.lg,
-  },
-  todayIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: theme.colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  todayEmptyTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.bodyStrong.fontSize,
-    lineHeight: theme.typography.bodyStrong.lineHeight,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  todayEmptyDesc: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    textAlign: 'center',
-    paddingHorizontal: theme.spacing.md,
-  },
-
-  /* Section title */
-  sectionTitle: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.caption.fontSize,
-    lineHeight: theme.typography.caption.lineHeight,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-
-  /* Metrics */
-  metricsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.md,
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  metricIconSlot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.primaryMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricValue: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.heading3.fontSize,
-    lineHeight: theme.typography.heading3.lineHeight,
-    fontWeight: '800',
-  },
-  metricLabel: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.caption.fontSize,
-    lineHeight: theme.typography.caption.lineHeight,
-    fontWeight: '600',
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-
-  /* Streak */
-  streakCard: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
-    alignItems: 'center',
-  },
-  streakHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-  },
-  streakEmptyTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.bodyStrong.fontSize,
-    lineHeight: theme.typography.bodyStrong.lineHeight,
-    fontWeight: '600',
-  },
-  streakEmptyDesc: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    textAlign: 'center',
-  },
-  streakDots: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-  },
-  streakCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakDay: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.caption.fontSize,
-    fontWeight: '600',
-  },
-
-  /* For You */
-  foryouCard: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
-    alignItems: 'center',
-  },
-  foryouEmptyTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.typography.bodyStrong.fontSize,
-    lineHeight: theme.typography.bodyStrong.lineHeight,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  foryouEmptyDesc: {
-    color: theme.colors.textSecondary,
-    fontSize: theme.typography.small.fontSize,
-    lineHeight: theme.typography.small.lineHeight,
-    textAlign: 'center',
-    paddingHorizontal: theme.spacing.md,
-  },
+  primaryButton: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  pressedButton: { opacity: 0.8 },
+  focusedButton: { borderColor: theme.colors.textPrimary, borderStyle: 'dashed' },
+  buttonText: { color: theme.colors.textPrimary, ...theme.typography.button, textAlign: 'center' },
+  primaryButtonText: { color: theme.colors.background },
+  metrics: { flexDirection: 'row', gap: 12 },
+  metric: { flex: 1, minWidth: 0, gap: 8 },
+  metricValue: { color: theme.colors.textPrimary, ...theme.typography.heading1 },
+  days: { flexDirection: 'row', gap: 4 },
+  day: { flex: 1, minWidth: 0, alignItems: 'center', gap: 8 },
+  dayLabel: { color: theme.colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  dayMark: { color: theme.colors.textSecondary, fontSize: 18, lineHeight: 26 },
+  activeDay: { color: theme.colors.primary, fontWeight: '700' },
 });
