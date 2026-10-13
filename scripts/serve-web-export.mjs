@@ -48,7 +48,13 @@ const isAssetLikePath = (pathname) =>
   pathname.startsWith('/assets/') || pathname.startsWith('/_expo/') || extname(pathname) !== '';
 
 const safeResolve = (pathname) => {
-  const decoded = decodeURIComponent(pathname);
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    // Percent-encoding malformado (p. ej. `/%`): el handler responde 400 sin tumbar el proceso.
+    return null;
+  }
   const candidate = normalize(join(distDir, decoded));
   if (candidate !== distDir && !candidate.startsWith(distDir + sep)) return null;
   return candidate;

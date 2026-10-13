@@ -10,7 +10,8 @@
     "export:web": "expo export --platform web",
     "serve:web": "node scripts/serve-web-export.mjs",
     "test:web-session": "node scripts/web-session.test.mjs",
-    "test:register-form": "node scripts/register-form.test.mjs"
+    "test:register-form": "node scripts/register-form.test.mjs",
+    "test:serve-web-export": "node scripts/serve-web-export.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
