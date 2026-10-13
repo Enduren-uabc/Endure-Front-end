@@ -18,6 +18,7 @@ export const registerSchema = z
     password: z
       .string()
       .min(8, 'Mínimo 8 caracteres')
+      .max(128, 'Usa como máximo 128 caracteres')
       .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
       .regex(/[0-9]/, 'Debe contener al menos un número'),
     confirmPassword: z.string().min(1, 'Confirma tu contraseña'),

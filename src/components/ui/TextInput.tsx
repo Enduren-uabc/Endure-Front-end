@@ -4,7 +4,10 @@ import {
   TextInput as RNTextInput,
   Text,
   StyleSheet,
+  Platform,
   type TextInputProps as RNTextInputProps,
+  type StyleProp,
+  type TextStyle,
 } from 'react-native';
 import { theme } from '@/theme';
 
@@ -21,9 +24,14 @@ interface TextInputProps {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   secureTextEntry?: boolean;
   error?: string;
+  helperText?: string;
+  describedBy?: string;
+  accessibilityHint?: string;
+  errorTextStyle?: StyleProp<TextStyle>;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   autoCorrect?: boolean;
@@ -37,13 +45,18 @@ interface TextInputProps {
   rightElement?: React.ReactNode;
 }
 
-export function TextInput({
+export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(function TextInput({
   label,
   value,
   onChangeText,
+  onBlur,
   placeholder,
   secureTextEntry,
   error,
+  helperText,
+  describedBy,
+  accessibilityHint,
+  errorTextStyle,
   autoCapitalize = 'none',
   keyboardType = 'default',
   autoCorrect,
@@ -55,8 +68,22 @@ export function TextInput({
   textContentType,
   autoComplete,
   rightElement,
-}: TextInputProps) {
+}: TextInputProps, ref) {
   const [isFocused, setIsFocused] = React.useState(false);
+  const feedbackId = React.useId().replace(/[:]/g, '');
+  const errorId = `${feedbackId}-error`;
+  const helperId = `${feedbackId}-help`;
+
+  // react-native-web acepta atributos ARIA que los tipos de React Native no
+  // declaran; solo se envían en web para no alterar iOS ni Android.
+  const webAriaProps =
+    Platform.OS === 'web'
+      ? ({
+          'aria-describedby': [helperText ? helperId : undefined, describedBy, error ? errorId : undefined]
+            .filter(Boolean).join(' ') || undefined,
+          'aria-invalid': error ? true : undefined,
+        } as unknown as RNTextInputProps)
+      : undefined;
 
   const handleChangeText = React.useCallback(
     (text: string) => {
@@ -71,16 +98,18 @@ export function TextInput({
       <View
         style={[
           styles.inputWrapper,
-          isFocused ? styles.inputFocused : null,
           error ? styles.inputError : null,
+          isFocused ? styles.inputFocused : null,
           disabled ? styles.inputDisabled : null,
         ]}
       >
         <RNTextInput
+          {...webAriaProps}
+          ref={ref}
           value={value}
           onChangeText={handleChangeText}
           placeholder={placeholder}
-          placeholderTextColor={theme.colors.textMuted}
+          placeholderTextColor={theme.colors.textSecondary}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
@@ -93,15 +122,37 @@ export function TextInput({
           autoComplete={autoComplete}
           selectionColor={theme.colors.primary}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          style={[styles.input, disabled ? styles.inputTextDisabled : null]}
+          onBlur={() => {
+            setIsFocused(false);
+            onBlur?.();
+          }}
+          accessibilityLabel={label}
+          accessibilityHint={[helperText, accessibilityHint, error].filter(Boolean).join('. ') || undefined}
+          style={[
+            styles.input,
+            Platform.OS === 'web' ? styles.inputWeb : null,
+            disabled ? styles.inputTextDisabled : null,
+          ]}
         />
         {rightElement ? <View style={styles.rightElement}>{rightElement}</View> : null}
       </View>
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {helperText ? (
+        <Text nativeID={helperId} style={styles.helperText}>
+          {helperText}
+        </Text>
+      ) : null}
+      {error ? (
+        <Text
+          nativeID={errorId}
+          style={[styles.errorText, errorTextStyle]}
+          accessibilityLiveRegion="polite"
+        >
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -130,11 +181,20 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    minWidth: 0,
     color: theme.colors.textPrimary,
     fontSize: theme.typography.body.fontSize,
     lineHeight: theme.typography.body.lineHeight,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
+  },
+  inputWeb: {
+    // En web el navegador dibuja su propio anillo de foco (outline) sobre el
+    // input, con color según su tema (claro en oscuro, azul en claro). Se
+    // anula aquí; el indicador de foco visible lo aporta inputFocused en el
+    // contenedor redondeado.
+    outlineStyle: 'solid',
+    outlineWidth: 0,
   },
   inputFocused: {
     borderColor: theme.colors.primary,
@@ -157,5 +217,11 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.fontSize,
     lineHeight: theme.typography.caption.lineHeight,
     marginTop: theme.spacing.xs,
+  },
+  helperText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    lineHeight: theme.typography.small.lineHeight,
+    marginTop: theme.spacing.sm,
   },
 });

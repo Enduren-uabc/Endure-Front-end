@@ -7,20 +7,37 @@ interface PrimaryButtonProps {
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
+  loadingLabel?: string;
   style?: StyleProp<ViewStyle>;
   icon?: React.ReactNode;
 }
 
-export function PrimaryButton({ label, onPress, disabled, loading, style, icon }: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, disabled, loading, loadingLabel, style, icon }: PrimaryButtonProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[styles.button, (disabled || loading) && styles.disabled, style]}
+      style={[
+        styles.button,
+        (disabled || loading) && styles.disabled,
+        loading && loadingLabel ? styles.loadingWithLabel : null,
+        style,
+      ]}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={loading && loadingLabel ? loadingLabel : label}
+      accessibilityState={{ disabled: Boolean(disabled || loading), busy: Boolean(loading) }}
+      aria-busy={Boolean(loading)}
     >
       {loading ? (
-        <ActivityIndicator color={theme.colors.background} />
+        <>
+          <ActivityIndicator color={theme.colors.background} aria-hidden />
+          {loadingLabel ? (
+            <Text style={[styles.text, styles.loadingText]} accessibilityLiveRegion="polite">
+              {loadingLabel}
+            </Text>
+          ) : null}
+        </>
       ) : (
         <>
           {icon && icon}
@@ -44,6 +61,13 @@ const styles = StyleSheet.create({
   },
   disabled: {
     backgroundColor: theme.colors.primaryMuted,
+  },
+  loadingWithLabel: {
+    backgroundColor: theme.colors.primary,
+    opacity: 0.8,
+  },
+  loadingText: {
+    marginLeft: theme.spacing.sm,
   },
   text: {
     color: theme.colors.background,
