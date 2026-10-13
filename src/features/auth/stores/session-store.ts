@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 interface SessionState {
   userId: string | null;
@@ -32,7 +33,7 @@ export const useSessionStore = create<SessionState & SessionActions>()(
   persist(
     (set) => ({
       ...initialState,
-      setSession: (userId, role, username, email = null, onboardingCompleted = null, emailVerified = false) =>
+      setSession: (userId, role, username, email = undefined, onboardingCompleted = null, emailVerified = false) =>
         set({
           userId,
           username: username ?? null,
@@ -51,14 +52,15 @@ export const useSessionStore = create<SessionState & SessionActions>()(
     {
       name: 'endure-session',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
+      skipHydration: Platform.OS === 'web',
+      partialize: (state) => Platform.OS === 'web' ? {} : ({
         userId: state.userId, username: state.username, email: state.email, role: state.role,
         isAuthenticated: state.isAuthenticated, onboardingCompleted: state.onboardingCompleted,
         emailVerified: state.emailVerified,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setLoading(false);
-        state?.setHasHydrated(true);
+        if (Platform.OS !== 'web') state?.setHasHydrated(true);
       },
     },
   ),

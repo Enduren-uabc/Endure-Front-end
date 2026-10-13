@@ -21,7 +21,7 @@ const returnUrl = makeRedirectUri({
 });
 
 async function saveSession(data: AuthResponse, setSession: ReturnType<typeof useSessionStore.getState>['setSession']) {
-  if (data.accessToken && data.refreshToken) {
+  if (Platform.OS !== 'web' && data.accessToken && data.refreshToken) {
     await tokenStore.setAccessToken(data.accessToken);
     await tokenStore.setRefreshToken(data.refreshToken);
   }

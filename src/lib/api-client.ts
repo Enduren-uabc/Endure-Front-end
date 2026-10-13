@@ -1,8 +1,16 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { useSessionStore } from '@/features/auth/stores/session-store';
 import { tokenStore } from './secure-token-store';
+import { Platform } from 'react-native';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const IS_WEB = Platform.OS === 'web';
+
+function csrfToken(): string | null {
+  if (!IS_WEB || typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -15,11 +23,13 @@ export const api = axios.create({
 
 api.interceptors.request.use(
   async (config) => {
-    config.headers['X-Client-Type'] = 'mobile';
-
-    const accessToken = await tokenStore.getAccessToken();
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
+    if (IS_WEB) {
+      const token = csrfToken();
+      if (token) config.headers['X-CSRF-Token'] = token;
+    } else {
+      config.headers['X-Client-Type'] = 'mobile';
+      const accessToken = await tokenStore.getAccessToken();
+      if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
     return config;
@@ -46,7 +56,8 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest &&
+        originalRequest.url !== '/auth/refresh' && !originalRequest._retry) {
       if (isRefreshing) {
         if (originalRequest.url === '/auth/refresh') {
           return Promise.reject(error);
@@ -63,14 +74,15 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshToken = await tokenStore.getRefreshToken();
+        const refreshToken = IS_WEB ? null : await tokenStore.getRefreshToken();
         const { data } = await api.post<{
           success: boolean;
           accessToken?: string;
           refreshToken?: string;
         }>('/auth/refresh', refreshToken ? { refreshToken } : undefined);
 
-        if (data.success && data.accessToken && data.refreshToken) {
+        if (!data.success) throw error;
+        if (!IS_WEB && data.accessToken && data.refreshToken) {
           await tokenStore.setAccessToken(data.accessToken);
           await tokenStore.setRefreshToken(data.refreshToken);
         }

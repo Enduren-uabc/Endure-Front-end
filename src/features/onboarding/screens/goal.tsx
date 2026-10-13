@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Dumbbell, HeartPulse, Gauge, TrendingDown, Target } from 'lucide-react-native';
 import type { OnboardingStackParamList } from '@/navigation/types';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { useLogout } from '@/features/auth/hooks/use-auth';
 import {
   useOnboardingStore,
   type OnboardingGoal,
@@ -31,6 +32,7 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'Goal'>;
 export default function OnboardingGoalScreen({ navigation }: Props) {
   const mainGoal = useOnboardingStore((s) => s.mainGoal);
   const setMainGoal = useOnboardingStore((s) => s.setMainGoal);
+  const logout = useLogout();
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -94,6 +96,20 @@ export default function OnboardingGoalScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('BasicData')}
             disabled={!mainGoal}
           />
+          <TouchableOpacity
+            onPress={() => logout.mutate()}
+            disabled={logout.isPending}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar sesión"
+            style={styles.logoutButton}
+          >
+            <Text style={styles.logoutText}>
+              {logout.isPending ? 'Cerrando sesión...' : 'Cerrar sesión'}
+            </Text>
+          </TouchableOpacity>
+          {logout.isError && (
+            <Text style={styles.logoutError}>No se pudo cerrar sesión. Inténtalo de nuevo.</Text>
+          )}
         </View>
 
       </View>
@@ -206,5 +222,20 @@ const styles = StyleSheet.create({
   buttonWrapper: {
     width: '100%',
     marginTop: 'auto',
+  },
+  logoutButton: {
+    alignSelf: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
+  },
+  logoutText: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.body.fontSize,
+    textAlign: 'center',
+  },
+  logoutError: {
+    color: theme.colors.error,
+    textAlign: 'center',
   },
 });

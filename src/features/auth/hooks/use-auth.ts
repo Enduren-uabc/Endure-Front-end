@@ -3,6 +3,7 @@ import { apiClient, ApiError } from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/lib/api-endpoints';
 import { tokenStore } from '@/lib/secure-token-store';
 import { useSessionStore } from '@/features/auth/stores/session-store';
+import { Platform } from 'react-native';
 
 export interface AuthResponse {
   id: string;
@@ -56,7 +57,7 @@ export function useLogin() {
   return useMutation<AuthResponse, ApiError, LoginBody>({
     mutationFn: (body) => apiClient.post<AuthResponse>(API_ENDPOINTS.auth.login, body),
     onSuccess: async (data) => {
-      if (data.accessToken && data.refreshToken) {
+      if (Platform.OS !== 'web' && data.accessToken && data.refreshToken) {
         await tokenStore.setAccessToken(data.accessToken);
         await tokenStore.setRefreshToken(data.refreshToken);
       }
@@ -85,7 +86,8 @@ export function useLogout() {
   const queryClient = useQueryClient();
 
   return useMutation<{ message: string }, ApiError>({
-    mutationFn: () => apiClient.post<{ message: string }>(API_ENDPOINTS.auth.logout),
+    mutationFn: async () => apiClient.post<{ message: string }>(API_ENDPOINTS.auth.logout,
+      Platform.OS === 'web' ? undefined : { refreshToken: await tokenStore.getRefreshToken() }),
     onSuccess: async () => {
       await tokenStore.clear();
       clearSession();

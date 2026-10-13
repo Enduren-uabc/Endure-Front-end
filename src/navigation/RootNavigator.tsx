@@ -21,6 +21,10 @@ import AdminDrawer from '@/features/admin/navigation/AdminDrawer';
 import ExerciseCatalogScreen from '@/features/training/screens/exercise-catalog';
 import { RootStackParamList } from './types';
 import { theme } from '@/theme';
+import { Platform } from 'react-native';
+import { api } from '@/lib/api-client';
+import { tokenStore } from '@/lib/secure-token-store';
+import type { MeResponse } from '@/features/auth/hooks/use-auth';
 import { ROLE_ROUTING_CONFIG, getRoleConfig, AppRole } from './role-routing.config';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -83,6 +87,7 @@ const linking: LinkingOptions<RootStackParamList> = {
         },
       },
       TrainerApp: {
+        path: 'trainer',
         screens: {
           MainTabs: {
             screens: {
@@ -116,13 +121,14 @@ const linking: LinkingOptions<RootStackParamList> = {
         },
       },
       AdminApp: {
+        path: 'admin',
         screens: {
           MainTabs: {
             screens: {
               Verifications: {
                 screens: {
-                  PendingVerifications: 'admin/verifications',
-                  VerificationDetail: 'admin/verifications/:verificationId',
+                  PendingVerifications: 'verifications',
+                  VerificationDetail: 'verifications/:verificationId',
                 },
               },
             },
@@ -137,6 +143,25 @@ const linking: LinkingOptions<RootStackParamList> = {
 };
 
 export default function RootNavigator() {
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    let active = true;
+    void (async () => {
+      try {
+        await tokenStore.clear();
+        const { data } = await api.get<MeResponse>('/auth/me');
+        if (active && data?.id) {
+          useSessionStore.getState().setSession(data.id, data.role, data.username,
+            data.email, data.onboardingCompleted ?? null, data.emailVerified);
+        }
+      } catch {
+        if (active) useSessionStore.getState().clearSession();
+      } finally {
+        if (active) useSessionStore.getState().setHasHydrated(true);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   const emailVerified = useSessionStore((s) => s.emailVerified);
   const role = useSessionStore((s) => s.role) as AppRole | null;
@@ -156,7 +181,20 @@ export default function RootNavigator() {
   const targetRoute = React.useMemo<keyof RootStackParamList | null>(() => {
     if (!hasHydrated) return null;
     if (!isAuthenticated) return 'AuthStack';
-    if (!emailVerified) return 'PendingVerification';
+
+    // ── TASK-012 DEV BYPASS (inicio) ─────────────────────────────────
+    // Sin servicio de correo, en desarrollo se entra a la app sin verificar.
+    // Flujo original: if (!emailVerified) return 'PendingVerification';
+    // Para probar el flujo real en desarrollo:
+    //   EXPO_PUBLIC_AUTH_EMAIL_VERIFICATION_DISABLED=false
+    // En producción (__DEV__ === false) el flujo original sigue activo.
+    const emailVerificationDisabled =
+      __DEV__ &&
+      process.env.EXPO_PUBLIC_AUTH_EMAIL_VERIFICATION_DISABLED !== 'false';
+    if (!emailVerified && !emailVerificationDisabled) {
+      return 'PendingVerification';
+    }
+    // ── TASK-012 DEV BYPASS (fin) ────────────────────────────────────
 
     const roleConfig = getRoleConfig(role);
     if (!roleConfig) {

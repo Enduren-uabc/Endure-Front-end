@@ -10,11 +10,6 @@ function isWeb(): boolean {
 
 async function safeSet(key: string, value: string): Promise<void> {
   if (isWeb()) {
-    try {
-      localStorage.setItem(key, value);
-    } catch {
-      // Storage can be unavailable in private modes or restricted browsers.
-    }
     return;
   }
 
@@ -23,11 +18,7 @@ async function safeSet(key: string, value: string): Promise<void> {
 
 async function safeGet(key: string): Promise<string | null> {
   if (isWeb()) {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
+    return null;
   }
 
   return SecureStore.getItemAsync(key);
